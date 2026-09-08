@@ -1,9 +1,14 @@
 import os
 import requests
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, render_template
+
 
 
 app = Flask(__name__)
+@app.route('/')
+def home():
+    return render_template('index.html')
+
 
 # Tu API Key secreta de la Testnet de Pi Network
 PI_API_KEY = "uqfzqzchavl17hjejdeo2ou59siqreh8sdqisqxu6ladkngqlrh56dpgr1stz3nl"
