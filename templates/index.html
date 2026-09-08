@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle Predict</title>
+    <!-- SDK oficial de Pi Network -->
+    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background: #121212; color: #fff; text-align: center; padding: 50px; }
+        button { background: #800080; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 8px; cursor: pointer; margin-top: 20px; }
+        button:hover { background: #990099; }
+    </style>
+</head>
+<body>
+    <h1>Oracle Predict</h1>
+    <p>Plataforma de Pronósticos y Predicciones en Pi Network</p>
+    <button onclick="realizarPagoPrueba()">Hacer Predicción (1 Pi)</button>
+    <p id="resultado" style="margin-top: 20px;"></p>
+
+    <script>
+        // Inicializar Pi SDK en modo Sandbox / Testnet
+        Pi.init({ version: "2.0", sandbox: true });
+
+        function realizarPagoPrueba() {
+            const paymentData = {
+                amount: 1.0,
+                memo: "Prueba de transaccion Oracle Predict",
+                metadata: { predictionId: "test_1" },
+            };
+
+            const callbacks = {
+                onReadyForServerApproval: function(paymentId) {
+                    document.getElementById("resultado").innerText = "Aprobando pago en servidor...";
+                },
+                onReadyForServerCompletion: function(paymentId, txid) {
+                    document.getElementById("resultado").innerText = "¡Pago completado con éxito! Ya puedes avanzar en el portal.";
+                },
+                onCancel: function(paymentId) {
+                    document.getElementById("resultado").innerText = "Pago cancelado.";
+                },
+                onError: function(error, payment) {
+                    document.getElementById("resultado").innerText = "Error en el pago: " + error.message;
+                }
+            };
+
+            Pi.createPayment(paymentData, callbacks);
+        }
+    </script>
+</body>
+</html>
