@@ -1,13 +1,19 @@
 import os
 import requests
-from flask import Flask, jsonify, request, render_template
-
-
+from flask import Flask, jsonify, request, send_file, render_template
 
 app = Flask(__name__)
+
 @app.route('/')
 def home():
     return render_template('index.html')
+
+
+
+
+
+
+
 
 
 # Tu API Key secreta de la Testnet de Pi Network
