@@ -8,14 +8,6 @@ app = Flask(__name__)
 def home():
     return render_template('index.html')
 
-
-
-
-
-
-
-
-
 # Tu API Key secreta de la Testnet de Pi Network
 PI_API_KEY = "uqfzqzchavl17hjejdeo2ou59siqreh8sdqisqxu6ladkngqlrh56dpgr1stz3nl"
 PI_SERVER_URL = "https://api.minepi.com/v2"
@@ -29,14 +21,6 @@ eventos_activos = {
         "predicciones": {},
     }
 }
-
-
-@app.route("/", methods=["GET"])
-def home():
-  return jsonify({
-      "estado": "activo",
-      "mensaje": "Bienvenido al backend de Oracle Predict",
-  })
 
 
 @app.route("/api/evento/<int:evento_id>", methods=["GET"])
@@ -114,5 +98,3 @@ def serve_validation_key():
 if __name__ == "__main__":
   port = int(os.environ.get("PORT", 5000))
   app.run(host="0.0.0.0", port=port)
-    
-
