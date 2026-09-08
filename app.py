@@ -4,7 +4,7 @@ from flask import Flask, jsonify, request, render_template
 
 app = Flask(__name__)
 
-# Lista de mercados profesionales con opciones, pozos, fechas y ganadores
+# Lista de mercados profesionales
 eventos = [
     {
         "id": 1,
@@ -23,12 +23,16 @@ eventos = [
     }
 ]
 
+# Saldos de premios listos para que los usuarios los reclamen
+# Estructura: {"Pionero": 5.42, "Usuario2": 12.0}
+saldos_pendientes = {}
+
 @app.route('/')
 def index():
     try:
         return render_template('index.html')
     except Exception:
-        return "¡P2Ppredict Backend con Resolución Funcionando! 🔮"
+        return "¡P2Ppredict Backend con Reclamos Funcionando! 🔮"
 
 @app.route('/validation-key.txt')
 def validation_key():
@@ -49,6 +53,12 @@ def obtener_eventos():
             except Exception:
                 pass
     return jsonify(eventos)
+
+# Consultar el saldo pendiente de un usuario específico
+@app.route('/api/saldo/<username>', methods=['GET'])
+def obtener_saldo(username):
+    saldo = saldos_pendientes.get(username, 0.0)
+    return jsonify({"success": True, "username": username, "saldo_disponible": round(saldo, 4)})
 
 @app.route('/api/crear-evento', methods=['POST'])
 def crear_evento():
@@ -99,7 +109,7 @@ def participar():
     if not opcion:
         return jsonify({"success": False, "error": "Opción inválida"}), 404
 
-    # Retención automática del 2% de comisión para la casa
+    # 2% de comisión para la casa
     comision = monto_pagado * 0.02
     monto_para_pozo = monto_pagado * 0.98
 
@@ -115,7 +125,7 @@ def participar():
     
     return jsonify({"success": True, "mensaje": f"¡Apuesta registrada en '{opcion['nombre']}'!"})
 
-# Ruta para resolver el mercado y calcular los pagos a los ganadores
+# Resolver mercado y acumular los premios en las cuentas de los ganadores
 @app.route('/api/resolver', methods=['POST'])
 def resolver_evento():
     data = request.json or {}
@@ -136,30 +146,40 @@ def resolver_evento():
     evento["estado"] = "resuelto"
     evento["ganador_id"] = ganador_id
     
-    # Calcular distribución de premios
-    pozo_a_repartir = sum(op["pozo"] for op in evento["opciones"]) # Esto ya descuenta la comisión acumulada en `comision_casa`
+    pozo_a_repartir = sum(op["pozo"] for op in evento["opciones"])
     pozo_ganador = opcion_ganadora["pozo"]
-    
-    resultados_pagos = []
     
     if pozo_ganador > 0:
         for p in evento["participantes"]:
             if p["opcion_id"] == ganador_id:
-                # Proporción que le toca a cada ganador según su aporte
                 proporcion = p["monto"] / pozo_ganador
                 premio = proporcion * pozo_a_repartir
-                resultados_pagos.append({
-                    "usuario": p["usuario"],
-                    "premio_a_pagar": round(premio, 4)
-                })
-    else:
-        resultados_pagos.append({"mensaje": "Nadie apostó por la opción ganadora. El pozo pasa a la casa."})
+                usuario = p["usuario"]
+                
+                # Asignar el saldo pendiente al usuario para que lo reclame
+                saldos_pendientes[usuario] = saldos_pendientes.get(usuario, 0.0) + premio
 
     return jsonify({
         "success": True,
-        "mensaje": f"¡Mercado resuelto! Ganó: {opcion_ganadora['nombre']}",
-        "pagos": resultados_pagos,
-        "comision_retenida_casa": round(evento["comision_casa"], 4)
+        "mensaje": f"¡Mercado resuelto con éxito! Ganó: {opcion_ganadora['nombre']}. Premios asignados a los saldos de los ganadores."
+    })
+
+# Ruta para que el usuario reclame su premio acumulado
+@app.route('/api/reclamar', methods=['POST'])
+def reclamar_premio():
+    data = request.json or {}
+    usuario = data.get('username', 'Pionero')
+    
+    saldo_actual = saldos_pendientes.get(usuario, 0.0)
+    if saldo_actual <= 0:
+        return jsonify({"success": False, "error": "No tienes saldo disponible para reclamar."}), 400
+    
+    # Aquí se vacía el saldo (simulando la transferencia exitosa a su wallet o SDK)
+    saldos_pendientes[usuario] = 0.0
+    
+    return jsonify({
+        "success": True, 
+        "mensaje": f"¡Reclamo exitoso! Se han transferido {round(saldo_actual, 4)} Pi a tu monedero."
     })
 
 if __name__ == '__main__':
