@@ -4,7 +4,6 @@ from flask import Flask, jsonify, request, render_template
 
 app = Flask(__name__)
 
-# Lista de mercados profesionales con categorías y estados
 eventos = [
     {
         "id": 1,
@@ -24,16 +23,15 @@ eventos = [
     }
 ]
 
-# Saldos y registros detallados de apuestas por usuario
 saldos_pendientes = {}
-historial_apuestas = [] # Almacena cada apuesta para mostrar el historial personal
+historial_apuestas = []
 
 @app.route('/')
 def index():
     try:
         return render_template('index.html')
     except Exception:
-        return "¡P2Ppredict Profesional Backend Funcionando! 🔮"
+        return "¡P2Ppredict Admin Backend Funcionando! 🔮"
 
 @app.route('/validation-key.txt')
 def validation_key():
@@ -55,10 +53,35 @@ def obtener_eventos():
                 pass
     return jsonify(eventos)
 
+# Endpoint de métricas financieras para el administrador
+@app.route('/api/admin/metricas', methods=['GET'])
+def admin_metricas():
+    volumen_total_historico = sum(ev["pozo_total"] for ev in eventos)
+    comision_total_casa = sum(ev["comision_casa"] for ev in eventos)
+    
+    # Pozos activos que aún no han sido repartidos
+    poi_activos = sum(ev["pozo_total"] for ev in eventos if ev["estado"] != "resuelto")
+    
+    # Total de premios pendientes por reclamar por los usuarios
+    total_premios_pendientes = sum(saldos_pendientes.values())
+
+    return jsonify({
+        "success": True,
+        "volumen_total": round(volumen_total_historico, 4),
+        "comision_casa": round(comision_total_casa, 4),
+        "fondos_en_juego": round(poi_activos, 4),
+        "premios_por_reclamar": round(total_premios_pendientes, 4),
+        "total_mercados": len(eventos)
+    })
+
+@app.route('/api/admin/pendientes', methods=['GET'])
+def admin_pendientes():
+    pendientes = [ev for ev in eventos if ev["estado"] != "resuelto"]
+    return jsonify({"success": True, "mercados": pendientes})
+
 @app.route('/api/saldo/<username>', methods=['GET'])
 def obtener_saldo(username):
     saldo = saldos_pendientes.get(username, 0.0)
-    # Filtrar historial del usuario
     mis_apuestas = [h for h in historial_apuestas if h["usuario"] == username]
     return jsonify({
         "success": True, 
@@ -118,7 +141,6 @@ def participar():
     if not opcion:
         return jsonify({"success": False, "error": "Opción inválida"}), 404
 
-    # 2% de comisión para la casa
     comision = monto_pagado * 0.02
     monto_para_pozo = monto_pagado * 0.98
 
@@ -126,14 +148,12 @@ def participar():
     evento["pozo_total"] += monto_pagado
     opcion["pozo"] += monto_para_pozo
     
-    participacion = {
+    evento["participantes"].append({
         "usuario": usuario,
         "opcion_id": opcion_id,
         "monto": monto_pagado
-    }
-    evento["participantes"].append(participacion)
+    })
 
-    # Registrar en el historial global de apuestas del usuario
     historial_apuestas.append({
         "evento_id": evento_id,
         "titulo_evento": evento["titulo"],
