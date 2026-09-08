@@ -26,6 +26,7 @@
             color: #b0b0b0;
             font-size: 14px;
             margin-bottom: 25px;
+            text-align: center;
         }
         .card {
             background-color: #1e1e1e;
@@ -80,37 +81,54 @@
     <h1>P2Ppredict 🔮</h1>
     <p class="subtitulo">Plataforma de Predicciones P2P en Pi Network</p>
 
-    <!-- Tarjeta 1: Crear Predicción -->
+    <!-- Tarjeta para Crear una Nueva Predicción -->
     <div class="card">
         <h3>Crea tu propia predicción</h3>
-        <input type="text" id="nuevo-titulo" placeholder="Ej: ¿Ganará el equipo local hoy?">
+        <input type="text" id="nuevo-titulo" placeholder="Ej: ¿Lloverá mañana en la ciudad?">
         <button onclick="crearPrediccion()">Publicar Predicción</button>
     </div>
 
-    <!-- Tarjeta 2: Evento Activo / Participar -->
-    <div class="card">
-        <h3 id="titulo-evento">Cargando evento...</h3>
-        <div class="pozo-texto" id="pozo-actual">Pozo actual: 0.0 Pi</div>
-        <button class="btn-principal" onclick="participarEnEvento()">Participar (1 Pi)</button>
+    <!-- Contenedor donde se listarán dinámicamente todos los eventos activos -->
+    <div id="contenedor-eventos" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+        <div class="card">
+            <h3>Cargando eventos...</h3>
+        </div>
     </div>
 
-    <!-- Script de integración con el Backend -->
     <script>
-        // 1. Cargar el evento activo al abrir la página
-        async function cargarEvento() {
+        // 1. Cargar todos los eventos activos desde el backend
+        async function cargarEventos() {
             try {
-                const response = await fetch('/api/evento');
-                const data = await response.json();
+                const response = await fetch('/api/eventos');
+                const eventos = await response.json();
                 
-                document.getElementById('titulo-evento').innerText = data.titulo;
-                document.getElementById('pozo-actual').innerText = `Pozo actual: ${data.pozo_premios} Pi`;
+                const contenedor = document.getElementById('contenedor-eventos');
+                contenedor.innerHTML = ''; // Limpiar contenedor
+
+                if (eventos.length === 0) {
+                    contenedor.innerHTML = '<div class="card"><h3>No hay predicciones activas</h3></div>';
+                    return;
+                }
+
+                // Generar una tarjeta por cada evento activo
+                eventos.forEach(ev => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <h3>${ev.titulo}</h3>
+                        <div class="pozo-texto">Pozo actual: ${ev.pozo_premios.toFixed(2)} Pi</div>
+                        <button class="btn-principal" onclick="participar(${ev.id})">Participar (1 Pi)</button>
+                    `;
+                    contenedor.appendChild(card);
+                });
+
             } catch (error) {
-                console.error("Error al cargar el evento:", error);
-                document.getElementById('titulo-evento').innerText = "Error al cargar evento";
+                console.error("Error al cargar eventos:", error);
+                document.getElementById('contenedor-eventos').innerHTML = '<div class="card"><h3>Error al cargar eventos</h3></div>';
             }
         }
 
-        // 2. Enviar nueva predicción al backend
+        // 2. Crear una nueva predicción
         async function crearPrediccion() {
             const titulo = document.getElementById('nuevo-titulo').value;
             if (!titulo) {
@@ -129,26 +147,28 @@
                 if (resultado.success) {
                     alert("¡Predicción publicada con éxito!");
                     document.getElementById('nuevo-titulo').value = '';
-                    cargarEvento();
+                    cargarEventos(); // Refresca la lista para mostrar la nueva
                 }
             } catch (error) {
                 console.error("Error al crear predicción:", error);
             }
         }
 
-        // 3. Participar en el evento actual (Suma 1 Pi y aplica el 2% de comisión)
-        async function participarEnEvento() {
+        // 3. Participar en un evento específico utilizando su ID
+        async function participar(eventoId) {
             try {
                 const response = await fetch('/api/participar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ monto: 1.0, username: "Pionero" })
+                    body: JSON.stringify({ evento_id: eventoId, monto: 1.0, username: "Pionero" })
                 });
 
                 const resultado = await response.json();
                 if (resultado.success) {
-                    alert(`¡Participación exitosa! Tu Pi ha sido sumado al pozo.`);
-                    cargarEvento(); // Actualiza el pozo en pantalla inmediatamente
+                    alert(`¡Participación exitosa! Tu Pi se sumó al pozo de este evento.`);
+                    cargarEventos(); // Actualiza los pozos en pantalla
+                } else {
+                    alert("Error: " + resultado.error);
                 }
             } catch (error) {
                 console.error("Error al participar:", error);
@@ -157,7 +177,7 @@
         }
 
         // Ejecutar al cargar la página
-        window.onload = cargarEvento;
+        window.onload = cargarEventos;
     </script>
 </body>
 </html>
