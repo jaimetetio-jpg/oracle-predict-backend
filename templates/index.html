@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2Ppredict - Exchange Profesional de Predicciones</title>
+    <title>P2Ppredict - Exchange Descentralizado de Predicciones</title>
+    <!-- 1. Importar el SDK oficial de Pi Network -->
+    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+    <script>
+        // Inicializar el SDK de Pi (Modo Sandbox/Testnet por defecto)
+        Pi.init({ version: "2.0", sandbox: true });
+    </script>
     <style>
         body {
             background-color: #0d1117;
@@ -36,7 +42,6 @@
         .wallet-info span { font-size: 12px; color: #f0f6fc; display: block; }
         .wallet-info h2 { font-size: 20px; color: #ffffff; margin: 4px 0 0 0; }
         
-        /* Tarjeta de Métricas Financieras del Admin */
         .metrics-grid {
             display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; width: 100%;
         }
@@ -104,9 +109,8 @@
 <body>
 
     <h1>P2Ppredict 🔮</h1>
-    <p class="subtitulo">Exchange Descentralizado de Predicciones</p>
+    <p class="subtitulo" id="lbl-estado-conexion">Conectando con Pi Browser...</p>
 
-    <!-- Barra de Cambio de Vista -->
     <div class="nav-admin-bar">
         <div id="tab-user" class="btn-vista activo" onclick="cambiarVista('usuario')">🏠 Vista Pública</div>
         <div id="tab-adm" class="btn-vista" onclick="cambiarVista('admin')">⚙️ Panel de Admin (Juez)</div>
@@ -116,7 +120,7 @@
     <div id="vista-usuario">
         <div class="wallet-card">
             <div class="wallet-info">
-                <span>Premios Disponibles:</span>
+                <span>Pionero: <b id="pi-username">Cargando...</b></span>
                 <h2 id="saldo-usuario">0.0000 Pi</h2>
             </div>
             <button class="btn-reclamar" id="btn-reclamar" onclick="reclamarPremio()" disabled>Reclamar</button>
@@ -158,11 +162,11 @@
         </div>
     </div>
 
-    <!-- ================= VISTA ADMIN MASTER (FINANZAS Y METRICAS) ================= -->
+    <!-- ================= VISTA ADMIN MASTER ================= -->
     <div id="vista-admin">
         <div class="card" style="border-color: #8957e5;">
             <h3 style="color: #8957e5; margin-bottom: 4px;">📊 Estadísticas Financieras</h3>
-            <p style="font-size: 12px; color: #8b949e; margin-bottom: 12px;">Control de ingresos, comisiones y volumen de Pi en tu app.</p>
+            <p style="font-size: 12px; color: #8b949e; margin-bottom: 12px;">Control de ingresos y comisiones de tu app.</p>
             
             <div class="metrics-grid">
                 <div class="metric-box">
@@ -170,15 +174,15 @@
                     <h3 id="stat-comision">0.0000 Pi</h3>
                 </div>
                 <div class="metric-box">
-                    <span>Volumen Total Global</span>
+                    <span>Volumen Global</span>
                     <h3 class="azul" id="stat-volumen">0.0000 Pi</h3>
                 </div>
                 <div class="metric-box">
-                    <span>Pozos Activos en Juego</span>
+                    <span>Pozos Activos</span>
                     <h3 class="azul" id="stat-juego">0.0000 Pi</h3>
                 </div>
                 <div class="metric-box">
-                    <span>Premios por Reclamar</span>
+                    <span>Por Reclamar</span>
                     <h3 id="stat-pendientes">0.0000 Pi</h3>
                 </div>
             </div>
@@ -194,9 +198,40 @@
     </div>
 
     <script>
-        const usuarioActual = "Pionero";
+        let usuarioActual = "Invitado";
+        let accessTokenPi = "";
         let filtroActual = 'todos';
         let eventosGlobales = [];
+
+        // Autenticación oficial con el SDK de Pi Network
+        async function autenticarPiNetwork() {
+            try {
+                const scopes = ['username', 'payments'];
+                
+                function onIncompletePaymentFound(payment) {
+                    console.log("Pago incompleto detectado:", payment);
+                }
+
+                // Llamada oficial de inicio de sesión Pi
+                const authResult = await Pi.authenticate(scopes, onIncompletePaymentFound);
+                
+                usuarioActual = authResult.user.username;
+                accessTokenPi = authResult.accessToken;
+                
+                document.getElementById('pi-username').innerText = "@" + usuarioActual;
+                document.getElementById('lbl-estado-conexion').innerText = "Autenticado con Pi Network (Modo Seguro)";
+                document.getElementById('lbl-estado-conexion').style.color = "#3fb950";
+
+                inicializarApp();
+            } catch (error) {
+                console.error("Error de autenticación Pi:", error);
+                // Fallback para pruebas fuera del Pi Browser si es necesario
+                usuarioActual = "PioneroDemo";
+                document.getElementById('pi-username').innerText = "@" + usuarioActual;
+                document.getElementById('lbl-estado-conexion').innerText = "Modo de Prueba Local (Fuera de Pi Browser)";
+                inicializarApp();
+            }
+        }
 
         function cambiarVista(vista) {
             if (vista === 'usuario') {
@@ -260,7 +295,6 @@
 
         async function cargarPanelAdmin() {
             try {
-                // Cargar métricas financieras
                 const resMetricas = await fetch('/api/admin/metricas');
                 const dataMetricas = await resMetricas.json();
                 if (dataMetricas.success) {
@@ -270,7 +304,6 @@
                     document.getElementById('stat-pendientes').innerText = `${dataMetricas.premios_por_reclamar.toFixed(4)} Pi`;
                 }
 
-                // Cargar mercados pendientes de resolver
                 const response = await fetch('/api/admin/pendientes');
                 const data = await response.json();
                 const contenedor = document.getElementById('admin-pendientes-container');
@@ -386,7 +419,10 @@
             try {
                 const response = await fetch('/api/crear-evento', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + accessTokenPi 
+                    },
                     body: JSON.stringify({ titulo, categoria, opcion1, opcion2, fecha_cierre: fechaCierre })
                 });
                 const res = await response.json();
@@ -403,7 +439,10 @@
             try {
                 const response = await fetch('/api/participar', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + accessTokenPi 
+                    },
                     body: JSON.stringify({ evento_id: eventoId, opcion_id: opcionId, monto: 1.0, username: usuarioActual })
                 });
                 const res = await response.json();
@@ -435,7 +474,10 @@
             try {
                 const response = await fetch('/api/reclamar', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + accessTokenPi 
+                    },
                     body: JSON.stringify({ username: usuarioActual })
                 });
                 const res = await response.json();
@@ -446,7 +488,10 @@
             } catch (error) { console.error("Error:", error); }
         }
 
-        window.onload = inicializarApp;
+        // Iniciar la autenticación segura de Pi al cargar la ventana
+        window.onload = () => {
+            autenticarPiNetwork();
+        };
     </script>
 </body>
 </html>
