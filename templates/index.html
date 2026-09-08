@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2Ppredict - Mercado de Predicciones P2P</title>
+    <title>P2Ppredict - Exchange Profesional de Predicciones</title>
     <style>
         body {
             background-color: #0d1117;
@@ -16,37 +16,38 @@
             margin: 0;
         }
         h1 { font-size: 26px; color: #ffffff; margin-bottom: 5px; }
-        p.subtitulo { color: #8b949e; font-size: 14px; margin-bottom: 20px; }
-        .card {
-            background-color: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 12px;
-            padding: 20px;
-            width: 100%;
-            max-width: 400px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-        }
-        .card h3 { font-size: 16px; color: #f0f6fc; margin-top: 0; margin-bottom: 10px; }
+        p.subtitulo { color: #8b949e; font-size: 14px; margin-bottom: 15px; }
+        
         .wallet-card {
             background: linear-gradient(135deg, #1f6feb, #8957e5);
-            border-radius: 12px;
-            padding: 15px 20px;
-            width: 100%;
-            max-width: 400px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            border-radius: 12px; padding: 15px 20px; width: 100%; max-width: 400px;
+            margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;
             box-shadow: 0 4px 12px rgba(0,0,0,0.4);
         }
         .wallet-info span { font-size: 12px; color: #f0f6fc; display: block; }
         .wallet-info h2 { font-size: 20px; color: #ffffff; margin: 4px 0 0 0; }
-        input[type="text"], input[type="datetime-local"] {
+        
+        /* Filtros de Categorías y Estados */
+        .filtros-container { display: flex; gap: 6px; width: 100%; max-width: 400px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 4px; }
+        .tab-filtro {
+            background-color: #161b22; border: 1px solid #30363d; color: #8b949e;
+            padding: 6px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; white-space: nowrap; font-weight: bold;
+        }
+        .tab-filtro.activo { background-color: #238636; color: #fff; border-color: #238636; }
+
+        .card {
+            background-color: #161b22; border: 1px solid #30363d; border-radius: 12px;
+            padding: 20px; width: 100%; max-width: 400px; margin-bottom: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .card h3 { font-size: 16px; color: #f0f6fc; margin-top: 0; margin-bottom: 10px; }
+        
+        input[type="text"], input[type="datetime-local"], select {
             width: 92%; padding: 10px; border-radius: 6px; border: 1px solid #30363d;
             background-color: #0d1117; color: #fff; margin-bottom: 10px; font-size: 14px;
         }
         label { font-size: 12px; color: #8b949e; display: block; margin-bottom: 4px; text-align: left; }
+        
         .opciones-container { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
         .opcion-row {
             background-color: #21262d; border: 1px solid #30363d; border-radius: 8px;
@@ -56,6 +57,7 @@
         .nombre-opcion { font-weight: bold; color: #58a6ff; font-size: 15px; }
         .stats-opcion { font-size: 12px; color: #8b949e; }
         .pago-destacado { color: #3fb950; font-weight: bold; }
+        
         button {
             background-color: #238636; color: #fff; border: none; padding: 8px 14px;
             border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: bold;
@@ -65,32 +67,61 @@
         button.btn-resolver { background-color: #d29922; color: #000; width: 100%; margin-top: 10px; }
         button.btn-reclamar { background-color: #238636; padding: 10px 16px; font-size: 14px; }
         button:hover:not(:disabled) { opacity: 0.85; }
-        .header-meta { display: flex; justify-content: space-between; font-size: 11px; color: #8b949e; margin-bottom: 10px; }
+        
+        .header-meta { display: flex; justify-content: space-between; font-size: 11px; color: #8b949e; margin-bottom: 6px; }
+        .badge-categoria { background-color: #30363d; padding: 2px 6px; border-radius: 4px; color: #f0f6fc; }
         .badge-activo { color: #3fb950; font-weight: bold; }
         .badge-cerrado { color: #d29922; font-weight: bold; }
         .badge-resuelto { color: #58a6ff; font-weight: bold; }
         .pozo-global { font-size: 13px; color: #58a6ff; margin-bottom: 10px; font-weight: bold; }
         .resultado-caja { background-color: #1f242c; padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 13px; color: #3fb950; }
+        
+        /* Historial Personal */
+        .historial-box { font-size: 12px; background: #0d1117; padding: 10px; border-radius: 6px; border: 1px solid #30363d; margin-top: 10px; }
+        .historial-item { border-bottom: 1px solid #21262d; padding: 6px 0; display: flex; justify-content: space-between; }
     </style>
 </head>
 <body>
 
     <h1>P2Ppredict 🔮</h1>
-    <p class="subtitulo">Mercado Descentralizado de Predicciones</p>
+    <p class="subtitulo">Exchange Descentralizado de Predicciones</p>
 
-    <!-- Tarjeta de Billetera y Reclamo de Premios -->
+    <!-- Tarjeta de Billetera y Reclamo -->
     <div class="wallet-card">
         <div class="wallet-info">
-            <span>Premios disponibles para retirar:</span>
+            <span>Premios Disponibles:</span>
             <h2 id="saldo-usuario">0.0000 Pi</h2>
         </div>
         <button class="btn-reclamar" id="btn-reclamar" onclick="reclamarPremio()" disabled>Reclamar</button>
     </div>
 
+    <!-- Historial de Apuestas Personales -->
+    <div class="card" style="padding: 15px;">
+        <h3 style="margin-bottom: 5px; cursor: pointer;" onclick="toggleHistorial()">📋 Ver Mi Historial de Apuestas ▾</h3>
+        <div id="contenedor-historial" class="historial-box" style="display: none;">
+            <span style="color: #8b949e;">Cargando historial...</span>
+        </div>
+    </div>
+
+    <!-- Filtros por Categoría / Estado -->
+    <div class="filtros-container">
+        <div class="tab-filtro activo" onclick="filtrar('todos', this)">Todos</div>
+        <div class="tab-filtro" onclick="filtrar('activo', this)">Activos</div>
+        <div class="tab-filtro" onclick="filtrar('Deportes', this)">Deportes</div>
+        <div class="tab-filtro" onclick="filtrar('Cripto', this)">Cripto</div>
+        <div class="tab-filtro" onclick="filtrar('resuelto', this)">Resueltos</div>
+    </div>
+
     <!-- Crear Mercado -->
     <div class="card">
         <h3>Crear Nuevo Mercado</h3>
-        <input type="text" id="nuevo-titulo" placeholder="Pregunta (Ej: ¿Bitcoin llega a 100k?)">
+        <input type="text" id="nuevo-titulo" placeholder="Pregunta (Ej: ¿ETH llega a 5k?)">
+        <select id="nueva-categoria">
+            <option value="Deportes">Deportes</option>
+            <option value="Cripto">Cripto</option>
+            <option value="Política">Política</option>
+            <option value="Tecnología">Tecnología</option>
+        </select>
         <input type="text" id="opcion-1" placeholder="Opción 1" value="Sí">
         <input type="text" id="opcion-2" placeholder="Opción 2" value="No">
         <label>Fecha y Hora de Cierre:</label>
@@ -104,143 +135,157 @@
     </div>
 
     <script>
-        const usuarioActual = "Pionero"; // Usuario de prueba simulado
+        const usuarioActual = "Pionero";
+        let filtroActual = 'todos';
+        let eventosGlobales = [];
 
         async function inicializarApp() {
-            await cargarSaldo();
+            await cargarDatosUsuario();
             await cargarMercados();
         }
 
-        async function cargarSaldo() {
+        async function cargarDatosUsuario() {
             try {
                 const response = await fetch(`/api/saldo/${usuarioActual}`);
                 const data = await response.json();
                 if (data.success) {
                     document.getElementById('saldo-usuario').innerText = `${data.saldo_disponible.toFixed(4)} Pi`;
-                    const btnReclamar = document.getElementById('btn-reclamar');
-                    if (data.saldo_disponible > 0) {
-                        btnReclamar.disabled = false;
+                    document.getElementById('btn-reclamar').disabled = data.saldo_disponible <= 0;
+                    
+                    // Renderizar historial
+                    const histCont = document.getElementById('contenedor-historial');
+                    if (data.historial.length === 0) {
+                        histCont.innerHTML = '<span style="color: #8b949e;">Aún no tienes apuestas registradas.</span>';
                     } else {
-                        btnReclamar.disabled = true;
+                        let htmlHist = '';
+                        data.historial.reverse().forEach(h => {
+                            htmlHist += `
+                                <div class="historial-item">
+                                    <div><b>${h.titulo_evento}</b><br><span style="color: #58a6ff;">Apuesta: ${h.opcion_elegida} (${h.monto} Pi)</span></div>
+                                    <div style="color: #8b949e; font-size: 11px;">${h.fecha}</div>
+                                </div>
+                            `;
+                        });
+                        histCont.innerHTML = htmlHist;
                     }
                 }
-            } catch (error) { console.error("Error al cargar saldo:", error); }
+            } catch (error) { console.error("Error al cargar usuario:", error); }
         }
 
-        async function reclamarPremio() {
-            try {
-                const response = await fetch('/api/reclamar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: usuarioActual })
-                });
-                const res = await response.json();
-                if (res.success) {
-                    alert(res.mensaje);
-                    inicializarApp(); // Refrescar saldo
-                } else {
-                    alert("Aviso: " + res.error);
-                }
-            } catch (error) { console.error("Error al reclamar:", error); }
+        function toggleHistorial() {
+            const el = document.getElementById('contenedor-historial');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
         }
 
         async function cargarMercados() {
             try {
                 const response = await fetch('/api/eventos');
-                const eventos = await response.json();
+                eventosGlobales = await response.json();
+                renderizarMercados();
+            } catch (error) { console.error("Error al cargar mercados:", error); }
+        }
+
+        function filtrar(criterio, elemento) {
+            document.querySelectorAll('.tab-filtro').forEach(t => t.classList.remove('activo'));
+            elemento.classList.add('activo');
+            filtroActual = criterio;
+            renderizarMercados();
+        }
+
+        function renderizarMercados() {
+            const contenedor = document.getElementById('mercados-container');
+            contenedor.innerHTML = '';
+
+            let filtrados = eventosGlobales.filter(ev => {
+                if (filtroActual === 'todos') return true;
+                if (filtroActual === 'activo') return ev.estado === 'activo';
+                if (filtroActual === 'resuelto') return ev.estado === 'resuelto';
+                return ev.categoria === filtroActual;
+            });
+
+            if (filtrados.length === 0) {
+                contenedor.innerHTML = '<div class="card"><h3>No hay mercados en esta categoría</h3></div>';
+                return;
+            }
+
+            filtrados.forEach(ev => {
+                const card = document.createElement('div');
+                card.className = 'card';
                 
-                const contenedor = document.getElementById('mercados-container');
-                contenedor.innerHTML = '';
+                let pozoTotalEvento = ev.opciones.reduce((acc, curr) => acc + curr.pozo, 0);
+                let pozoDespuesDeComision = pozoTotalEvento * 0.98;
+                let isActivo = ev.estado === 'activo';
+                let isResuelto = ev.estado === 'resuelto';
+                
+                let badgeClass = 'badge-activo';
+                let badgeText = '● ACTIVO';
+                if (ev.estado === 'cerrado') { badgeClass = 'badge-cerrado'; badgeText = '■ CERRADO'; }
+                if (isResuelto) { badgeClass = 'badge-resuelto'; badgeText = '✔ RESUELTO'; }
 
-                if (eventos.length === 0) {
-                    contenedor.innerHTML = '<div class="card"><h3>No hay mercados disponibles</h3></div>';
-                    return;
-                }
-
-                eventos.forEach(ev => {
-                    const card = document.createElement('div');
-                    card.className = 'card';
+                let htmlOpciones = '';
+                ev.opciones.forEach(op => {
+                    let porcentaje = pozoTotalEvento > 0 ? ((op.pozo / pozoTotalEvento) * 100).toFixed(1) : 50.0;
+                    let multiplicador = op.pozo > 0 ? (pozoDespuesDeComision / op.pozo).toFixed(2) : "2.00";
+                    let esGanadora = isResuelto && ev.ganador_id === op.id;
                     
-                    let pozoTotalEvento = ev.opciones.reduce((acc, curr) => acc + curr.pozo, 0);
-                    let pozoDespuesDeComision = pozoTotalEvento * 0.98;
-                    let isActivo = ev.estado === 'activo';
-                    let isResuelto = ev.estado === 'resuelto';
-                    
-                    let badgeClass = 'badge-activo';
-                    let badgeText = '● ACTIVO';
-                    if (ev.estado === 'cerrado') { badgeClass = 'badge-cerrado'; badgeText = '■ CERRADO (Esperando Resultado)'; }
-                    if (isResuelto) { badgeClass = 'badge-resuelto'; badgeText = '✔ RESUELTO'; }
-
-                    let htmlOpciones = '';
-                    ev.opciones.forEach(op => {
-                        let porcentaje = pozoTotalEvento > 0 ? ((op.pozo / pozoTotalEvento) * 100).toFixed(1) : 50.0;
-                        let multiplicador = op.pozo > 0 ? (pozoDespuesDeComision / op.pozo).toFixed(2) : "2.00";
-                        let esGanadora = isResuelto && ev.ganador_id === op.id;
-                        
-                        htmlOpciones += `
-                            <div class="opcion-row" style="${esGanadora ? 'border: 2px solid #3fb950;' : ''}">
-                                <div class="info-opcion">
-                                    <span class="nombre-opcion">${op.nombre} (${porcentaje}%) ${esGanadora ? '🏆 (Ganadora)' : ''}</span>
-                                    <span class="stats-opcion">Pozo: ${op.pozo.toFixed(2)} Pi | <span class="pago-destacado">Paga: ${multiplicador}x</span></span>
-                                </div>
-                                <button ${!isActivo ? 'disabled' : ''} onclick="apostar(${ev.id}, ${op.id})">
-                                    ${isActivo ? 'Apostar 1 Pi' : 'Cerrado'}
-                                </button>
+                    htmlOpciones += `
+                        <div class="opcion-row" style="${esGanadora ? 'border: 2px solid #3fb950;' : ''}">
+                            <div class="info-opcion">
+                                <span class="nombre-opcion">${op.nombre} (${porcentaje}%) ${esGanadora ? '🏆' : ''}</span>
+                                <span class="stats-opcion">Pozo: ${op.pozo.toFixed(2)} Pi | <span class="pago-destacado">Paga: ${multiplicador}x</span></span>
                             </div>
-                        `;
-                    });
-
-                    let htmlResolucion = '';
-                    if (!isResuelto) {
-                        htmlResolucion = `
-                            <div style="margin-top: 15px; border-top: 1px solid #30363d; padding-top: 10px;">
-                                <label>Panel de Administración (Resolver):</label>
-                                <button class="btn-resolver" onclick="resolverMercado(${ev.id}, ${ev.opciones[0].id})">Declarar Ganador: ${ev.opciones[0].nombre}</button>
-                                <button class="btn-resolver" onclick="resolverMercado(${ev.id}, ${ev.opciones[1].id})">Declarar Ganador: ${ev.opciones[1].nombre}</button>
-                            </div>
-                        `;
-                    } else {
-                        htmlResolucion = `<div class="resultado-caja">Mercado finalizado. Comisión retenida para la casa: <b>${ev.comision_casa.toFixed(2)} Pi</b>.</div>`;
-                    }
-
-                    card.innerHTML = `
-                        <div class="header-meta">
-                            <span>Cierre: ${ev.fecha_cierre.replace('T', ' ')}</span>
-                            <span class="${badgeClass}">${badgeText}</span>
+                            <button ${!isActivo ? 'disabled' : ''} onclick="apostar(${ev.id}, ${op.id})">
+                                ${isActivo ? 'Apostar 1 Pi' : 'Cerrado'}
+                            </button>
                         </div>
-                        <h3>${ev.titulo}</h3>
-                        <div class="pozo-global">Volumen Total del Pozo: ${pozoTotalEvento.toFixed(2)} Pi</div>
-                        <div class="opciones-container">
-                            ${htmlOpciones}
-                        </div>
-                        ${htmlResolucion}
                     `;
-                    contenedor.appendChild(card);
                 });
 
-            } catch (error) { console.error("Error al cargar mercados:", error); }
+                let htmlResolucion = '';
+                if (!isResuelto) {
+                    htmlResolucion = `
+                        <div style="margin-top: 15px; border-top: 1px solid #30363d; padding-top: 10px;">
+                            <label>Panel de Administración:</label>
+                            <button class="btn-resolver" onclick="resolverMercado(${ev.id}, ${ev.opciones[0].id})">Ganó: ${ev.opciones[0].nombre}</button>
+                            <button class="btn-resolver" onclick="resolverMercado(${ev.id}, ${ev.opciones[1].id})">Ganó: ${ev.opciones[1].nombre}</button>
+                        </div>
+                    `;
+                } else {
+                    htmlResolucion = `<div class="resultado-caja">Finalizado. Comisión de la casa: <b>${ev.comision_casa.toFixed(2)} Pi</b>.</div>`;
+                }
+
+                card.innerHTML = `
+                    <div class="header-meta">
+                        <span class="badge-categoria">${ev.categoria || 'General'}</span>
+                        <span class="${badgeClass}">${badgeText}</span>
+                    </div>
+                    <h3>${ev.titulo}</h3>
+                    <div class="pozo-global">Volumen Total: ${pozoTotalEvento.toFixed(2)} Pi</div>
+                    <div class="opciones-container">${htmlOpciones}</div>
+                    ${htmlResolucion}
+                `;
+                contenedor.appendChild(card);
+            });
         }
 
         async function crearMercado() {
             const titulo = document.getElementById('nuevo-titulo').value;
+            const categoria = document.getElementById('nueva-categoria').value;
             const op1 = document.getElementById('opcion-1').value;
             const op2 = document.getElementById('opcion-2').value;
             const fechaCierre = document.getElementById('fecha-cierre').value;
 
-            if (!titulo || !fechaCierre) {
-                alert("Completa el título y la fecha de cierre.");
-                return;
-            }
+            if (!titulo || !fechaCierre) { alert("Completa el título y la fecha de cierre."); return; }
 
             try {
                 const response = await fetch('/api/crear-evento', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ titulo, opcion1, opcion2, fecha_cierre: fechaCierre })
+                    body: JSON.stringify({ titulo, categoria, opcion1, opcion2, fecha_cierre: fechaCierre })
                 });
                 const res = await response.json();
                 if (res.success) {
-                    alert("¡Mercado creado con éxito!");
+                    alert("¡Mercado publicado con éxito!");
                     document.getElementById('nuevo-titulo').value = '';
                     document.getElementById('fecha-cierre').value = '';
                     inicializarApp();
@@ -257,15 +302,14 @@
                 });
                 const res = await response.json();
                 if (res.success) {
-                    alert("¡Apuesta realizada con éxito!");
+                    alert("¡Apuesta realizada!");
                     inicializarApp();
                 } else { alert("Aviso: " + res.error); }
             } catch (error) { console.error("Error:", error); }
         }
 
         async function resolverMercado(eventoId, ganadorId) {
-            if (!confirm("¿Estás seguro de declarar esta opción como ganadora? Esto asignará los premios automáticamente a las cuentas de los ganadores.")) return;
-
+            if (!confirm("¿Estás seguro de resolver este mercado con este resultado?")) return;
             try {
                 const response = await fetch('/api/resolver', {
                     method: 'POST',
@@ -277,7 +321,22 @@
                     alert(res.mensaje);
                     inicializarApp();
                 } else { alert("Error: " + res.error); }
-            } catch (error) { console.error("Error al resolver:", error); }
+            } catch (error) { console.error("Error:", error); }
+        }
+
+        async function reclamarPremio() {
+            try {
+                const response = await fetch('/api/reclamar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: usuarioActual })
+                });
+                const res = await response.json();
+                if (res.success) {
+                    alert(res.mensaje);
+                    inicializarApp();
+                } else { alert("Aviso: " + res.error); }
+            } catch (error) { console.error("Error:", error); }
         }
 
         window.onload = inicializarApp;
