@@ -15,9 +15,18 @@
             padding: 20px;
             margin: 0;
         }
-        h1 { font-size: 26px; color: #ffffff; margin-bottom: 5px; }
+        h1 { font-size: 26px; color: #ffffff; margin-bottom: 2px; }
         p.subtitulo { color: #8b949e; font-size: 14px; margin-bottom: 15px; }
         
+        .nav-admin-bar {
+            width: 100%; max-width: 400px; display: flex; gap: 10px; margin-bottom: 15px;
+        }
+        .btn-vista {
+            flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #30363d;
+            background-color: #161b22; color: #c9d1d9; font-weight: bold; font-size: 13px; cursor: pointer; text-align: center;
+        }
+        .btn-vista.activo { background-color: #8957e5; border-color: #8957e5; color: #fff; }
+
         .wallet-card {
             background: linear-gradient(135deg, #1f6feb, #8957e5);
             border-radius: 12px; padding: 15px 20px; width: 100%; max-width: 400px;
@@ -27,7 +36,17 @@
         .wallet-info span { font-size: 12px; color: #f0f6fc; display: block; }
         .wallet-info h2 { font-size: 20px; color: #ffffff; margin: 4px 0 0 0; }
         
-        /* Filtros de Categorías y Estados */
+        /* Tarjeta de Métricas Financieras del Admin */
+        .metrics-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; width: 100%;
+        }
+        .metric-box {
+            background-color: #21262d; border: 1px solid #30363d; border-radius: 8px; padding: 12px; text-align: center;
+        }
+        .metric-box span { font-size: 11px; color: #8b949e; display: block; }
+        .metric-box h3 { font-size: 16px; color: #3fb950; margin: 5px 0 0 0; }
+        .metric-box h3.azul { color: #58a6ff; }
+
         .filtros-container { display: flex; gap: 6px; width: 100%; max-width: 400px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 4px; }
         .tab-filtro {
             background-color: #161b22; border: 1px solid #30363d; color: #8b949e;
@@ -64,7 +83,7 @@
         }
         button:disabled { background-color: #30363d; color: #8b949e; cursor: not-allowed; }
         button.btn-crear { background-color: #8957e5; width: 100%; padding: 10px; margin-top: 5px; }
-        button.btn-resolver { background-color: #d29922; color: #000; width: 100%; margin-top: 10px; }
+        button.btn-resolver { background-color: #d29922; color: #000; width: 100%; margin-top: 8px; }
         button.btn-reclamar { background-color: #238636; padding: 10px 16px; font-size: 14px; }
         button:hover:not(:disabled) { opacity: 0.85; }
         
@@ -74,11 +93,12 @@
         .badge-cerrado { color: #d29922; font-weight: bold; }
         .badge-resuelto { color: #58a6ff; font-weight: bold; }
         .pozo-global { font-size: 13px; color: #58a6ff; margin-bottom: 10px; font-weight: bold; }
-        .resultado-caja { background-color: #1f242c; padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 13px; color: #3fb950; }
         
-        /* Historial Personal */
         .historial-box { font-size: 12px; background: #0d1117; padding: 10px; border-radius: 6px; border: 1px solid #30363d; margin-top: 10px; }
         .historial-item { border-bottom: 1px solid #21262d; padding: 6px 0; display: flex; justify-content: space-between; }
+        
+        #vista-admin { display: none; width: 100%; max-width: 400px; flex-direction: column; align-items: center; }
+        #vista-usuario { display: flex; width: 100%; max-width: 400px; flex-direction: column; align-items: center; }
     </style>
 </head>
 <body>
@@ -86,58 +106,112 @@
     <h1>P2Ppredict 🔮</h1>
     <p class="subtitulo">Exchange Descentralizado de Predicciones</p>
 
-    <!-- Tarjeta de Billetera y Reclamo -->
-    <div class="wallet-card">
-        <div class="wallet-info">
-            <span>Premios Disponibles:</span>
-            <h2 id="saldo-usuario">0.0000 Pi</h2>
+    <!-- Barra de Cambio de Vista -->
+    <div class="nav-admin-bar">
+        <div id="tab-user" class="btn-vista activo" onclick="cambiarVista('usuario')">🏠 Vista Pública</div>
+        <div id="tab-adm" class="btn-vista" onclick="cambiarVista('admin')">⚙️ Panel de Admin (Juez)</div>
+    </div>
+
+    <!-- ================= VISTA USUARIO ================= -->
+    <div id="vista-usuario">
+        <div class="wallet-card">
+            <div class="wallet-info">
+                <span>Premios Disponibles:</span>
+                <h2 id="saldo-usuario">0.0000 Pi</h2>
+            </div>
+            <button class="btn-reclamar" id="btn-reclamar" onclick="reclamarPremio()" disabled>Reclamar</button>
         </div>
-        <button class="btn-reclamar" id="btn-reclamar" onclick="reclamarPremio()" disabled>Reclamar</button>
-    </div>
 
-    <!-- Historial de Apuestas Personales -->
-    <div class="card" style="padding: 15px;">
-        <h3 style="margin-bottom: 5px; cursor: pointer;" onclick="toggleHistorial()">📋 Ver Mi Historial de Apuestas ▾</h3>
-        <div id="contenedor-historial" class="historial-box" style="display: none;">
-            <span style="color: #8b949e;">Cargando historial...</span>
+        <div class="card" style="padding: 15px;">
+            <h3 style="margin-bottom: 5px; cursor: pointer;" onclick="toggleHistorial()">📋 Ver Mi Historial de Apuestas ▾</h3>
+            <div id="contenedor-historial" class="historial-box" style="display: none;">
+                <span style="color: #8b949e;">Cargando historial...</span>
+            </div>
+        </div>
+
+        <div class="filtros-container">
+            <div class="tab-filtro activo" onclick="filtrar('todos', this)">Todos</div>
+            <div class="tab-filtro" onclick="filtrar('activo', this)">Activos</div>
+            <div class="tab-filtro" onclick="filtrar('Deportes', this)">Deportes</div>
+            <div class="tab-filtro" onclick="filtrar('Cripto', this)">Cripto</div>
+            <div class="tab-filtro" onclick="filtrar('resuelto', this)">Resueltos</div>
+        </div>
+
+        <div class="card">
+            <h3>Crear Nuevo Mercado</h3>
+            <input type="text" id="nuevo-titulo" placeholder="Pregunta (Ej: ¿ETH llega a 5k?)">
+            <select id="nueva-categoria">
+                <option value="Deportes">Deportes</option>
+                <option value="Cripto">Cripto</option>
+                <option value="Política">Política</option>
+                <option value="Tecnología">Tecnología</option>
+            </select>
+            <input type="text" id="opcion-1" placeholder="Opción 1" value="Sí">
+            <input type="text" id="opcion-2" placeholder="Opción 2" value="No">
+            <label>Fecha y Hora de Cierre:</label>
+            <input type="datetime-local" id="fecha-cierre">
+            <button class="btn-crear" onclick="crearMercado()">Publicar Mercado</button>
+        </div>
+
+        <div id="mercados-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+            <div class="card"><h3>Cargando mercados...</h3></div>
         </div>
     </div>
 
-    <!-- Filtros por Categoría / Estado -->
-    <div class="filtros-container">
-        <div class="tab-filtro activo" onclick="filtrar('todos', this)">Todos</div>
-        <div class="tab-filtro" onclick="filtrar('activo', this)">Activos</div>
-        <div class="tab-filtro" onclick="filtrar('Deportes', this)">Deportes</div>
-        <div class="tab-filtro" onclick="filtrar('Cripto', this)">Cripto</div>
-        <div class="tab-filtro" onclick="filtrar('resuelto', this)">Resueltos</div>
-    </div>
+    <!-- ================= VISTA ADMIN MASTER (FINANZAS Y METRICAS) ================= -->
+    <div id="vista-admin">
+        <div class="card" style="border-color: #8957e5;">
+            <h3 style="color: #8957e5; margin-bottom: 4px;">📊 Estadísticas Financieras</h3>
+            <p style="font-size: 12px; color: #8b949e; margin-bottom: 12px;">Control de ingresos, comisiones y volumen de Pi en tu app.</p>
+            
+            <div class="metrics-grid">
+                <div class="metric-box">
+                    <span>Comisión de la Casa</span>
+                    <h3 id="stat-comision">0.0000 Pi</h3>
+                </div>
+                <div class="metric-box">
+                    <span>Volumen Total Global</span>
+                    <h3 class="azul" id="stat-volumen">0.0000 Pi</h3>
+                </div>
+                <div class="metric-box">
+                    <span>Pozos Activos en Juego</span>
+                    <h3 class="azul" id="stat-juego">0.0000 Pi</h3>
+                </div>
+                <div class="metric-box">
+                    <span>Premios por Reclamar</span>
+                    <h3 id="stat-pendientes">0.0000 Pi</h3>
+                </div>
+            </div>
+        </div>
 
-    <!-- Crear Mercado -->
-    <div class="card">
-        <h3>Crear Nuevo Mercado</h3>
-        <input type="text" id="nuevo-titulo" placeholder="Pregunta (Ej: ¿ETH llega a 5k?)">
-        <select id="nueva-categoria">
-            <option value="Deportes">Deportes</option>
-            <option value="Cripto">Cripto</option>
-            <option value="Política">Política</option>
-            <option value="Tecnología">Tecnología</option>
-        </select>
-        <input type="text" id="opcion-1" placeholder="Opción 1" value="Sí">
-        <input type="text" id="opcion-2" placeholder="Opción 2" value="No">
-        <label>Fecha y Hora de Cierre:</label>
-        <input type="datetime-local" id="fecha-cierre">
-        <button class="btn-crear" onclick="crearMercado()">Publicar Mercado</button>
-    </div>
+        <div class="card" style="border-color: #d29922;">
+            <h3 style="color: #d29922;">🛡️ Mercados Pendientes de Veredicto</h3>
+        </div>
 
-    <!-- Lista de Mercados -->
-    <div id="mercados-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
-        <div class="card"><h3>Cargando mercados...</h3></div>
+        <div id="admin-pendientes-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+            <div class="card"><h3>Cargando panel...</h3></div>
+        </div>
     </div>
 
     <script>
         const usuarioActual = "Pionero";
         let filtroActual = 'todos';
         let eventosGlobales = [];
+
+        function cambiarVista(vista) {
+            if (vista === 'usuario') {
+                document.getElementById('vista-usuario').style.display = 'flex';
+                document.getElementById('vista-admin').style.display = 'none';
+                document.getElementById('tab-user').classList.add('activo');
+                document.getElementById('tab-adm').classList.remove('activo');
+            } else {
+                document.getElementById('vista-usuario').style.display = 'none';
+                document.getElementById('vista-admin').style.display = 'flex';
+                document.getElementById('tab-adm').classList.add('activo');
+                document.getElementById('tab-user').classList.remove('activo');
+                cargarPanelAdmin();
+            }
+        }
 
         async function inicializarApp() {
             await cargarDatosUsuario();
@@ -152,7 +226,6 @@
                     document.getElementById('saldo-usuario').innerText = `${data.saldo_disponible.toFixed(4)} Pi`;
                     document.getElementById('btn-reclamar').disabled = data.saldo_disponible <= 0;
                     
-                    // Renderizar historial
                     const histCont = document.getElementById('contenedor-historial');
                     if (data.historial.length === 0) {
                         histCont.innerHTML = '<span style="color: #8b949e;">Aún no tienes apuestas registradas.</span>';
@@ -183,6 +256,52 @@
                 eventosGlobales = await response.json();
                 renderizarMercados();
             } catch (error) { console.error("Error al cargar mercados:", error); }
+        }
+
+        async function cargarPanelAdmin() {
+            try {
+                // Cargar métricas financieras
+                const resMetricas = await fetch('/api/admin/metricas');
+                const dataMetricas = await resMetricas.json();
+                if (dataMetricas.success) {
+                    document.getElementById('stat-comision').innerText = `${dataMetricas.comision_casa.toFixed(4)} Pi`;
+                    document.getElementById('stat-volumen').innerText = `${dataMetricas.volumen_total.toFixed(4)} Pi`;
+                    document.getElementById('stat-juego').innerText = `${dataMetricas.fondos_en_juego.toFixed(4)} Pi`;
+                    document.getElementById('stat-pendientes').innerText = `${dataMetricas.premios_por_reclamar.toFixed(4)} Pi`;
+                }
+
+                // Cargar mercados pendientes de resolver
+                const response = await fetch('/api/admin/pendientes');
+                const data = await response.json();
+                const contenedor = document.getElementById('admin-pendientes-container');
+                contenedor.innerHTML = '';
+
+                if (!data.success || data.mercados.length === 0) {
+                    contenedor.innerHTML = '<div class="card"><h3>No hay mercados pendientes de resolución.</h3></div>';
+                    return;
+                }
+
+                data.mercados.forEach(ev => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    let pozoTotalEvento = ev.opciones.reduce((acc, curr) => acc + curr.pozo, 0);
+
+                    card.innerHTML = `
+                        <div class="header-meta">
+                            <span class="badge-categoria">${ev.categoria}</span>
+                            <span class="badge-cerrado">Cierre: ${ev.fecha_cierre.replace('T', ' ')}</span>
+                        </div>
+                        <h3>${ev.titulo}</h3>
+                        <div class="pozo-global">Volumen del Pozo: ${pozoTotalEvento.toFixed(2)} Pi</div>
+                        <div style="margin-top: 10px;">
+                            <label>Emitir Veredicto:</label>
+                            <button class="btn-resolver" onclick="resolverMercado(${ev.id}, ${ev.opciones[0].id})">🏆 Ganó: ${ev.opciones[0].nombre}</button>
+                            <button class="btn-resolver" onclick="resolverMercado(${ev.id}, ${ev.opciones[1].id})">🏆 Ganó: ${ev.opciones[1].nombre}</button>
+                        </div>
+                    `;
+                    contenedor.appendChild(card);
+                });
+            } catch (error) { console.error("Error al cargar admin:", error); }
         }
 
         function filtrar(criterio, elemento) {
@@ -241,19 +360,6 @@
                     `;
                 });
 
-                let htmlResolucion = '';
-                if (!isResuelto) {
-                    htmlResolucion = `
-                        <div style="margin-top: 15px; border-top: 1px solid #30363d; padding-top: 10px;">
-                            <label>Panel de Administración:</label>
-                            <button class="btn-resolver" onclick="resolverMercado(${ev.id}, ${ev.opciones[0].id})">Ganó: ${ev.opciones[0].nombre}</button>
-                            <button class="btn-resolver" onclick="resolverMercado(${ev.id}, ${ev.opciones[1].id})">Ganó: ${ev.opciones[1].nombre}</button>
-                        </div>
-                    `;
-                } else {
-                    htmlResolucion = `<div class="resultado-caja">Finalizado. Comisión de la casa: <b>${ev.comision_casa.toFixed(2)} Pi</b>.</div>`;
-                }
-
                 card.innerHTML = `
                     <div class="header-meta">
                         <span class="badge-categoria">${ev.categoria || 'General'}</span>
@@ -262,7 +368,7 @@
                     <h3>${ev.titulo}</h3>
                     <div class="pozo-global">Volumen Total: ${pozoTotalEvento.toFixed(2)} Pi</div>
                     <div class="opciones-container">${htmlOpciones}</div>
-                    ${htmlResolucion}
+                    ${isResuelto ? '<div style="margin-top:10px; font-size:12px; color:#3fb950;">Mercado finalizado y recompensas repartidas.</div>' : ''}
                 `;
                 contenedor.appendChild(card);
             });
@@ -309,7 +415,7 @@
         }
 
         async function resolverMercado(eventoId, ganadorId) {
-            if (!confirm("¿Estás seguro de resolver este mercado con este resultado?")) return;
+            if (!confirm("¿Estás seguro de emitir este veredicto?")) return;
             try {
                 const response = await fetch('/api/resolver', {
                     method: 'POST',
@@ -319,6 +425,7 @@
                 const res = await response.json();
                 if (res.success) {
                     alert(res.mensaje);
+                    cambiarVista('usuario');
                     inicializarApp();
                 } else { alert("Error: " + res.error); }
             } catch (error) { console.error("Error:", error); }
