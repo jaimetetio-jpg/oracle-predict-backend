@@ -22,7 +22,28 @@
         // Inicializar Pi SDK en modo Sandbox / Testnet
         Pi.init({ version: "2.0", sandbox: true });
 
+        let authenticatedUser = null;
+
+        // Autenticar al usuario al cargar la página
+        const scopes = ['payments', 'username'];
+        function onIncompletePaymentFound(payment) {
+            console.log("Pago incompleto encontrado:", payment);
+        }
+
+        Pi.authenticate(scopes, onIncompletePaymentFound).then(auth => {
+            authenticatedUser = auth.user.username;
+            document.getElementById("resultado").innerText = "Conectado como: " + authenticatedUser;
+        }).catch(err => {
+            console.error("Error de autenticación:", err);
+            document.getElementById("resultado").innerText = "Error al autenticar con Pi.";
+        });
+
         function realizarPagoPrueba() {
+            if (!authenticatedUser) {
+                document.getElementById("resultado").innerText = "Autenticando con Pi, por favor espera...";
+                return;
+            }
+
             const paymentData = {
                 amount: 1.0,
                 memo: "Prueba de transaccion Oracle Predict",
@@ -32,9 +53,35 @@
             const callbacks = {
                 onReadyForServerApproval: function(paymentId) {
                     document.getElementById("resultado").innerText = "Aprobando pago en servidor...";
+                    // Enviar al backend para aprobar el pago
+                    fetch('/api/pagos/aprobar', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId: paymentId })
+                    })
+                    .then(res => res.json())
+                    .then(data => console.log("Aprobado en servidor:", data))
+                    .catch(err => console.error("Error aprobando:", err));
                 },
                 onReadyForServerCompletion: function(paymentId, txid) {
-                    document.getElementById("resultado").innerText = "¡Pago completado con éxito! Ya puedes avanzar en el portal.";
+                    document.getElementById("resultado").innerText = "Completando pago en la red...";
+                    // Enviar al backend para completar el pago y registrar la predicción
+                    fetch('/api/pagos/completar', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            paymentId: paymentId,
+                            txid: txid,
+                            username: authenticatedUser,
+                            evento_id: 1,
+                            eleccion: "Al alza"
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        document.getElementById("resultado").innerText = "¡Pago completado! Pozo actual: " + data.pool_actual + " Pi";
+                    })
+                    .catch(err => console.error("Error completando:", err));
                 },
                 onCancel: function(paymentId) {
                     document.getElementById("resultado").innerText = "Pago cancelado.";
@@ -49,3 +96,4 @@
     </script>
 </body>
 </html>
+                    
