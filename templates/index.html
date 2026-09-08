@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oracle Predict - P2P</title>
+    <title>P2PPREDICT - P2P</title>
     <!-- SDK oficial de Pi Network -->
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
     <style>
@@ -17,7 +17,7 @@
     </style>
 </head>
 <body>
-    <h1>Oracle Predict 🔮</h1>
+    <h1>P2PPREDICT 🔮</h1>
     <p>Plataforma de Predicciones P2P en Pi Network</p>
     <p id="usuario-info" style="color: #00ffcc; font-weight: bold;"></p>
 
@@ -88,7 +88,7 @@
             .then(data => {
                 document.getElementById("resultado").innerText = data.mensaje;
                 eventoActualId = data.evento_id;
-                cargarEvento(eventoActualId); // Carga el nuevo evento en pantalla
+                cargarEvento(eventoActualId);
                 document.getElementById("nuevoTitulo").value = "";
             })
             .catch(err => console.error("Error creando evento:", err));
@@ -103,7 +103,7 @@
 
             const paymentData = {
                 amount: 1.0,
-                memo: "Participacion P2P Oracle Predict",
+                memo: "Participacion P2P P2PPREDICT",
                 metadata: { predictionId: eventoActualId },
             };
 
