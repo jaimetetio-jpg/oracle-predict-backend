@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2Ppredict - Pi Network</title>
+    <title>P2Ppredict - Mercado de Predicciones P2P</title>
     <style>
         body {
-            background-color: #121212;
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -16,123 +16,214 @@
             margin: 0;
         }
         h1 {
-            font-size: 24px;
+            font-size: 26px;
+            color: #ffffff;
             margin-bottom: 5px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
         p.subtitulo {
-            color: #b0b0b0;
+            color: #8b949e;
             font-size: 14px;
             margin-bottom: 25px;
-            text-align: center;
         }
         .card {
-            background-color: #1e1e1e;
+            background-color: #161b22;
+            border: 1px solid #30363d;
             border-radius: 12px;
             padding: 20px;
             width: 100%;
-            max-width: 350px;
+            max-width: 400px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         }
         .card h3 {
             font-size: 16px;
-            margin-bottom: 15px;
+            color: #f0f6fc;
+            margin-top: 0;
+            margin-bottom: 10px;
         }
-        input[type="text"] {
-            width: 90%;
+        input[type="text"], input[type="datetime-local"] {
+            width: 92%;
             padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #444;
-            background-color: #2a2a2a;
+            border-radius: 6px;
+            border: 1px solid #30363d;
+            background-color: #0d1117;
             color: #fff;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
             font-size: 14px;
+        }
+        label {
+            font-size: 12px;
+            color: #8b949e;
+            display: block;
+            margin-bottom: 4px;
+            text-align: left;
+        }
+        .opciones-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .opcion-row {
+            background-color: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .info-opcion {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .nombre-opcion {
+            font-weight: bold;
+            color: #58a6ff;
+            font-size: 15px;
+        }
+        .stats-opcion {
+            font-size: 12px;
+            color: #8b949e;
+        }
+        .pago-destacado {
+            color: #3fb950;
+            font-weight: bold;
         }
         button {
-            background-color: #333;
+            background-color: #238636;
             color: #fff;
             border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 14px;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
             cursor: pointer;
             font-weight: bold;
+        }
+        button:disabled {
+            background-color: #30363d;
+            color: #8b949e;
+            cursor: not-allowed;
+        }
+        button.btn-crear {
+            background-color: #8957e5;
             width: 100%;
+            padding: 10px;
+            margin-top: 5px;
         }
-        button.btn-principal {
-            background-color: #7b1fa2; /* Morado estilo Pi Network */
+        button:hover:not(:disabled) {
+            opacity: 0.85;
         }
-        button:hover {
-            opacity: 0.9;
+        .header-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #8b949e;
+            margin-bottom: 10px;
         }
-        .pozo-texto {
-            color: #ccc;
-            font-size: 14px;
-            margin: 15px 0;
+        .badge-activo { color: #3fb950; font-weight: bold; }
+        .badge-cerrado { color: #f85149; font-weight: bold; }
+        .pozo-global {
+            font-size: 13px;
+            color: #58a6ff;
+            margin-bottom: 10px;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
     <h1>P2Ppredict 🔮</h1>
-    <p class="subtitulo">Plataforma de Predicciones P2P en Pi Network</p>
+    <p class="subtitulo">Mercado Descentralizado de Predicciones</p>
 
-    <!-- Tarjeta para Crear una Nueva Predicción -->
+    <!-- Crear Mercado -->
     <div class="card">
-        <h3>Crea tu propia predicción</h3>
-        <input type="text" id="nuevo-titulo" placeholder="Ej: ¿Lloverá mañana en la ciudad?">
-        <button onclick="crearPrediccion()">Publicar Predicción</button>
+        <h3>Crear Nuevo Mercado</h3>
+        <input type="text" id="nuevo-titulo" placeholder="Pregunta (Ej: ¿Bitcoin llega a 100k?)">
+        <input type="text" id="opcion-1" placeholder="Opción 1" value="Sí">
+        <input type="text" id="opcion-2" placeholder="Opción 2" value="No">
+        <label>Fecha y Hora de Cierre (Caducidad):</label>
+        <input type="datetime-local" id="fecha-cierre">
+        <button class="btn-crear" onclick="crearMercado()">Publicar Mercado</button>
     </div>
 
-    <!-- Contenedor donde se listarán dinámicamente todos los eventos activos -->
-    <div id="contenedor-eventos" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
-        <div class="card">
-            <h3>Cargando eventos...</h3>
-        </div>
+    <!-- Lista de Mercados Activos -->
+    <div id="mercados-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+        <div class="card"><h3>Cargando mercados...</h3></div>
     </div>
 
     <script>
-        // 1. Cargar todos los eventos activos desde el backend
-        async function cargarEventos() {
+        async function cargarMercados() {
             try {
                 const response = await fetch('/api/eventos');
                 const eventos = await response.json();
                 
-                const contenedor = document.getElementById('contenedor-eventos');
-                contenedor.innerHTML = ''; // Limpiar contenedor
+                const contenedor = document.getElementById('mercados-container');
+                contenedor.innerHTML = '';
 
                 if (eventos.length === 0) {
-                    contenedor.innerHTML = '<div class="card"><h3>No hay predicciones activas</h3></div>';
+                    contenedor.innerHTML = '<div class="card"><h3>No hay mercados disponibles</h3></div>';
                     return;
                 }
 
-                // Generar una tarjeta por cada evento activo
                 eventos.forEach(ev => {
                     const card = document.createElement('div');
                     card.className = 'card';
+                    
+                    let pozoTotalEvento = ev.opciones.reduce((acc, curr) => acc + curr.pozo, 0);
+                    let pozoDespuesDeComision = pozoTotalEvento * 0.98;
+                    let isActivo = ev.estado === 'activo';
+                    
+                    let htmlOpciones = '';
+                    ev.opciones.forEach(op => {
+                        let porcentaje = pozoTotalEvento > 0 ? ((op.pozo / pozoTotalEvento) * 100).toFixed(1) : 50.0;
+                        
+                        // Cálculo del multiplicador de dividendos en vivo (ej: 2.15x)
+                        let multiplicador = op.pozo > 0 ? (pozoDespuesDeComision / op.pozo).toFixed(2) : "2.00";
+                        
+                        htmlOpciones += `
+                            <div class="opcion-row">
+                                <div class="info-opcion">
+                                    <span class="nombre-opcion">${op.nombre} (${porcentaje}%)</span>
+                                    <span class="stats-opcion">Pozo: ${op.pozo.toFixed(2)} Pi | <span class="pago-destacado">Paga: ${multiplicador}x</span></span>
+                                </div>
+                                <button ${!isActivo ? 'disabled' : ''} onclick="apostar(${ev.id}, ${op.id})">
+                                    ${isActivo ? 'Apostar 1 Pi' : 'Cerrado'}
+                                </button>
+                            </div>
+                        `;
+                    });
+
                     card.innerHTML = `
+                        <div class="header-meta">
+                            <span>Cierre: ${ev.fecha_cierre.replace('T', ' ')}</span>
+                            <span class="${isActivo ? 'badge-activo' : 'badge-cerrado'}">
+                                ${isActivo ? '● ACTIVO' : '■ CERRADO'}
+                            </span>
+                        </div>
                         <h3>${ev.titulo}</h3>
-                        <div class="pozo-texto">Pozo actual: ${ev.pozo_premios.toFixed(2)} Pi</div>
-                        <button class="btn-principal" onclick="participar(${ev.id})">Participar (1 Pi)</button>
+                        <div class="pozo-global">Volumen Total del Pozo: ${pozoTotalEvento.toFixed(2)} Pi</div>
+                        <div class="opciones-container">
+                            ${htmlOpciones}
+                        </div>
                     `;
                     contenedor.appendChild(card);
                 });
 
             } catch (error) {
-                console.error("Error al cargar eventos:", error);
-                document.getElementById('contenedor-eventos').innerHTML = '<div class="card"><h3>Error al cargar eventos</h3></div>';
+                console.error("Error al cargar mercados:", error);
             }
         }
 
-        // 2. Crear una nueva predicción
-        async function crearPrediccion() {
+        async function crearMercado() {
             const titulo = document.getElementById('nuevo-titulo').value;
-            if (!titulo) {
-                alert("Por favor escribe una predicción.");
+            const op1 = document.getElementById('opcion-1').value;
+            const op2 = document.getElementById('opcion-2').value;
+            const fechaCierre = document.getElementById('fecha-cierre').value;
+
+            if (!titulo || !fechaCierre) {
+                alert("Por favor completa el título y la fecha de cierre.");
                 return;
             }
 
@@ -140,44 +231,47 @@
                 const response = await fetch('/api/crear-evento', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ titulo: titulo })
+                    body: JSON.stringify({ 
+                        titulo: titulo, 
+                        opcion1: op1, 
+                        opcion2: op2, 
+                        fecha_cierre: fechaCierre 
+                    })
                 });
-                const resultado = await response.json();
-                
-                if (resultado.success) {
-                    alert("¡Predicción publicada con éxito!");
+                const res = await response.json();
+                if (res.success) {
+                    alert("¡Mercado creado con éxito!");
                     document.getElementById('nuevo-titulo').value = '';
-                    cargarEventos(); // Refresca la lista para mostrar la nueva
+                    document.getElementById('fecha-cierre').value = '';
+                    cargarMercados();
+                } else {
+                    alert("Error: " + res.error);
                 }
             } catch (error) {
-                console.error("Error al crear predicción:", error);
+                console.error("Error al crear:", error);
             }
         }
 
-        // 3. Participar en un evento específico utilizando su ID
-        async function participar(eventoId) {
+        async function apostar(eventoId, opcionId) {
             try {
                 const response = await fetch('/api/participar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ evento_id: eventoId, monto: 1.0, username: "Pionero" })
+                    body: JSON.stringify({ evento_id: eventoId, opcion_id: opcionId, monto: 1.0, username: "Pionero" })
                 });
-
-                const resultado = await response.json();
-                if (resultado.success) {
-                    alert(`¡Participación exitosa! Tu Pi se sumó al pozo de este evento.`);
-                    cargarEventos(); // Actualiza los pozos en pantalla
+                const res = await response.json();
+                if (res.success) {
+                    alert("¡Apuesta realizada con éxito! Dividendos actualizados.");
+                    cargarMercados();
                 } else {
-                    alert("Error: " + resultado.error);
+                    alert("Aviso: " + res.error);
                 }
             } catch (error) {
-                console.error("Error al participar:", error);
-                alert("Hubo un error al procesar la participación.");
+                console.error("Error al apostar:", error);
             }
         }
 
-        // Ejecutar al cargar la página
-        window.onload = cargarEventos;
+        window.onload = cargarMercados;
     </script>
 </body>
 </html>
