@@ -1,45 +1,163 @@
-<script>
-  // 1. Apenas cargue la página, traemos el evento actual del backend
-  async function cargarEvento() {
-    try {
-      const response = await fetch('/api/evento');
-      const data = await response.json();
-      
-      // Actualizamos el título y el pozo visualmente en tu diseño
-      document.querySelector('h2, .titulo-evento').innerText = data.titulo;
-      document.getElementById('pozo-actual').innerText = `Pozo actual: ${data.pozo_premios} Pi`;
-    } catch (error) {
-      console.error("Error al cargar el evento:", error);
-    }
-  }
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2Ppredict - Pi Network</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        p.subtitulo {
+            color: #b0b0b0;
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
+        .card {
+            background-color: #1e1e1e;
+            border-radius: 12px;
+            padding: 20px;
+            width: 100%;
+            max-width: 350px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .card h3 {
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        input[type="text"] {
+            width: 90%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background-color: #2a2a2a;
+            color: #fff;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #333;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+        }
+        button.btn-principal {
+            background-color: #7b1fa2; /* Morado estilo Pi Network */
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .pozo-texto {
+            color: #ccc;
+            font-size: 14px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
 
-  // 2. Función cuando el usuario hace clic en "Participar (1 Pi)"
-  async function participarEnEvento() {
-    try {
-      // Aquí puedes integrar el pago del Pi SDK si ya lo tienes configurado,
-      // o simular/enviar directamente la petición al backend por ahora:
-      
-      const response = await fetch('/api/participar', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          monto: 1.0,
-          username: "PioneroPi"
-        })
-      });
+    <h1>P2Ppredict 🔮</h1>
+    <p class="subtitulo">Plataforma de Predicciones P2P en Pi Network</p>
 
-      const resultado = await response.json();
-      if (resultado.success) {
-        alert("¡Participación exitosa! El pozo ha aumentado.");
-        cargarEvento(); // Recargamos para ver el pozo actualizado
-      }
-    } catch (error) {
-      console.error("Error al participar:", error);
-    }
-  }
+    <!-- Tarjeta 1: Crear Predicción -->
+    <div class="card">
+        <h3>Crea tu propia predicción</h3>
+        <input type="text" id="nuevo-titulo" placeholder="Ej: ¿Ganará el equipo local hoy?">
+        <button onclick="crearPrediccion()">Publicar Predicción</button>
+    </div>
 
-  // Ejecutar al abrir la app
-  window.onload = cargarEvento;
-</script>
+    <!-- Tarjeta 2: Evento Activo / Participar -->
+    <div class="card">
+        <h3 id="titulo-evento">Cargando evento...</h3>
+        <div class="pozo-texto" id="pozo-actual">Pozo actual: 0.0 Pi</div>
+        <button class="btn-principal" onclick="participarEnEvento()">Participar (1 Pi)</button>
+    </div>
+
+    <!-- Script de integración con el Backend -->
+    <script>
+        // 1. Cargar el evento activo al abrir la página
+        async function cargarEvento() {
+            try {
+                const response = await fetch('/api/evento');
+                const data = await response.json();
+                
+                document.getElementById('titulo-evento').innerText = data.titulo;
+                document.getElementById('pozo-actual').innerText = `Pozo actual: ${data.pozo_premios} Pi`;
+            } catch (error) {
+                console.error("Error al cargar el evento:", error);
+                document.getElementById('titulo-evento').innerText = "Error al cargar evento";
+            }
+        }
+
+        // 2. Enviar nueva predicción al backend
+        async function crearPrediccion() {
+            const titulo = document.getElementById('nuevo-titulo').value;
+            if (!titulo) {
+                alert("Por favor escribe una predicción.");
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/crear-evento', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ titulo: titulo })
+                });
+                const resultado = await response.json();
+                
+                if (resultado.success) {
+                    alert("¡Predicción publicada con éxito!");
+                    document.getElementById('nuevo-titulo').value = '';
+                    cargarEvento();
+                }
+            } catch (error) {
+                console.error("Error al crear predicción:", error);
+            }
+        }
+
+        // 3. Participar en el evento actual (Suma 1 Pi y aplica el 2% de comisión)
+        async function participarEnEvento() {
+            try {
+                const response = await fetch('/api/participar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ monto: 1.0, username: "Pionero" })
+                });
+
+                const resultado = await response.json();
+                if (resultado.success) {
+                    alert(`¡Participación exitosa! Tu Pi ha sido sumado al pozo.`);
+                    cargarEvento(); // Actualiza el pozo en pantalla inmediatamente
+                }
+            } catch (error) {
+                console.error("Error al participar:", error);
+                alert("Hubo un error al procesar la participación.");
+            }
+        }
+
+        // Ejecutar al cargar la página
+        window.onload = cargarEvento;
+    </script>
+</body>
+</html>
