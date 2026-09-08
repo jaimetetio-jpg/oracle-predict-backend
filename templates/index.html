@@ -16,7 +16,7 @@
             margin: 0;
         }
         h1 { font-size: 26px; color: #ffffff; margin-bottom: 5px; }
-        p.subtitulo { color: #8b949e; font-size: 14px; margin-bottom: 25px; }
+        p.subtitulo { color: #8b949e; font-size: 14px; margin-bottom: 20px; }
         .card {
             background-color: #161b22;
             border: 1px solid #30363d;
@@ -28,6 +28,20 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         }
         .card h3 { font-size: 16px; color: #f0f6fc; margin-top: 0; margin-bottom: 10px; }
+        .wallet-card {
+            background: linear-gradient(135deg, #1f6feb, #8957e5);
+            border-radius: 12px;
+            padding: 15px 20px;
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        .wallet-info span { font-size: 12px; color: #f0f6fc; display: block; }
+        .wallet-info h2 { font-size: 20px; color: #ffffff; margin: 4px 0 0 0; }
         input[type="text"], input[type="datetime-local"] {
             width: 92%; padding: 10px; border-radius: 6px; border: 1px solid #30363d;
             background-color: #0d1117; color: #fff; margin-bottom: 10px; font-size: 14px;
@@ -49,6 +63,7 @@
         button:disabled { background-color: #30363d; color: #8b949e; cursor: not-allowed; }
         button.btn-crear { background-color: #8957e5; width: 100%; padding: 10px; margin-top: 5px; }
         button.btn-resolver { background-color: #d29922; color: #000; width: 100%; margin-top: 10px; }
+        button.btn-reclamar { background-color: #238636; padding: 10px 16px; font-size: 14px; }
         button:hover:not(:disabled) { opacity: 0.85; }
         .header-meta { display: flex; justify-content: space-between; font-size: 11px; color: #8b949e; margin-bottom: 10px; }
         .badge-activo { color: #3fb950; font-weight: bold; }
@@ -62,6 +77,15 @@
 
     <h1>P2Ppredict 🔮</h1>
     <p class="subtitulo">Mercado Descentralizado de Predicciones</p>
+
+    <!-- Tarjeta de Billetera y Reclamo de Premios -->
+    <div class="wallet-card">
+        <div class="wallet-info">
+            <span>Premios disponibles para retirar:</span>
+            <h2 id="saldo-usuario">0.0000 Pi</h2>
+        </div>
+        <button class="btn-reclamar" id="btn-reclamar" onclick="reclamarPremio()" disabled>Reclamar</button>
+    </div>
 
     <!-- Crear Mercado -->
     <div class="card">
@@ -80,6 +104,46 @@
     </div>
 
     <script>
+        const usuarioActual = "Pionero"; // Usuario de prueba simulado
+
+        async function inicializarApp() {
+            await cargarSaldo();
+            await cargarMercados();
+        }
+
+        async function cargarSaldo() {
+            try {
+                const response = await fetch(`/api/saldo/${usuarioActual}`);
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('saldo-usuario').innerText = `${data.saldo_disponible.toFixed(4)} Pi`;
+                    const btnReclamar = document.getElementById('btn-reclamar');
+                    if (data.saldo_disponible > 0) {
+                        btnReclamar.disabled = false;
+                    } else {
+                        btnReclamar.disabled = true;
+                    }
+                }
+            } catch (error) { console.error("Error al cargar saldo:", error); }
+        }
+
+        async function reclamarPremio() {
+            try {
+                const response = await fetch('/api/reclamar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: usuarioActual })
+                });
+                const res = await response.json();
+                if (res.success) {
+                    alert(res.mensaje);
+                    inicializarApp(); // Refrescar saldo
+                } else {
+                    alert("Aviso: " + res.error);
+                }
+            } catch (error) { console.error("Error al reclamar:", error); }
+        }
+
         async function cargarMercados() {
             try {
                 const response = await fetch('/api/eventos');
@@ -111,7 +175,6 @@
                     ev.opciones.forEach(op => {
                         let porcentaje = pozoTotalEvento > 0 ? ((op.pozo / pozoTotalEvento) * 100).toFixed(1) : 50.0;
                         let multiplicador = op.pozo > 0 ? (pozoDespuesDeComision / op.pozo).toFixed(2) : "2.00";
-                        
                         let esGanadora = isResuelto && ev.ganador_id === op.id;
                         
                         htmlOpciones += `
@@ -127,18 +190,17 @@
                         `;
                     });
 
-                    // Botones de resolución para el administrador si ya cerró y no está resuelto
                     let htmlResolucion = '';
                     if (!isResuelto) {
                         htmlResolucion = `
-                            <div style="margin-top: 15px; border-top: 1px solid #30363d; pt: 10px;">
-                                <label style="margin-top:10px;">Panel de Administración (Resolver):</label>
+                            <div style="margin-top: 15px; border-top: 1px solid #30363d; padding-top: 10px;">
+                                <label>Panel de Administración (Resolver):</label>
                                 <button class="btn-resolver" onclick="resolverMercado(${ev.id}, ${ev.opciones[0].id})">Declarar Ganador: ${ev.opciones[0].nombre}</button>
                                 <button class="btn-resolver" onclick="resolverMercado(${ev.id}, ${ev.opciones[1].id})">Declarar Ganador: ${ev.opciones[1].nombre}</button>
                             </div>
                         `;
                     } else {
-                        htmlResolucion = `<div class="resultado-caja">El mercado ha finalizado. La comisión retenida para la casa fue de <b>${ev.comision_casa.toFixed(2)} Pi</b>.</div>`;
+                        htmlResolucion = `<div class="resultado-caja">Mercado finalizado. Comisión retenida para la casa: <b>${ev.comision_casa.toFixed(2)} Pi</b>.</div>`;
                     }
 
                     card.innerHTML = `
@@ -156,9 +218,7 @@
                     contenedor.appendChild(card);
                 });
 
-            } catch (error) {
-                console.error("Error al cargar mercados:", error);
-            }
+            } catch (error) { console.error("Error al cargar mercados:", error); }
         }
 
         async function crearMercado() {
@@ -183,7 +243,7 @@
                     alert("¡Mercado creado con éxito!");
                     document.getElementById('nuevo-titulo').value = '';
                     document.getElementById('fecha-cierre').value = '';
-                    cargarMercados();
+                    inicializarApp();
                 }
             } catch (error) { console.error("Error:", error); }
         }
@@ -193,18 +253,18 @@
                 const response = await fetch('/api/participar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ evento_id: eventoId, opcion_id: opcionId, monto: 1.0, username: "Pionero" })
+                    body: JSON.stringify({ evento_id: eventoId, opcion_id: opcionId, monto: 1.0, username: usuarioActual })
                 });
                 const res = await response.json();
                 if (res.success) {
                     alert("¡Apuesta realizada con éxito!");
-                    cargarMercados();
+                    inicializarApp();
                 } else { alert("Aviso: " + res.error); }
             } catch (error) { console.error("Error:", error); }
         }
 
         async function resolverMercado(eventoId, ganadorId) {
-            if (!confirm("¿Estás seguro de declarar esta opción como ganadora? Esta acción cerrará el mercado y calculará los dividendos.")) return;
+            if (!confirm("¿Estás seguro de declarar esta opción como ganadora? Esto asignará los premios automáticamente a las cuentas de los ganadores.")) return;
 
             try {
                 const response = await fetch('/api/resolver', {
@@ -214,15 +274,13 @@
                 });
                 const res = await response.json();
                 if (res.success) {
-                    alert("¡Mercado resuelto con éxito!\nRevisa la consola o la respuesta para ver el desglose de pagos a los ganadores.");
-                    console.log("Pagos a ganadores:", res.pagos);
-                    cargarMercados();
+                    alert(res.mensaje);
+                    inicializarApp();
                 } else { alert("Error: " + res.error); }
             } catch (error) { console.error("Error al resolver:", error); }
         }
 
-        window.onload = cargarMercados;
+        window.onload = inicializarApp;
     </script>
 </body>
-    </html>
-
+</html>
