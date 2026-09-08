@@ -132,10 +132,10 @@ def completar_pago():
 
 
 # Ruta auxiliar opcional por si la necesitas
-@app.route("/validation-key.txt")
-def serve_validation_key():
-  return send_from_directory("static", "validation-key.txt")
 
+@app.route('/validation-key.txt')
+def validation_key():
+    return "8c73ed3c39ffc42821ce971267c7b58d01487"
 
 if __name__ == "__main__":
   port = int(os.environ.get("PORT", 5000))
