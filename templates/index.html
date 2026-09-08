@@ -3,69 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oracle Predict</title>
+    <title>Oracle Predict - P2P</title>
     <!-- SDK oficial de Pi Network -->
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background: #121212; color: #fff; text-align: center; padding: 50px; }
-        button { background: #800080; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 8px; cursor: pointer; margin-top: 20px; }
+        body { font-family: Arial, sans-serif; background: #121212; color: #fff; text-align: center; padding: 30px; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 10px; margin: 20px auto; max-width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        input { width: 80%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; font-size: 16px; }
+        button { background: #800080; color: white; border: none; padding: 12px 25px; font-size: 16px; border-radius: 8px; cursor: pointer; margin-top: 10px; }
         button:hover { background: #990099; }
+        .secundario { background: #333; }
+        .secundario:hover { background: #444; }
     </style>
 </head>
 <body>
-    <h1>Oracle Predict</h1>
-    <p>Plataforma de Pronósticos y Predicciones en Pi Network</p>
-    <button onclick="realizarPagoPrueba()">Hacer Predicción (1 Pi)</button>
-    <p id="resultado" style="margin-top: 20px;"></p>
+    <h1>Oracle Predict 🔮</h1>
+    <p>Plataforma de Predicciones P2P en Pi Network</p>
+    <p id="usuario-info" style="color: #00ffcc; font-weight: bold;"></p>
+
+    <!-- Sección para Crear Predicción P2P -->
+    <div class="card">
+        <h3>Crea tu propia predicción</h3>
+        <input type="text" id="nuevoTitulo" placeholder="Ej: ¿Ganará el equipo local hoy?">
+        <br>
+        <button class="secundario" onclick="crearPrediccionP2P()">Publicar Predicción</button>
+    </div>
+
+    <!-- Sección de Evento Activo -->
+    <div class="card">
+        <h3 id="titulo-evento">Cargando evento...</h3>
+        <p>Pozo actual: <span id="pool-texto">0.0</span> Pi</p>
+        <button onclick="realizarPagoPrueba()">Participar (1 Pi)</button>
+    </div>
+
+    <p id="resultado" style="margin-top: 20px; font-weight: bold;"></p>
 
     <script>
         // Inicializar Pi SDK en modo Sandbox / Testnet
         Pi.init({ version: "2.0", sandbox: true });
 
         let authenticatedUser = null;
+        let eventoActualId = 1; // Por defecto el primer evento
 
         // Autenticar al usuario al cargar la página
         const scopes = ['payments', 'username'];
-        function onIncompletePaymentFound(payment) {
+        Pi.authenticate(scopes, (payment) => {
             console.log("Pago incompleto encontrado:", payment);
-        }
-
-        Pi.authenticate(scopes, onIncompletePaymentFound).then(auth => {
+        }).then(auth => {
             authenticatedUser = auth.user.username;
-            document.getElementById("resultado").innerText = "Conectado como: " + authenticatedUser;
+            document.getElementById("usuario-info").innerText = "Conectado como: @" + authenticatedUser;
+            cargarEvento(eventoActualId);
         }).catch(err => {
             console.error("Error de autenticación:", err);
-            document.getElementById("resultado").innerText = "Error al autenticar con Pi.";
+            document.getElementById("usuario-info").innerText = "Error al autenticar con Pi.";
         });
 
+        // Cargar datos del evento desde el backend
+        function cargarEvento(id) {
+            fetch(`/api/evento/${id}`)
+            .then(res => res.json())
+            .then(data => {
+                if(data.titulo) {
+                    document.getElementById("titulo-evento").innerText = data.titulo;
+                    document.getElementById("pool-texto").innerText = data.pool_total;
+                }
+            })
+            .catch(err => console.error("Error cargando evento:", err));
+        }
+
+        // Función para que el usuario cree un evento P2P
+        function crearPrediccionP2P() {
+            const titulo = document.getElementById("nuevoTitulo").value;
+            if (!titulo) {
+                alert("Por favor escribe una pregunta para la predicción.");
+                return;
+            }
+
+            fetch('/api/evento/crear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ titulo: titulo, username: authenticatedUser })
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById("resultado").innerText = data.mensaje;
+                eventoActualId = data.evento_id;
+                cargarEvento(eventoActualId); // Carga el nuevo evento en pantalla
+                document.getElementById("nuevoTitulo").value = "";
+            })
+            .catch(err => console.error("Error creando evento:", err));
+        }
+
+        // Función de pago con Pi SDK
         function realizarPagoPrueba() {
             if (!authenticatedUser) {
-                document.getElementById("resultado").innerText = "Autenticando con Pi, por favor espera...";
+                alert("Esperando autenticación con Pi...");
                 return;
             }
 
             const paymentData = {
                 amount: 1.0,
-                memo: "Prueba de transaccion Oracle Predict",
-                metadata: { predictionId: "test_1" },
+                memo: "Participacion P2P Oracle Predict",
+                metadata: { predictionId: eventoActualId },
             };
 
             const callbacks = {
                 onReadyForServerApproval: function(paymentId) {
                     document.getElementById("resultado").innerText = "Aprobando pago en servidor...";
-                    // Enviar al backend para aprobar el pago
                     fetch('/api/pagos/aprobar', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ paymentId: paymentId })
                     })
                     .then(res => res.json())
-                    .then(data => console.log("Aprobado en servidor:", data))
                     .catch(err => console.error("Error aprobando:", err));
                 },
                 onReadyForServerCompletion: function(paymentId, txid) {
                     document.getElementById("resultado").innerText = "Completando pago en la red...";
-                    // Enviar al backend para completar el pago y registrar la predicción
                     fetch('/api/pagos/completar', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -73,13 +127,14 @@
                             paymentId: paymentId,
                             txid: txid,
                             username: authenticatedUser,
-                            evento_id: 1,
-                            eleccion: "Al alza"
+                            evento_id: eventoActualId,
+                            eleccion: "Sí"
                         })
                     })
                     .then(res => res.json())
                     .then(data => {
-                        document.getElementById("resultado").innerText = "¡Pago completado! Pozo actual: " + data.pool_actual + " Pi";
+                        document.getElementById("resultado").innerText = "¡Predicción registrada!";
+                        document.getElementById("pool-texto").innerText = data.pool_actual;
                     })
                     .catch(err => console.error("Error completando:", err));
                 },
@@ -96,4 +151,3 @@
     </script>
 </body>
 </html>
-                    
