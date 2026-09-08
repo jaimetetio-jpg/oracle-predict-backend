@@ -4,11 +4,12 @@ from flask import Flask, jsonify, request, render_template
 
 app = Flask(__name__)
 
-# Lista de mercados profesionales
+# Lista de mercados profesionales con categorías y estados
 eventos = [
     {
         "id": 1,
         "titulo": "¿Ganará el equipo local el próximo partido?",
+        "categoria": "Deportes",
         "fecha_inicio": "2026-06-01T00:00",
         "fecha_cierre": "2026-06-15T23:59",
         "estado": "activo", # activo, cerrado, resuelto
@@ -23,16 +24,16 @@ eventos = [
     }
 ]
 
-# Saldos de premios listos para que los usuarios los reclamen
-# Estructura: {"Pionero": 5.42, "Usuario2": 12.0}
+# Saldos y registros detallados de apuestas por usuario
 saldos_pendientes = {}
+historial_apuestas = [] # Almacena cada apuesta para mostrar el historial personal
 
 @app.route('/')
 def index():
     try:
         return render_template('index.html')
     except Exception:
-        return "¡P2Ppredict Backend con Reclamos Funcionando! 🔮"
+        return "¡P2Ppredict Profesional Backend Funcionando! 🔮"
 
 @app.route('/validation-key.txt')
 def validation_key():
@@ -54,16 +55,23 @@ def obtener_eventos():
                 pass
     return jsonify(eventos)
 
-# Consultar el saldo pendiente de un usuario específico
 @app.route('/api/saldo/<username>', methods=['GET'])
 def obtener_saldo(username):
     saldo = saldos_pendientes.get(username, 0.0)
-    return jsonify({"success": True, "username": username, "saldo_disponible": round(saldo, 4)})
+    # Filtrar historial del usuario
+    mis_apuestas = [h for h in historial_apuestas if h["usuario"] == username]
+    return jsonify({
+        "success": True, 
+        "username": username, 
+        "saldo_disponible": round(saldo, 4),
+        "historial": mis_apuestas
+    })
 
 @app.route('/api/crear-evento', methods=['POST'])
 def crear_evento():
     data = request.json or {}
     titulo = data.get('titulo')
+    categoria = data.get('categoria', 'General')
     opcion1 = data.get('opcion1', 'Sí')
     opcion2 = data.get('opcion2', 'No')
     fecha_inicio = data.get('fecha_inicio', datetime.now().strftime("%Y-%m-%dT%H:%M"))
@@ -75,6 +83,7 @@ def crear_evento():
     nuevo_evento = {
         "id": len(eventos) + 1,
         "titulo": titulo,
+        "categoria": categoria,
         "fecha_inicio": fecha_inicio,
         "fecha_cierre": fecha_cierre,
         "estado": "activo",
@@ -117,15 +126,25 @@ def participar():
     evento["pozo_total"] += monto_pagado
     opcion["pozo"] += monto_para_pozo
     
-    evento["participantes"].append({
+    participacion = {
         "usuario": usuario,
         "opcion_id": opcion_id,
         "monto": monto_pagado
+    }
+    evento["participantes"].append(participacion)
+
+    # Registrar en el historial global de apuestas del usuario
+    historial_apuestas.append({
+        "evento_id": evento_id,
+        "titulo_evento": evento["titulo"],
+        "usuario": usuario,
+        "opcion_elegida": opcion["nombre"],
+        "monto": monto_pagado,
+        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M")
     })
     
     return jsonify({"success": True, "mensaje": f"¡Apuesta registrada en '{opcion['nombre']}'!"})
 
-# Resolver mercado y acumular los premios en las cuentas de los ganadores
 @app.route('/api/resolver', methods=['POST'])
 def resolver_evento():
     data = request.json or {}
@@ -155,16 +174,13 @@ def resolver_evento():
                 proporcion = p["monto"] / pozo_ganador
                 premio = proporcion * pozo_a_repartir
                 usuario = p["usuario"]
-                
-                # Asignar el saldo pendiente al usuario para que lo reclame
                 saldos_pendientes[usuario] = saldos_pendientes.get(usuario, 0.0) + premio
 
     return jsonify({
         "success": True,
-        "mensaje": f"¡Mercado resuelto con éxito! Ganó: {opcion_ganadora['nombre']}. Premios asignados a los saldos de los ganadores."
+        "mensaje": f"¡Mercado resuelto! Ganó: {opcion_ganadora['nombre']}. Premios acreditados."
     })
 
-# Ruta para que el usuario reclame su premio acumulado
 @app.route('/api/reclamar', methods=['POST'])
 def reclamar_premio():
     data = request.json or {}
@@ -174,13 +190,8 @@ def reclamar_premio():
     if saldo_actual <= 0:
         return jsonify({"success": False, "error": "No tienes saldo disponible para reclamar."}), 400
     
-    # Aquí se vacía el saldo (simulando la transferencia exitosa a su wallet o SDK)
     saldos_pendientes[usuario] = 0.0
-    
-    return jsonify({
-        "success": True, 
-        "mensaje": f"¡Reclamo exitoso! Se han transferido {round(saldo_actual, 4)} Pi a tu monedero."
-    })
+    return jsonify({"success": True, "mensaje": f"¡Reclamo exitoso! Se han transferido {round(saldo_actual, 4)} Pi."})
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
