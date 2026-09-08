@@ -1,6 +1,7 @@
 import os
 import requests
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
+
 
 app = Flask(__name__)
 
@@ -95,7 +96,12 @@ def completar_pago():
       }
   )
 
+@app.route('/validation-key.txt')
+def serve_validation_key():
+    return send_from_directory('static', 'validation-key.txt')
 
 if __name__ == "__main__":
   port = int(os.environ.get("PORT", 5000))
   app.run(host="0.0.0.0", port=port)
+    
+
