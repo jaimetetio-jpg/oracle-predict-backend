@@ -135,7 +135,7 @@ def completar_pago():
 
 @app.route('/validation-key.txt')
 def validation_key():
-    return "pi-p2ppredict-ok"
+    return app.send_static_file('validation-key.txt') if os.path.exists('validation-key.txt') else "332ef1d8b17e8789cb1385717cceaecf6eb79"
 
     
 
