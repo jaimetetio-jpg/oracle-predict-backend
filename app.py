@@ -135,7 +135,8 @@ def completar_pago():
 
 @app.route('/validation-key.txt')
 def validation_key():
-    return "8c73ed3c39ffc42821ce971267c7b58d01487"
+    return "8c73ed3c39ffc42821ce971267c7b58d01487ed71624c57309cc6079dd976f5f8f462164ffbdc8424ba6d641e94332ef1d8b17e8789cb1385717cceaecf6eb79"
+
 
 if __name__ == "__main__":
   port = int(os.environ.get("PORT", 5000))
