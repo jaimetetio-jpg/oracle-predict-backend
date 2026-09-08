@@ -4,14 +4,15 @@ from flask import Flask, jsonify, request, render_template
 
 app = Flask(__name__)
 
-# Lista de mercados profesionales con opciones, pozos y fechas
+# Lista de mercados profesionales con opciones, pozos, fechas y ganadores
 eventos = [
     {
         "id": 1,
         "titulo": "¿Ganará el equipo local el próximo partido?",
         "fecha_inicio": "2026-06-01T00:00",
         "fecha_cierre": "2026-06-15T23:59",
-        "estado": "activo", 
+        "estado": "activo", # activo, cerrado, resuelto
+        "ganador_id": None,
         "opciones": [
             {"id": 0, "nombre": "Sí", "pozo": 50.0},
             {"id": 1, "nombre": "No", "pozo": 50.0}
@@ -27,7 +28,7 @@ def index():
     try:
         return render_template('index.html')
     except Exception:
-        return "¡P2Ppredict Backend con Dividendos y Fechas Funcionando! 🔮"
+        return "¡P2Ppredict Backend con Resolución Funcionando! 🔮"
 
 @app.route('/validation-key.txt')
 def validation_key():
@@ -38,15 +39,15 @@ def validation_key():
 
 @app.route('/api/eventos', methods=['GET'])
 def obtener_eventos():
-    # Actualizar estados automáticamente según la fecha actual
     ahora = datetime.now()
     for ev in eventos:
-        try:
-            cierre = datetime.strptime(ev["fecha_cierre"], "%Y-%m-%dT%H:%M")
-            if ahora > cierre and ev["estado"] == "activo":
-                ev["estado"] = "cerrado"
-        except Exception:
-            pass
+        if ev["estado"] == "activo":
+            try:
+                cierre = datetime.strptime(ev["fecha_cierre"], "%Y-%m-%dT%H:%M")
+                if ahora > cierre:
+                    ev["estado"] = "cerrado"
+            except Exception:
+                pass
     return jsonify(eventos)
 
 @app.route('/api/crear-evento', methods=['POST'])
@@ -67,6 +68,7 @@ def crear_evento():
         "fecha_inicio": fecha_inicio,
         "fecha_cierre": fecha_cierre,
         "estado": "activo",
+        "ganador_id": None,
         "opciones": [
             {"id": 0, "nombre": opcion1, "pozo": 0.0},
             {"id": 1, "nombre": opcion2, "pozo": 0.0}
@@ -90,18 +92,8 @@ def participar():
     if not evento:
         return jsonify({"success": False, "error": "Mercado no encontrado"}), 404
         
-    # Verificar si el mercado ya cerró por fecha
-    ahora = datetime.now()
-    try:
-        cierre = datetime.strptime(evento["fecha_cierre"], "%Y-%m-%dT%H:%M")
-        if ahora > cierre:
-            evento["estado"] = "cerrado"
-            return jsonify({"success": False, "error": "Este mercado ya ha caducado y no acepta más apuestas."}), 400
-    except Exception:
-        pass
-
     if evento["estado"] != "activo":
-        return jsonify({"success": False, "error": "El mercado no está activo."}), 400
+        return jsonify({"success": False, "error": "El mercado ya está cerrado o resuelto."}), 400
 
     opcion = next((op for op in evento["opciones"] if op["id"] == opcion_id), None)
     if not opcion:
@@ -117,14 +109,57 @@ def participar():
     
     evento["participantes"].append({
         "usuario": usuario,
-        "opcion": opcion["nombre"],
+        "opcion_id": opcion_id,
         "monto": monto_pagado
     })
     
+    return jsonify({"success": True, "mensaje": f"¡Apuesta registrada en '{opcion['nombre']}'!"})
+
+# Ruta para resolver el mercado y calcular los pagos a los ganadores
+@app.route('/api/resolver', methods=['POST'])
+def resolver_evento():
+    data = request.json or {}
+    evento_id = int(data.get('evento_id', 0))
+    ganador_id = int(data.get('ganador_id', 0))
+    
+    evento = next((ev for ev in eventos if ev["id"] == evento_id), None)
+    if not evento:
+        return jsonify({"success": False, "error": "Mercado no encontrado"}), 404
+        
+    if evento["estado"] == "resuelto":
+        return jsonify({"success": False, "error": "Este mercado ya fue resuelto."}), 400
+
+    opcion_ganadora = next((op for op in evento["opciones"] if op["id"] == ganador_id), None)
+    if not opcion_ganadora:
+        return jsonify({"success": False, "error": "Opción ganadora inválida"}), 404
+
+    evento["estado"] = "resuelto"
+    evento["ganador_id"] = ganador_id
+    
+    # Calcular distribución de premios
+    pozo_a_repartir = sum(op["pozo"] for op in evento["opciones"]) # Esto ya descuenta la comisión acumulada en `comision_casa`
+    pozo_ganador = opcion_ganadora["pozo"]
+    
+    resultados_pagos = []
+    
+    if pozo_ganador > 0:
+        for p in evento["participantes"]:
+            if p["opcion_id"] == ganador_id:
+                # Proporción que le toca a cada ganador según su aporte
+                proporcion = p["monto"] / pozo_ganador
+                premio = proporcion * pozo_a_repartir
+                resultados_pagos.append({
+                    "usuario": p["usuario"],
+                    "premio_a_pagar": round(premio, 4)
+                })
+    else:
+        resultados_pagos.append({"mensaje": "Nadie apostó por la opción ganadora. El pozo pasa a la casa."})
+
     return jsonify({
         "success": True,
-        "mensaje": f"¡Apuesta registrada en '{opcion['nombre']}'!",
-        "evento": evento
+        "mensaje": f"¡Mercado resuelto! Ganó: {opcion_ganadora['nombre']}",
+        "pagos": resultados_pagos,
+        "comision_retenida_casa": round(evento["comision_casa"], 4)
     })
 
 if __name__ == '__main__':
