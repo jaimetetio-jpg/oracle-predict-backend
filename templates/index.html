@@ -15,16 +15,8 @@
             padding: 20px;
             margin: 0;
         }
-        h1 {
-            font-size: 26px;
-            color: #ffffff;
-            margin-bottom: 5px;
-        }
-        p.subtitulo {
-            color: #8b949e;
-            font-size: 14px;
-            margin-bottom: 25px;
-        }
+        h1 { font-size: 26px; color: #ffffff; margin-bottom: 5px; }
+        p.subtitulo { color: #8b949e; font-size: 14px; margin-bottom: 25px; }
         .card {
             background-color: #161b22;
             border: 1px solid #30363d;
@@ -35,101 +27,35 @@
             margin-bottom: 20px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         }
-        .card h3 {
-            font-size: 16px;
-            color: #f0f6fc;
-            margin-top: 0;
-            margin-bottom: 10px;
-        }
+        .card h3 { font-size: 16px; color: #f0f6fc; margin-top: 0; margin-bottom: 10px; }
         input[type="text"], input[type="datetime-local"] {
-            width: 92%;
-            padding: 10px;
-            border-radius: 6px;
-            border: 1px solid #30363d;
-            background-color: #0d1117;
-            color: #fff;
-            margin-bottom: 10px;
-            font-size: 14px;
+            width: 92%; padding: 10px; border-radius: 6px; border: 1px solid #30363d;
+            background-color: #0d1117; color: #fff; margin-bottom: 10px; font-size: 14px;
         }
-        label {
-            font-size: 12px;
-            color: #8b949e;
-            display: block;
-            margin-bottom: 4px;
-            text-align: left;
-        }
-        .opciones-container {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 15px;
-        }
+        label { font-size: 12px; color: #8b949e; display: block; margin-bottom: 4px; text-align: left; }
+        .opciones-container { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
         .opcion-row {
-            background-color: #21262d;
-            border: 1px solid #30363d;
-            border-radius: 8px;
-            padding: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            background-color: #21262d; border: 1px solid #30363d; border-radius: 8px;
+            padding: 12px; display: flex; justify-content: space-between; align-items: center;
         }
-        .info-opcion {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .nombre-opcion {
-            font-weight: bold;
-            color: #58a6ff;
-            font-size: 15px;
-        }
-        .stats-opcion {
-            font-size: 12px;
-            color: #8b949e;
-        }
-        .pago-destacado {
-            color: #3fb950;
-            font-weight: bold;
-        }
+        .info-opcion { display: flex; flex-direction: column; gap: 4px; }
+        .nombre-opcion { font-weight: bold; color: #58a6ff; font-size: 15px; }
+        .stats-opcion { font-size: 12px; color: #8b949e; }
+        .pago-destacado { color: #3fb950; font-weight: bold; }
         button {
-            background-color: #238636;
-            color: #fff;
-            border: none;
-            padding: 8px 14px;
-            border-radius: 6px;
-            font-size: 13px;
-            cursor: pointer;
-            font-weight: bold;
+            background-color: #238636; color: #fff; border: none; padding: 8px 14px;
+            border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: bold;
         }
-        button:disabled {
-            background-color: #30363d;
-            color: #8b949e;
-            cursor: not-allowed;
-        }
-        button.btn-crear {
-            background-color: #8957e5;
-            width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-        }
-        button:hover:not(:disabled) {
-            opacity: 0.85;
-        }
-        .header-meta {
-            display: flex;
-            justify-content: space-between;
-            font-size: 11px;
-            color: #8b949e;
-            margin-bottom: 10px;
-        }
+        button:disabled { background-color: #30363d; color: #8b949e; cursor: not-allowed; }
+        button.btn-crear { background-color: #8957e5; width: 100%; padding: 10px; margin-top: 5px; }
+        button.btn-resolver { background-color: #d29922; color: #000; width: 100%; margin-top: 10px; }
+        button:hover:not(:disabled) { opacity: 0.85; }
+        .header-meta { display: flex; justify-content: space-between; font-size: 11px; color: #8b949e; margin-bottom: 10px; }
         .badge-activo { color: #3fb950; font-weight: bold; }
-        .badge-cerrado { color: #f85149; font-weight: bold; }
-        .pozo-global {
-            font-size: 13px;
-            color: #58a6ff;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
+        .badge-cerrado { color: #d29922; font-weight: bold; }
+        .badge-resuelto { color: #58a6ff; font-weight: bold; }
+        .pozo-global { font-size: 13px; color: #58a6ff; margin-bottom: 10px; font-weight: bold; }
+        .resultado-caja { background-color: #1f242c; padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 13px; color: #3fb950; }
     </style>
 </head>
 <body>
@@ -143,12 +69,12 @@
         <input type="text" id="nuevo-titulo" placeholder="Pregunta (Ej: ¿Bitcoin llega a 100k?)">
         <input type="text" id="opcion-1" placeholder="Opción 1" value="Sí">
         <input type="text" id="opcion-2" placeholder="Opción 2" value="No">
-        <label>Fecha y Hora de Cierre (Caducidad):</label>
+        <label>Fecha y Hora de Cierre:</label>
         <input type="datetime-local" id="fecha-cierre">
         <button class="btn-crear" onclick="crearMercado()">Publicar Mercado</button>
     </div>
 
-    <!-- Lista de Mercados Activos -->
+    <!-- Lista de Mercados -->
     <div id="mercados-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
         <div class="card"><h3>Cargando mercados...</h3></div>
     </div>
@@ -174,18 +100,24 @@
                     let pozoTotalEvento = ev.opciones.reduce((acc, curr) => acc + curr.pozo, 0);
                     let pozoDespuesDeComision = pozoTotalEvento * 0.98;
                     let isActivo = ev.estado === 'activo';
+                    let isResuelto = ev.estado === 'resuelto';
                     
+                    let badgeClass = 'badge-activo';
+                    let badgeText = '● ACTIVO';
+                    if (ev.estado === 'cerrado') { badgeClass = 'badge-cerrado'; badgeText = '■ CERRADO (Esperando Resultado)'; }
+                    if (isResuelto) { badgeClass = 'badge-resuelto'; badgeText = '✔ RESUELTO'; }
+
                     let htmlOpciones = '';
                     ev.opciones.forEach(op => {
                         let porcentaje = pozoTotalEvento > 0 ? ((op.pozo / pozoTotalEvento) * 100).toFixed(1) : 50.0;
-                        
-                        // Cálculo del multiplicador de dividendos en vivo (ej: 2.15x)
                         let multiplicador = op.pozo > 0 ? (pozoDespuesDeComision / op.pozo).toFixed(2) : "2.00";
                         
+                        let esGanadora = isResuelto && ev.ganador_id === op.id;
+                        
                         htmlOpciones += `
-                            <div class="opcion-row">
+                            <div class="opcion-row" style="${esGanadora ? 'border: 2px solid #3fb950;' : ''}">
                                 <div class="info-opcion">
-                                    <span class="nombre-opcion">${op.nombre} (${porcentaje}%)</span>
+                                    <span class="nombre-opcion">${op.nombre} (${porcentaje}%) ${esGanadora ? '🏆 (Ganadora)' : ''}</span>
                                     <span class="stats-opcion">Pozo: ${op.pozo.toFixed(2)} Pi | <span class="pago-destacado">Paga: ${multiplicador}x</span></span>
                                 </div>
                                 <button ${!isActivo ? 'disabled' : ''} onclick="apostar(${ev.id}, ${op.id})">
@@ -195,18 +127,31 @@
                         `;
                     });
 
+                    // Botones de resolución para el administrador si ya cerró y no está resuelto
+                    let htmlResolucion = '';
+                    if (!isResuelto) {
+                        htmlResolucion = `
+                            <div style="margin-top: 15px; border-top: 1px solid #30363d; pt: 10px;">
+                                <label style="margin-top:10px;">Panel de Administración (Resolver):</label>
+                                <button class="btn-resolver" onclick="resolverMercado(${ev.id}, ${ev.opciones[0].id})">Declarar Ganador: ${ev.opciones[0].nombre}</button>
+                                <button class="btn-resolver" onclick="resolverMercado(${ev.id}, ${ev.opciones[1].id})">Declarar Ganador: ${ev.opciones[1].nombre}</button>
+                            </div>
+                        `;
+                    } else {
+                        htmlResolucion = `<div class="resultado-caja">El mercado ha finalizado. La comisión retenida para la casa fue de <b>${ev.comision_casa.toFixed(2)} Pi</b>.</div>`;
+                    }
+
                     card.innerHTML = `
                         <div class="header-meta">
                             <span>Cierre: ${ev.fecha_cierre.replace('T', ' ')}</span>
-                            <span class="${isActivo ? 'badge-activo' : 'badge-cerrado'}">
-                                ${isActivo ? '● ACTIVO' : '■ CERRADO'}
-                            </span>
+                            <span class="${badgeClass}">${badgeText}</span>
                         </div>
                         <h3>${ev.titulo}</h3>
                         <div class="pozo-global">Volumen Total del Pozo: ${pozoTotalEvento.toFixed(2)} Pi</div>
                         <div class="opciones-container">
                             ${htmlOpciones}
                         </div>
+                        ${htmlResolucion}
                     `;
                     contenedor.appendChild(card);
                 });
@@ -223,7 +168,7 @@
             const fechaCierre = document.getElementById('fecha-cierre').value;
 
             if (!titulo || !fechaCierre) {
-                alert("Por favor completa el título y la fecha de cierre.");
+                alert("Completa el título y la fecha de cierre.");
                 return;
             }
 
@@ -231,12 +176,7 @@
                 const response = await fetch('/api/crear-evento', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        titulo: titulo, 
-                        opcion1: op1, 
-                        opcion2: op2, 
-                        fecha_cierre: fechaCierre 
-                    })
+                    body: JSON.stringify({ titulo, opcion1, opcion2, fecha_cierre: fechaCierre })
                 });
                 const res = await response.json();
                 if (res.success) {
@@ -244,12 +184,8 @@
                     document.getElementById('nuevo-titulo').value = '';
                     document.getElementById('fecha-cierre').value = '';
                     cargarMercados();
-                } else {
-                    alert("Error: " + res.error);
                 }
-            } catch (error) {
-                console.error("Error al crear:", error);
-            }
+            } catch (error) { console.error("Error:", error); }
         }
 
         async function apostar(eventoId, opcionId) {
@@ -261,17 +197,32 @@
                 });
                 const res = await response.json();
                 if (res.success) {
-                    alert("¡Apuesta realizada con éxito! Dividendos actualizados.");
+                    alert("¡Apuesta realizada con éxito!");
                     cargarMercados();
-                } else {
-                    alert("Aviso: " + res.error);
-                }
-            } catch (error) {
-                console.error("Error al apostar:", error);
-            }
+                } else { alert("Aviso: " + res.error); }
+            } catch (error) { console.error("Error:", error); }
+        }
+
+        async function resolverMercado(eventoId, ganadorId) {
+            if (!confirm("¿Estás seguro de declarar esta opción como ganadora? Esta acción cerrará el mercado y calculará los dividendos.")) return;
+
+            try {
+                const response = await fetch('/api/resolver', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ evento_id: eventoId, ganador_id: ganadorId })
+                });
+                const res = await response.json();
+                if (res.success) {
+                    alert("¡Mercado resuelto con éxito!\nRevisa la consola o la respuesta para ver el desglose de pagos a los ganadores.");
+                    console.log("Pagos a ganadores:", res.pagos);
+                    cargarMercados();
+                } else { alert("Error: " + res.error); }
+            } catch (error) { console.error("Error al resolver:", error); }
         }
 
         window.onload = cargarMercados;
     </script>
 </body>
-</html>
+    </html>
+
