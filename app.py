@@ -120,14 +120,12 @@ def obtener_saldo(username):
     conn = obtener_conexion()
     c = conn.cursor()
     
-    # Buscar usuario en la base de datos
     if DATABASE_URL:
         c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s", (username,))
     else:
         c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
     row = c.fetchone()
     
-    # Si el usuario no existe, lo creamos. Si es @jaimetetio, aseguramos sus 0.1 Pi de saldo inicial.
     if not row:
         saldo_inicial = 0.1 if username.lower() in ["@jaimetetio", "jaimetetio"] else 0.0
         
@@ -150,8 +148,6 @@ def obtener_saldo(username):
         saldo = saldo_inicial
     else:
         saldo = row["saldo_disponible"]
-        
-        # Blindaje extra: si es @jaimetetio y por alguna razón su saldo figuraba en 0.0, lo restauramos a 0.1 Pi
         if username.lower() in ["@jaimetetio", "jaimetetio"] and saldo == 0.0:
             saldo = 0.1
             if DATABASE_URL:
@@ -164,14 +160,12 @@ def obtener_saldo(username):
                 c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (saldo, username))
             conn.commit()
 
-    # Obtener historial de apuestas del usuario
     if DATABASE_URL:
         c.execute("SELECT * FROM historial_apuestas WHERE username = %s ORDER BY id DESC", (username,))
     else:
         c.execute("SELECT * FROM historial_apuestas WHERE username = ? ORDER BY id DESC", (username,))
     historial = [dict(row) for row in c.fetchall()]
 
-    # Obtener historial de transacciones y retiros
     if DATABASE_URL:
         c.execute("SELECT * FROM transacciones WHERE username = %s ORDER BY id DESC", (username,))
     else:
@@ -207,13 +201,11 @@ def participar():
 
     try:
         if DATABASE_URL:
-            # Bloqueo exclusivo de la fila del usuario para evitar condiciones de carrera (Supabase/PostgreSQL ACID)
             c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
         else:
             c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
         
         row = c.fetchone()
-        
         saldo_actual = row["saldo_disponible"] if row else 0
         if not row or saldo_actual < monto:
             conn.rollback()
@@ -423,10 +415,10 @@ def procesar_orden_clob():
     username = data.get("username")
     evento_id = data.get("evento_id")
     opcion_id = data.get("opcion_id")
-    tipo_orden = data.get("tipo_orden", "limit").lower()  # 'limit' o 'market'
-    accion = data.get("accion", "compra").lower()          # 'compra' o 'venta'
-    cantidad = float(data.get("cantidad", 0))              # Monto en Pi
-    precio = float(data.get("precio", 0.5))                # Requerido para Limit
+    tipo_orden = data.get("tipo_orden", "limit").lower()
+    accion = data.get("accion", "compra").lower()
+    cantidad = float(data.get("cantidad", 0))
+    precio = float(data.get("precio", 0.5))
 
     if not username or cantidad <= 0:
         return jsonify({"success": False, "error": "Datos de orden inválidos o saldo faltante"}), 400
@@ -435,7 +427,6 @@ def procesar_orden_clob():
     c = conn.cursor()
 
     try:
-        # Bloqueo de fila ACID del usuario
         if DATABASE_URL:
             c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
         else:
@@ -448,7 +439,6 @@ def procesar_orden_clob():
             conn.rollback()
             return jsonify({"success": False, "error": "Saldo insuficiente para procesar la orden CLOB"})
 
-        # Descontar saldo temporalmente para asegurar la operación
         nuevo_saldo = saldo_actual - cantidad
         if DATABASE_URL:
             c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
@@ -459,14 +449,9 @@ def procesar_orden_clob():
         evento = next((e for e in EVENTOS if e["id"] == evento_id), None)
         titulo_evento = evento["titulo"] if evento else f"Evento {evento_id}"
 
-        # ==========================================
-        # CASO A: ORDEN MARKET (Ejecución Instantánea)
-        # ==========================================
         if tipo_orden == "market":
-            # Comisión del 1.5% aplicada al Taker de Mercado
             comision_taker = cantidad * 0.015
             monto_efectivo = cantidad - comision_taker
-
             txid = f"CLOB_MKT_{datetime.now().strftime('%Y%m%d%H%M%S')}"
             
             if DATABASE_URL:
@@ -490,10 +475,6 @@ def procesar_orden_clob():
                 "nuevo_saldo": nuevo_saldo, 
                 "mensaje": "¡Orden Market ejecutada al instante! (Comisión aplicada: 1.5%)"
             })
-
-        # ==========================================
-        # CASO B: ORDEN LIMIT (Libro de Órdenes)
-        # ==========================================
         else:
             if precio <= 0 or precio >= 1:
                 conn.rollback()
@@ -510,7 +491,7 @@ def procesar_orden_clob():
             return jsonify({
                 "success": True, 
                 "nuevo_saldo": nuevo_saldo, 
-                "mensaje": f"Orden Limit registrada en el CLOB al precio de {precio} (Esperando Maker/Match)"
+                "mensaje": f"Orden Limit registrada en el CLOB al precio de {precio}"
             })
 
     except Exception as e:
@@ -526,7 +507,6 @@ def admin_login():
     data = request.json or {}
     password = data.get("password", "")
     
-    # Comprobación segura mediante hash automático
     if check_password_hash(ADMIN_PASSWORD_HASH, password):
         session['is_admin'] = True
         return jsonify({"success": True, "message": "Acceso de administrador autorizado"})
@@ -558,11 +538,35 @@ def resolver_evento():
     evento["ganador_id"] = ganador_id
     return jsonify({"success": True, "mensaje": "Evento resuelto correctamente"})
 
+# --- NUEVA FUNCIÓN: BORRAR MERCADOS VACÍOS O SIN LIQUIDEZ ---
+@app.route("/api/admin/limpiar-mercados-vacios", methods=["POST"])
+def admin_limpiar_mercados_vacios():
+    if not session.get('is_admin'):
+        return jsonify({"success": False, "error": "No autorizado"}), 403
+
+    global EVENTOS
+    # Filtramos para conservar únicamente los eventos cuya suma total de pozos sea mayor a 0
+    eventos_con_liquidez = []
+    eliminados = 0
+
+    for evento in EVENTOS:
+        pozo_total = sum(op.get("pozo", 0) for op in evento.get("opciones", []))
+        if pozo_total > 0:
+            eventos_con_liquidez.append(evento)
+        else:
+            eliminados += 1
+
+    EVENTOS = eventos_con_liquidez
+    return jsonify({
+        "success": True,
+        "mensaje": f"Se han eliminado {eliminados} mercados sin liquidez correctamente.",
+        "mercados_restantes": len(EVENTOS)
+    })
+
 # --- GESTIÓN Y AUDITORÍA DE USUARIOS ---
 
 @app.route("/api/admin/usuarios", methods=["GET"])
 def admin_listar_usuarios():
-    """Lista todos los usuarios registrados y sus saldos"""
     if not session.get('is_admin'):
         return jsonify({"success": False, "error": "No autorizado"}), 403
 
@@ -576,7 +580,6 @@ def admin_listar_usuarios():
 
 @app.route("/api/admin/usuario/<username>", methods=["GET"])
 def admin_detalle_usuario(username):
-    """Consulta el detalle, apuestas y transacciones de un usuario específico"""
     if not session.get('is_admin'):
         return jsonify({"success": False, "error": "No autorizado"}), 403
 
@@ -616,7 +619,6 @@ def admin_detalle_usuario(username):
 
 @app.route("/api/admin/ajustar-saldo", methods=["POST"])
 def admin_ajustar_saldo():
-    """Ajusta de forma manual el saldo de un usuario"""
     if not session.get('is_admin'):
         return jsonify({"success": False, "error": "No autorizado"}), 403
 
