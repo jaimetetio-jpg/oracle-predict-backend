@@ -401,7 +401,7 @@
                             </div>
                             
                             <!-- Panel CLOB expandible para órdenes Limit/Market -->
-                            <div id="clob-panel-${ev.id}-${op.id}" class="clob-panel">
+                            <div id="clob-panel-${ev.id}-${op.id}" class="clob-panel" data-evento-id="${ev.id}" data-opcion-id="${op.id}">
                                 <div class="clob-tabs">
                                     <div id="tab-limit-${ev.id}-${op.id}" class="clob-tab activo" onclick="cambiarTipoClob(${ev.id}, ${op.id}, 'limit')">LIMIT ORDER</div>
                                     <div id="tab-market-${ev.id}-${op.id}" class="clob-tab" onclick="cambiarTipoClob(${ev.id}, ${op.id}, 'market')">MARKET (TAKER)</div>
@@ -477,6 +477,11 @@
             const tipo = panel.dataset.tipo || 'limit';
             const monto = parseFloat(document.getElementById(`clob-monto-${eventoId}-${opcionId}`).value) || 0;
             
+            const evento = eventosGlobales.find(e => e.id === eventoId);
+            if (!evento) return;
+            const opcion = evento.opciones.find(o => o.id === opcionId);
+            if (!opcion) return;
+
             let ganancia = 0;
             let roi = 0;
 
@@ -487,9 +492,19 @@
                     roi = ((ganancia - monto) / monto) * 100;
                 }
             } else {
-                let montoEfectivo = monto * (1 - 0.015);
-                ganancia = montoEfectivo * 2.0;
-                roi = ((ganancia - monto) / monto) * 100;
+                // Lógica dinámica pari-mutuel proporcional para órdenes Market
+                const pozoTotalActual = evento.opciones.reduce((acc, o) => acc + o.pozo, 0);
+                const comision = monto * 0.015;
+                const montoEfectivo = monto - comision;
+
+                const nuevoPozoTotal = pozoTotalActual + monto;
+                const nuevoPozoOpcion = opcion.pozo + monto;
+
+                if (nuevoPozoOpcion > 0) {
+                    const proporcion = montoEfectivo / nuevoPozoOpcion;
+                    ganancia = nuevoPozoTotal * proporcion;
+                }
+                roi = monto > 0 ? ((ganancia - monto) / monto) * 100 : 0;
             }
 
             document.getElementById(`sim-ganancia-${eventoId}-${opcionId}`).innerText = `${ganancia.toFixed(2)} Pi`;
