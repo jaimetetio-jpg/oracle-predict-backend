@@ -344,81 +344,15 @@
                                         <b style="color:${colorMonto};">${signo}${tx.monto} Pi</b><br>
                                         <span style="font-size:10px; color:#8b949e;">ID: ${tx.txid} • ${tx.fecha}</span>
                                     </div>
-                                    <div ${badgeTipo}>${tx.tipo}</div>
-                                </div>`;
+                                    <div style="font-size:11px; font-weight:bold;" ${badgeTipo}>${tx.tipo}</div>
+                                </div>
+                            `;
                         });
                         txCont.innerHTML = html;
                     }
                 }
-            } catch (e) { console.error(e); }
-        }
-
-        function recargarConPi() {
-            const monto = parseFloat(document.getElementById('input-recarga').value);
-            if (isNaN(monto) || monto <= 0) return alert("Monto inválido.");
-
-            Pi.createPayment({
-                amount: monto,
-                memo: `Recarga P2Ppredict - @${usuarioActual}`,
-                metadata: { tipo: "recarga_saldo", username: usuarioActual }
-            }, {
-                onReadyForServerApproval: (paymentId) => {
-                    fetch('/api/pi/aprobar-pago', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ paymentId })
-                    });
-                },
-                onReadyForServerCompletion: (paymentId, txid) => {
-                    fetch('/api/pi/completar-pago', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ paymentId, txid, username: usuarioActual, monto })
-                    }).then(res => res.json()).then(data => {
-                        if(data.success) {
-                            alert(`¡Recarga de ${monto} Pi exitosa!`);
-                            cargarDatosUsuario();
-                        }
-                    });
-                },
-                onCancel: () => {},
-                onError: () => alert("Error en el pago Pi.")
-            });
-        }
-
-        async function retirarPi() {
-            let textoSaldo = document.getElementById('saldo-usuario').innerText.replace('Pi', '').trim();
-            let montoMaximo = parseFloat(textoSaldo);
-
-            if (isNaN(montoMaximo) || montoMaximo <= 0) {
-                return alert("No tienes saldo disponible para retirar.");
-            }
-
-            let montoStr = prompt(`¿Cuánto Pi deseas retirar? (Disponible: ${montoMaximo.toFixed(4)} Pi)`, "0.01");
-            if (!montoStr) return;
-            let monto = parseFloat(montoStr);
-
-            if (isNaN(monto) || monto <= 0 || monto > montoMaximo) {
-                return alert("Monto de retiro inválido o superior a tu saldo.");
-            }
-
-            try {
-                const res = await fetch('/api/retirar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: usuarioActual, monto: monto })
-                });
-
-                const data = await res.json();
-                if (data.success) {
-                    alert(data.mensaje);
-                    cargarDatosUsuario();
-                } else {
-                    alert("Error al retirar: " + data.error);
-                }
-            } catch (error) {
-                console.error(error);
-                alert("Error de conexión al procesar el retiro.");
+            } catch (e) {
+                console.error("Error al cargar datos del usuario:", e);
             }
         }
 
@@ -427,353 +361,436 @@
                 const res = await fetch('/api/eventos');
                 eventosGlobales = await res.json();
                 renderizarMercados();
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error("Error al cargar mercados:", e);
+            }
         }
 
         function renderizarMercados() {
-            const contenedor = document.getElementById('mercados-container');
-            contenedor.innerHTML = '';
-            const filtro = document.getElementById('input-buscar').value.toLowerCase().trim();
-            const filtrados = eventosGlobales.filter(ev => !filtro || ev.titulo.toLowerCase().includes(filtro));
+            const container = document.getElementById('mercados-container');
+            const filtro = document.getElementById('input-buscar').value.toLowerCase();
+            container.innerHTML = '';
 
+            const filtrados = eventosGlobales.filter(ev => ev.titulo.toLowerCase().includes(filtro));
+            
             if (filtrados.length === 0) {
-                contenedor.innerHTML = '<div class="card"><h3>No hay mercados</h3></div>';
+                container.innerHTML = '<div class="card"><h3>No se encontraron mercados.</h3></div>';
                 return;
             }
 
-            filtrados.forEach((ev, index) => {
-                const card = document.createElement('div');
+            filtrados.forEach(ev => {
+                let card = document.createElement('div');
                 card.className = 'card';
-                let pozoTotalEvento = ev.opciones.reduce((acc, curr) => acc + curr.pozo, 0);
-                let isHot = index === 0 && pozoTotalEvento > 0;
+                
+                let pozoTotal = ev.opciones.reduce((acc, o) => acc + o.pozo, 0);
 
-                let htmlOpc = '';
+                let htmlOpciones = '';
                 ev.opciones.forEach(op => {
-                    let porc = pozoTotalEvento > 0 ? ((op.pozo / pozoTotalEvento) * 100).toFixed(1) : 50;
-                    htmlOpc += `
+                    let porcentaje = pozoTotal > 0 ? ((op.pozo / pozoTotal) * 100).toFixed(1) : 0;
+                    htmlOpciones += `
                         <div class="opcion-row">
                             <div class="opcion-row-top">
                                 <div class="info-opcion">
-                                    <span class="nombre-opcion">${op.nombre} (${porc}%)</span>
-                                    <span class="stats-opcion">Pozo: ${op.pozo.toFixed(2)} Pi</span>
+                                    <span class="nombre-opcion">${op.nombre}</span>
+                                    <span class="stats-opcion">Pool: ${op.pozo.toFixed(2)} Pi (${porcentaje}%)</span>
                                 </div>
-                                ${ev.estado === 'activo' ? `<button onclick="toggleClobPanel(${ev.id}, ${op.id})">Operar ⚡</button>` : '<span>Cerrado</span>'}
+                                <div style="display:flex; gap:6px;">
+                                    <button onclick="participarEvento(${ev.id}, ${op.id})" style="background-color: #238636; padding: 6px 10px; font-size: 12px;">Predecir</button>
+                                    <button onclick="toggleClobPanel(${ev.id}, ${op.id})" style="background-color: #1f6feb; padding: 6px 8px; font-size: 11px;">CLOB ⚙️</button>
+                                </div>
                             </div>
                             
-                            <!-- Panel CLOB expandible para órdenes Market y Limit con cálculo en tiempo real -->
+                            <!-- Panel CLOB expandible para órdenes Limit/Market -->
                             <div id="clob-panel-${ev.id}-${op.id}" class="clob-panel">
                                 <div class="clob-tabs">
-                                    <div id="tab-mkt-${ev.id}-${op.id}" class="clob-tab activo" onclick="cambiarTipoOrden(${ev.id}, ${op.id}, 'market')">Mercado (Instant)</div>
-                                    <div id="tab-lmt-${ev.id}-${op.id}" class="clob-tab" onclick="cambiarTipoOrden(${ev.id}, ${op.id}, 'limit')">Límite (Book)</div>
+                                    <div id="tab-limit-${ev.id}-${op.id}" class="clob-tab activo" onclick="cambiarTipoClob(${ev.id}, ${op.id}, 'limit')">LIMIT ORDER</div>
+                                    <div id="tab-market-${ev.id}-${op.id}" class="clob-tab" onclick="cambiarTipoClob(${ev.id}, ${op.id}, 'market')">MARKET (TAKER)</div>
                                 </div>
                                 
-                                <div id="form-mkt-${ev.id}-${op.id}">
-                                    <label style="font-size:11px;">Monto a apostar (Pi):</label>
-                                    <input type="number" id="input-monto-mkt-${ev.id}-${op.id}" placeholder="Ej: 1.0" step="0.1" style="margin-bottom:6px; font-size:12px; padding:6px;" oninput="actualizarPreviewGanancia(${ev.id}, ${op.id}, 'market', ${op.pozo}, ${pozoTotalEvento})">
-                                    
-                                    <!-- Caja intuitiva de desglose y ganancia potencial -->
-                                    <div class="preview-ganancia-box">
-                                        <div class="preview-row"><span>Inversión:</span> <strong id="lbl-inv-mkt-${ev.id}-${op.id}" style="color:#f59e0b;">0.00 Pi</strong></div>
-                                        <div class="preview-row"><span>Pozo Opción:</span> <span id="lbl-pozo-mkt-${ev.id}-${op.id}">${op.pozo.toFixed(2)} Pi</span></div>
-                                        <div class="preview-row" style="border-top:1px solid #30363d; padding-top:4px; margin-top:2px;">
-                                            <span style="color:#3fb950; font-weight:bold;">Ganancia Est.:</span> 
-                                            <strong id="lbl-gan-mkt-${ev.id}-${op.id}" style="color:#3fb950; font-size:12px;">~ 0.00 Pi</strong>
-                                        </div>
-                                    </div>
-
-                                    <button onclick="ejecutarOrdenCLOB(${ev.id}, ${op.id}, 'market')" style="width:100%; padding:6px; font-size:12px; background:#238636;">Ejecutar Orden Market</button>
+                                <div id="container-precio-${ev.id}-${op.id}">
+                                    <label style="font-size:10px;">Precio Objetivo (Probabilidad 0.01 - 0.99):</label>
+                                    <input type="number" id="clob-precio-${ev.id}-${op.id}" value="0.50" min="0.01" max="0.99" step="0.01" oninput="calcularSimulacionClob(${ev.id}, ${op.id})" style="padding:6px; font-size:12px; margin-bottom:6px;">
                                 </div>
 
-                                <div id="form-lmt-${ev.id}-${op.id}" style="display:none;">
-                                    <label style="font-size:11px;">Precio Límite (0.01 a 0.99):</label>
-                                    <input type="number" id="input-precio-lmt-${ev.id}-${op.id}" placeholder="Ej: 0.55" min="0.01" max="0.99" step="0.01" style="margin-bottom:6px; font-size:12px; padding:6px;">
-                                    
-                                    <label style="font-size:11px;">Monto total (Pi):</label>
-                                    <input type="number" id="input-monto-lmt-${ev.id}-${op.id}" placeholder="Ej: 2.0" step="0.1" style="margin-bottom:6px; font-size:12px; padding:6px;" oninput="actualizarPreviewGanancia(${ev.id}, ${op.id}, 'limit', ${op.pozo}, ${pozoTotalEvento})">
+                                <label style="font-size:10px;">Monto de Inversión (Pi):</label>
+                                <input type="number" id="clob-monto-${ev.id}-${op.id}" value="1.0" min="0.1" step="0.1" oninput="calcularSimulacionClob(${ev.id}, ${op.id})" style="padding:6px; font-size:12px; margin-bottom:8px;">
 
-                                    <!-- Caja intuitiva de desglose y ganancia potencial Limit -->
-                                    <div class="preview-ganancia-box">
-                                        <div class="preview-row"><span>Inversión:</span> <strong id="lbl-inv-lmt-${ev.id}-${op.id}" style="color:#f59e0b;">0.00 Pi</strong></div>
-                                        <div class="preview-row" style="border-top:1px solid #30363d; padding-top:4px; margin-top:2px;">
-                                            <span style="color:#3fb950; font-weight:bold;">Rendimiento Est.:</span> 
-                                            <strong id="lbl-gan-lmt-${ev.id}-${op.id}" style="color:#3fb950; font-size:12px;">~ 0.00 Pi</strong>
-                                        </div>
-                                    </div>
-
-                                    <button onclick="ejecutarOrdenCLOB(${ev.id}, ${op.id}, 'limit')" style="width:100%; padding:6px; font-size:12px; background:#8957e5;">Colocar Orden Límite</button>
+                                <!-- Caja de Ganancia Potencial Transparente -->
+                                <div class="preview-ganancia-box" id="preview-box-${ev.id}-${op.id}">
+                                    <div class="preview-row"><span>Ganancia Potencial:</span> <b id="sim-ganancia-${ev.id}-${op.id}" style="color:#3fb950;">2.00 Pi</b></div>
+                                    <div class="preview-row"><span>ROI Estimado:</span> <b id="sim-roi-${ev.id}-${op.id}" style="color:#58a6ff;">+100.0%</b></div>
                                 </div>
+
+                                <button onclick="enviarOrdenClob(${ev.id}, ${op.id})" style="width:100%; background:#8957e5; padding:6px; font-size:11px;">Ejecutar Orden CLOB</button>
                             </div>
-                        </div>`;
+                        </div>
+                    `;
                 });
 
                 card.innerHTML = `
                     <div class="header-meta">
-                        <span class="badge-categoria">${ev.categoria} ${isHot ? '🔥 HOT' : ''}</span>
-                        <span class="badge-activo">${ev.estado.toUpperCase()}</span>
+                        <span class="badge-categoria">${ev.categoria}</span>
+                        <span class="badge-activo">● ACTIVO</span>
                     </div>
                     <h3>${ev.titulo}</h3>
-                    <div class="pozo-global">Volumen: ${pozoTotalEvento.toFixed(2)} Pi</div>
-                    <div class="opciones-container">${htmlOpc}</div>`;
-                contenedor.appendChild(card);
+                    <div class="pozo-global">Pozo Total del Mercado: ${pozoTotal.toFixed(2)} Pi</div>
+                    <div class="opciones-container">
+                        ${htmlOpciones}
+                    </div>
+                `;
+                container.appendChild(card);
             });
         }
 
         function toggleClobPanel(eventoId, opcionId) {
             const panel = document.getElementById(`clob-panel-${eventoId}-${opcionId}`);
-            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
-        }
-
-        function cambiarTipoOrden(eventoId, opcionId, tipo) {
-            const tabMkt = document.getElementById(`tab-mkt-${eventoId}-${opcionId}`);
-            const tabLmt = document.getElementById(`tab-lmt-${eventoId}-${opcionId}`);
-            const formMkt = document.getElementById(`form-mkt-${eventoId}-${opcionId}`);
-            const formLmt = document.getElementById(`form-lmt-${eventoId}-${opcionId}`);
-
-            if (tipo === 'market') {
-                tabMkt.classList.add('activo');
-                tabLmt.classList.remove('activo');
-                formMkt.style.display = 'block';
-                formLmt.style.display = 'none';
+            if (panel.style.display === 'block') {
+                panel.style.display = 'none';
             } else {
-                tabLmt.classList.add('activo');
-                tabMkt.classList.remove('activo');
-                formLmt.style.display = 'block';
-                formMkt.style.display = 'none';
+                panel.style.display = 'block';
+                panel.dataset.tipo = 'limit';
+                calcularSimulacionClob(eventoId, opcionId);
             }
         }
 
-        function actualizarPreviewGanancia(eventoId, opcionId, tipo, pozoActualOp, pozoGlobalEvento) {
-            let inputId = tipo === 'market' ? `input-monto-mkt-${eventoId}-${opcionId}` : `input-monto-lmt-${eventoId}-${opcionId}`;
-            let lblInv = tipo === 'market' ? `lbl-inv-mkt-${eventoId}-${opcionId}` : `lbl-inv-lmt-${eventoId}-${opcionId}`;
-            let lblGan = tipo === 'market' ? `lbl-gan-mkt-${eventoId}-${opcionId}` : `lbl-gan-lmt-${eventoId}-${opcionId}`;
+        function cambiarTipoClob(eventoId, opcionId, tipo) {
+            const panel = document.getElementById(`clob-panel-${eventoId}-${opcionId}`);
+            panel.dataset.tipo = tipo;
+            const tabLimit = document.getElementById(`tab-limit-${eventoId}-${opcionId}`);
+            const tabMarket = document.getElementById(`tab-market-${eventoId}-${opcionId}`);
+            const containerPrecio = document.getElementById(`container-precio-${eventoId}-${opcionId}`);
 
-            let monto = parseFloat(document.getElementById(inputId).value) || 0;
-            document.getElementById(lblInv).innerText = monto.toFixed(2) + " Pi";
-
-            if (tipo === 'market') {
-                // Modelo proporcional Pari-mutuel básico
-                let nuevoPozoOp = pozoActualOp + monto;
-                let nuevoPozoGlobal = pozoGlobalEvento + monto;
-                let gananciaEstimada = nuevoPozoOp > 0 ? (monto / nuevoPozoOp) * nuevoPozoGlobal : 0;
-                // Restar leve comisión Taker estimada del 1.5%
-                gananciaEstimada = gananciaEstimada * (1 - 0.015);
-                document.getElementById(lblGan).innerText = "~ " + gananciaEstimada.toFixed(2) + " Pi";
+            if (tipo === 'limit') {
+                tabLimit.classList.add('activo');
+                tabMarket.classList.remove('activo');
+                containerPrecio.style.display = 'block';
             } else {
-                // Para orden limit estimada simple
-                let gananciaEstimada = monto * 1.8; // Estimativo base de retorno
-                document.getElementById(lblGan).innerText = "~ " + gananciaEstimada.toFixed(2) + " Pi";
+                tabMarket.classList.add('activo');
+                tabLimit.classList.remove('activo');
+                containerPrecio.style.display = 'none';
             }
+            calcularSimulacionClob(eventoId, opcionId);
         }
 
-        async function ejecutarOrdenCLOB(eventoId, opcionId, tipoOrden) {
-            let monto, precio = null;
+        function calcularSimulacionClob(eventoId, opcionId) {
+            const panel = document.getElementById(`clob-panel-${eventoId}-${opcionId}`);
+            const tipo = panel.dataset.tipo || 'limit';
+            const monto = parseFloat(document.getElementById(`clob-monto-${eventoId}-${opcionId}`).value) || 0;
+            
+            let ganancia = 0;
+            let roi = 0;
 
-            if (tipoOrden === 'market') {
-                monto = parseFloat(document.getElementById(`input-monto-mkt-${eventoId}-${opcionId}`).value);
+            if (tipo === 'limit') {
+                let precio = parseFloat(document.getElementById(`clob-precio-${eventoId}-${opcionId}`).value) || 0.5;
+                if (precio > 0 && precio < 1) {
+                    ganancia = monto / precio;
+                    roi = ((ganancia - monto) / monto) * 100;
+                }
             } else {
-                precio = parseFloat(document.getElementById(`input-precio-lmt-${eventoId}-${opcionId}`).value);
-                monto = parseFloat(document.getElementById(`input-monto-lmt-${eventoId}-${opcionId}`).value);
-                if (isNaN(precio) || precio <= 0 || precio >= 1) {
-                    return alert("El precio límite debe estar estrictamente entre 0 y 1.");
+                let montoEfectivo = monto * (1 - 0.015);
+                ganancia = montoEfectivo * 2.0;
+                roi = ((ganancia - monto) / monto) * 100;
+            }
+
+            document.getElementById(`sim-ganancia-${eventoId}-${opcionId}`).innerText = `${ganancia.toFixed(2)} Pi`;
+            document.getElementById(`sim-roi-${eventoId}-${opcionId}`).innerText = `${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%`;
+        }
+
+        async function enviarOrdenClob(eventoId, opcionId) {
+            const panel = document.getElementById(`clob-panel-${eventoId}-${opcionId}`);
+            const tipo = panel.dataset.tipo || 'limit';
+            const monto = parseFloat(document.getElementById(`clob-monto-${eventoId}-${opcionId}`).value);
+            let precio = 0.5;
+
+            if (tipo === 'limit') {
+                precio = parseFloat(document.getElementById(`clob-precio-${eventoId}-${opcionId}`).value);
+                if (precio <= 0 || precio >= 1) {
+                    alert("El precio Limit debe estar estrictamente entre 0.01 y 0.99");
+                    return;
                 }
             }
 
-            if (isNaN(monto) || monto <= 0) {
-                return alert("Por favor ingresa un monto válido.");
+            if (!monto || monto <= 0) {
+                alert("Ingresa un monto válido.");
+                return;
             }
 
-            try {
-                const res = await fetch('/api/clob/orden', {
+            const res = await fetch('/api/clob/orden', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: usuarioActual,
+                    evento_id: eventoId,
+                    opcion_id: opcionId,
+                    tipo_orden: tipo,
+                    accion: 'compra',
+                    cantidad: monto,
+                    precio: precio
+                })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                alert(data.mensaje);
+                toggleClobPanel(eventoId, opcionId);
+                inicializarApp();
+            } else {
+                alert("Error: " + data.error);
+            }
+        }
+
+        async function participarEvento(eventoId, opcionId) {
+            let montoStr = prompt("¿Cuántos Pi deseas apostar en esta opción?", "1.0");
+            if (!montoStr) return;
+            let monto = parseFloat(montoStr);
+            if (isNaN(monto) || monto <= 0) {
+                alert("Monto inválido.");
+                return;
+            }
+
+            const res = await fetch('/api/participar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usuarioActual, evento_id: eventoId, opcion_id: opcionId, monto: monto })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.mensaje);
+                inicializarApp();
+            } else {
+                alert(data.error);
+            }
+        }
+
+        async function recargarConPi() {
+            let monto = parseFloat(document.getElementById('input-recarga').value);
+            if (isNaN(monto) || monto <= 0) {
+                alert("Ingresa un monto válido para recargar.");
+                return;
+            }
+
+            if (typeof Pi === 'undefined' || usuarioActual === "PioneroDemo") {
+                const res = await fetch('/api/pi/completar-pago', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        username: usuarioActual,
-                        evento_id: eventoId,
-                        opcion_id: opcionId,
-                        tipo_orden: tipoOrden,
-                        monto: monto,
-                        precio: precio
-                    })
+                    body: JSON.stringify({ username: usuarioActual, monto: monto, paymentId: "SIMULATED_ID", txid: "SIMULATED_TX" })
                 });
-
                 const data = await res.json();
                 if (data.success) {
-                    alert(`¡Orden procesada con éxito! (${tipoOrden.toUpperCase()})`);
-                    cargarDatosUsuario();
-                    cargarMercados();
+                    alert(data.mensaje);
+                    inicializarApp();
                 } else {
-                    alert("Error en la orden: " + data.error);
+                    alert(data.error);
                 }
+                return;
+            }
+
+            const paymentData = {
+                amount: monto,
+                memo: `Recarga P2Ppredict para @${usuarioActual}`,
+                metadata: { username: usuarioActual }
+            };
+
+            const callbacks = {
+                onReadyForServerApproval: async (paymentId) => {
+                    await fetch('/api/pi/aprobar-pago', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId })
+                    });
+                },
+                onReadyForServerCompletion: async (paymentId, txid) => {
+                    const res = await fetch('/api/pi/completar-pago', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: usuarioActual, monto, paymentId, txid })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        alert(data.mensaje);
+                        inicializarApp();
+                    }
+                },
+                onCancel: (paymentId) => { alert("Pago cancelado."); },
+                onError: (error, payment) => { alert("Error en el pago Pi: " + error); }
+            };
+
+            try {
+                Pi.createPayment(paymentData, callbacks);
             } catch (err) {
-                console.error(err);
-                alert("Error de conexión al enviar la orden al motor CLOB.");
+                alert("Error al iniciar el pago con Pi: " + err);
+            }
+        }
+
+        async function retirarPi() {
+            let montoStr = prompt("¿Cuántos Pi deseas retirar a tu Wallet de Pi Mainnet?", "1.0");
+            if (!montoStr) return;
+            let monto = parseFloat(montoStr);
+            if (isNaN(monto) || monto <= 0) {
+                alert("Monto inválido.");
+                return;
+            }
+
+            const res = await fetch('/api/retirar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usuarioActual, monto: monto })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.mensaje);
+                inicializarApp();
+            } else {
+                alert(data.error);
             }
         }
 
         async function cargarLeaderboard() {
+            const container = document.getElementById('contenedor-leaderboard');
+            container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Cargando ranking...</span>';
             try {
                 const res = await fetch('/api/leaderboard');
                 const data = await res.json();
-                const cont = document.getElementById('contenedor-leaderboard');
-                if(!data.success || data.leaderboard.length === 0) {
-                    cont.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Sin datos.</span>';
-                    return;
-                }
-                let html = '<table style="width:100%; font-size:12px; border-collapse:collapse;"><tr><th>#</th><th>Pionero</th><th>Ganancia</th></tr>';
-                data.leaderboard.forEach((u, idx) => {
-                    html += `<tr><td>${idx+1}</td><td>@${u.username}</td><td style="color:#3fb950;">+${u.ganancias_netas.toFixed(2)} Pi</td></tr>`;
-                });
-                html += '</table>';
-                cont.innerHTML = html;
-            } catch(e) { console.error(e); }
-        }
-
-        async function cargarPanelAdmin() {
-            try {
-                const res = await fetch('/api/admin/pendientes');
-                const data = await res.json();
-                const cont = document.getElementById('admin-content-area');
-                if(!data.success || data.mercados.length === 0) {
-                    cont.innerHTML = '<span style="color: #3fb950; font-size: 12px;">✅ Todo al día. No hay eventos finalizados pendientes de veredicto.</span>';
-                    return;
-                }
-                let html = '<h4 style="color: #d29922; margin-top:0;">Mercados Pendientes de Resolución</h4>';
-                data.mercados.forEach(ev => {
-                    html += `
-                        <div style="background: #0d1117; padding: 10px; border-radius: 6px; margin-top: 8px; border: 1px solid #30363d;">
-                            <b>🚨 ${ev.titulo}</b><br><span style="font-size:11px; color:#8b949e;">Cierre: ${ev.fecha_cierre}</span>
-                            <div style="margin-top:6px; display: flex; gap: 6px;">
-                                <button class="btn-resolver" onclick="resolver(${ev.id}, ${ev.opciones[0].id})">Ganó: ${ev.opciones[0].nombre}</button>
-                                <button class="btn-resolver" onclick="resolver(${ev.id}, ${ev.opciones[1].id})">Ganó: ${ev.opciones[1].nombre}</button>
-                            </div>
-                        </div>`;
-                });
-                cont.innerHTML = html;
-            } catch(e) { console.error(e); }
-        }
-
-        async function cargarListaUsuarios() {
-            const contenedor = document.getElementById("admin-content-area");
-            contenedor.innerHTML = "<p style='font-size: 12px; color: #8b949e;'>Cargando lista de usuarios...</p>";
-
-            try {
-                const res = await fetch("/api/admin/usuarios");
-                const data = await res.json();
-
-                if (data.success) {
-                    let html = `<h4 style="color: #58a6ff; margin-top:0;">Usuarios Registrados (${data.usuarios.length})</h4>`;
-                    html += `<div style="max-height: 250px; overflow-y: auto;"><table style="width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 12px;">
-                                <tr style="background: #0d1117; text-align: left;">
-                                    <th style="padding: 8px;">Usuario</th>
-                                    <th style="padding: 8px;">Saldo</th>
-                                    <th style="padding: 8px;">Acción</th>
-                                </tr>`;
-                    
-                    data.usuarios.forEach(u => {
-                        html += `<tr style="border-bottom: 1px solid #30363d;">
-                                    <td style="padding: 8px;">@${u.username}</td>
-                                    <td style="padding: 8px; color: #3fb950; font-weight: bold;">${u.saldo_disponible.toFixed(2)} Pi</td>
-                                    <td style="padding: 8px;">
-                                        <button onclick="verDetalleUsuario('${u.username}')" style="background: #1f6feb; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">Auditar</button>
-                                    </td>
-                                 </tr>`;
+                if (data.success && data.leaderboard.length > 0) {
+                    let html = '<table style="width:100%; font-size:12px; text-align:left; border-collapse:collapse;">';
+                    html += '<tr style="border-bottom:1px solid #30363d; color:#8b949e;"><th>#</th><th>Pionero</th><th style="text-align:right;">Balance</th></tr>';
+                    data.leaderboard.forEach((item, index) => {
+                        let medalla = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+                        html += `<tr style="border-bottom:1px solid #21262d;"><td style="padding:6px 0;">${medalla}</td><td><b>@${item.username}</b></td><td style="text-align:right; color:#3fb950;">${item.ganancias_netas.toFixed(4)} Pi</td></tr>`;
                     });
-                    html += `</table></div>`;
-                    contenedor.innerHTML = html;
+                    html += '</table>';
+                    container.innerHTML = html;
                 } else {
-                    contenedor.innerHTML = `<p style="color: #f85149; font-size: 12px;">Error al cargar usuarios: ${data.error}</p>`;
+                    container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Sin registros en el ranking aún.</span>';
                 }
-            } catch (err) {
-                contenedor.innerHTML = `<p style="color: #f85149; font-size: 12px;">Error de conexión con el servidor.</p>`;
+            } catch (e) {
+                container.innerHTML = '<span style="color: #f85149; font-size: 12px;">Error al cargar el ranking.</span>';
             }
         }
 
-        async function verDetalleUsuario(username) {
+        async function cargarPanelAdmin() {
+            const container = document.getElementById('admin-content-area');
+            container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Cargando gestión de mercados...</span>';
+            
+            try {
+                const res = await fetch('/api/eventos');
+                const mercados = await res.json();
+                
+                let html = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <h4 style="margin:0; color:#f0f6fc;">Gestión de Mercados Activos</h4>
+                        <button onclick="purgarMercadosVacios()" class="btn-admin" style="background:#d9534f; color:#fff;">🗑️ Purgar Mercados sin Liquidez</button>
+                    </div>
+                `;
+
+                if (mercados.length === 0) {
+                    html += '<p style="color:#8b949e; font-size:12px;">No hay mercados activos en este momento.</p>';
+                } else {
+                    mercados.forEach(ev => {
+                        let pozoTotal = ev.opciones.reduce((acc, o) => acc + o.pozo, 0);
+                        html += `
+                            <div style="background:#0d1117; border:1px solid #30363d; padding:10px; border-radius:8px; margin-bottom:8px; font-size:12px;">
+                                <b>#${ev.id} - ${ev.titulo}</b><br>
+                                <span style="color:#8b949e;">Pozo Total: <b>${pozoTotal.toFixed(2)} Pi</b> • Estado: <span style="color:#3fb950;">${ev.estado}</span></span>
+                            </div>
+                        `;
+                    });
+                }
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = '<span style="color:#f85149; font-size:12px;">Error al cargar los mercados administrativos.</span>';
+            }
+        }
+
+        async function purgarMercadosVacios() {
+            if (!confirm("¿Estás seguro de que deseas eliminar todos los mercados que tienen un pozo total de 0 (sin liquidez)?")) return;
+            try {
+                const res = await fetch('/api/admin/limpiar-mercados-vacios', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.mensaje);
+                    cargarPanelAdmin();
+                    cargarMercados();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (e) {
+                alert("Error de conexión al purgar mercados.");
+            }
+        }
+
+        async function cargarListaUsuarios() {
+            const container = document.getElementById('admin-content-area');
+            container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Cargando auditoría de usuarios...</span>';
+            try {
+                const res = await fetch('/api/admin/usuarios');
+                const data = await res.json();
+                if (data.success && data.usuarios.length > 0) {
+                    let html = '<h4 style="color:#f0f6fc; margin-bottom:10px;">Auditoría de Usuarios</h4><table style="width:100%; font-size:12px; text-align:left; border-collapse:collapse;">';
+                    html += '<tr style="border-bottom:1px solid #30363d; color:#8b949e;"><th>Usuario</th><th style="text-align:right;">Saldo</th><th style="text-align:center;">Acción</th></tr>';
+                    data.usuarios.forEach(u => {
+                        html += `<tr style="border-bottom:1px solid #21262d;"><td style="padding:6px 0;"><b>@${u.username}</b></td><td style="text-align:right; color:#3fb950;">${u.saldo_disponible.toFixed(4)} Pi</td><td style="text-align:center;"><button onclick="abrirModalUsuario('${u.username}')" style="background:#1f6feb; padding:4px 8px; font-size:11px;">Gestionar</button></td></tr>`;
+                    });
+                    html += '</table>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">No hay usuarios registrados.</span>';
+                }
+            } catch (e) {
+                container.innerHTML = '<span style="color: #f85149; font-size: 12px;">Error al cargar la lista de usuarios.</span>';
+            }
+        }
+
+        async function abrirModalUsuario(username) {
             usuarioSeleccionadoActual = username;
-            document.getElementById("modal-username-title").innerText = `Auditoría: @${username}`;
-            document.getElementById("modal-user-details").innerHTML = "Cargando historial...";
-            document.getElementById("modal-usuario").style.display = "flex";
+            document.getElementById('modal-username-title').innerText = `Gestión de @${username}`;
+            document.getElementById('ajuste-monto').value = '';
+            document.getElementById('ajuste-motivo').value = '';
 
             try {
                 const res = await fetch(`/api/admin/usuario/${username}`);
                 const data = await res.json();
-
                 if (data.success) {
-                    let html = `<p><b>Saldo Actual:</b> <span style="color: #3fb950;">${data.usuario.saldo_disponible.toFixed(4)} Pi</span></p>`;
-                    
-                    html += `<h5 style="margin: 8px 0 4px 0; color: #58a6ff;">Últimas Transacciones:</h5><ul style="font-size: 11px; max-height: 80px; overflow-y: auto; background: #0d1117; padding: 6px; border-radius: 4px; margin:0; padding-left:15px;">`;
-                    if (!data.transacciones || data.transacciones.length === 0) html += `<li>Sin transacciones</li>`;
-                    data.transacciones.forEach(t => {
-                        html += `<li>[${t.fecha}] ${t.tipo}: ${t.monto} Pi</li>`;
-                    });
-                    html += `</ul>`;
-
-                    html += `<h5 style="margin: 8px 0 4px 0; color: #58a6ff;">Historial de Apuestas:</h5><ul style="font-size: 11px; max-height: 80px; overflow-y: auto; background: #0d1117; padding: 6px; border-radius: 4px; margin:0; padding-left:15px;">`;
-                    if (!data.apuestas || data.apuestas.length === 0) html += `<li>Sin apuestas registradas</li>`;
-                    data.apuestas.forEach(a => {
-                        html += `<li><b>${a.titulo_evento}</b> - Opción: ${a.opcion_elegida} (${a.monto} Pi) [${a.estado}]</li>`;
-                    });
-                    html += `</ul>`;
-
-                    document.getElementById("modal-user-details").innerHTML = html;
-                } else {
-                    document.getElementById("modal-user-details").innerHTML = `<p style="color:#f85149;">No se pudo cargar la información.</p>`;
+                    let detHtml = `<p><b>Saldo Actual:</b> <span style="color:#3fb950;">${data.usuario.saldo_disponible.toFixed(4)} Pi</span></p>`;
+                    detHtml += `<p><b>Apuestas Totales:</b> ${data.apuestas.length} | <b>Transacciones:</b> ${data.transacciones.length}</p>`;
+                    document.getElementById('modal-user-details').innerHTML = detHtml;
+                    document.getElementById('modal-usuario').style.display = 'flex';
                 }
-            } catch (err) {
-                document.getElementById("modal-user-details").innerHTML = `<p style="color:#f85149;">Error de red.</p>`;
-            }
-        }
-
-        async function ejecutarAjusteSaldo() {
-            const monto = parseFloat(document.getElementById("ajuste-monto").value);
-            const motivo = document.getElementById("ajuste-motivo").value || "Ajuste Administrativo";
-
-            if (isNaN(monto)) {
-                alert("Por favor ingresa un monto válido (ej: 5 o -2).");
-                return;
-            }
-
-            try {
-                const res = await fetch("/api/admin/ajustar-saldo", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username: usuarioSeleccionadoActual, monto: monto, motivo: motivo })
-                });
-                const data = await res.json();
-
-                if (data.success) {
-                    alert(data.mensaje);
-                    cerrarModalUsuario();
-                    cargarListaUsuarios();
-                } else {
-                    alert("Error: " + data.error);
-                }
-            } catch (err) {
-                alert("Error de conexión al procesar el ajuste.");
+            } catch (e) {
+                alert("Error al obtener detalles del usuario.");
             }
         }
 
         function cerrarModalUsuario() {
-            document.getElementById("modal-usuario").style.display = "none";
+            document.getElementById('modal-usuario').style.display = 'none';
         }
 
-        async function resolver(eventoId, ganadorId) {
-            if(!confirm("¿Confirmar veredicto y repartir premios?")) return;
-            const res = await fetch('/api/resolver', {
+        async function ejecutarAjusteSaldo() {
+            let monto = parseFloat(document.getElementById('ajuste-monto').value);
+            let motivo = document.getElementById('ajuste-motivo').value || "Ajuste Administrativo";
+
+            if (isNaN(monto)) {
+                alert("Ingresa un monto de ajuste válido.");
+                return;
+            }
+
+            const res = await fetch('/api/admin/ajustar-saldo', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ evento_id: eventoId, ganador_id: ganadorId })
+                body: JSON.stringify({ username: usuarioSeleccionadoActual, monto: monto, motivo: motivo })
             });
-            const data = await res.json();
-            if(data.success) {
-                alert("¡Mercado resuelto y premios repartidos!");
-                cargarPanelAdmin();
-                cargarMercados();
-            }
-        }
 
-        function reclamarPremio() {
-            alert("¡Premio reclamado con éxito!");
+            const data = await res.json();
+            if (data.success) {
+                alert(data.mensaje);
+                cerrarModalUsuario();
+                cargarListaUsuarios();
+            } else {
+                alert("Error: " + data.error);
+            }
         }
 
         window.onload = autenticarPiNetwork;
