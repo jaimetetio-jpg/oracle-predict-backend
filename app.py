@@ -19,7 +19,8 @@ eventos = [
         ],
         "pozo_total": 100.0,
         "comision_casa": 2.0,
-        "participantes": []
+        "ordenes_pendientes": [],     # Cola FIFO de órdenes esperando contraparte P2P
+        "apuestas_emparejadas": []    # Registro de matches exitosos entre usuarios
     }
 ]
 
@@ -31,7 +32,7 @@ def index():
     try:
         return render_template('index.html')
     except Exception:
-        return "¡P2Ppredict Admin Backend Funcionando! 🔮"
+        return "¡P2Ppredict Admin Backend Funcionando (Modo P2P Cola Estricta)! 🔮"
 
 @app.route('/validation-key.txt')
 def validation_key():
@@ -59,7 +60,7 @@ def admin_metricas():
     volumen_total_historico = sum(ev["pozo_total"] for ev in eventos)
     comision_total_casa = sum(ev["comision_casa"] for ev in eventos)
     
-    # Pozos activos que aún no han sido repartidos
+    # Pozos activos o fondos en juego que aún no han sido repartidos
     poi_activos = sum(ev["pozo_total"] for ev in eventos if ev["estado"] != "resuelto")
     
     # Total de premios pendientes por reclamar por los usuarios
@@ -117,10 +118,11 @@ def crear_evento():
         ],
         "pozo_total": 0.0,
         "comision_casa": 0.0,
-        "participantes": []
+        "ordenes_pendientes": [],
+        "apuestas_emparejadas": []
     }
     eventos.append(nuevo_evento)
-    return jsonify({"success": True, "mensaje": "Mercado creado con éxito", "evento": nuevo_evento})
+    return jsonify({"success": True, "mensaje": "Mercado P2P creado con éxito", "evento": nuevo_evento})
 
 @app.route('/api/participar', methods=['POST'])
 def participar():
@@ -141,29 +143,74 @@ def participar():
     if not opcion:
         return jsonify({"success": False, "error": "Opción inválida"}), 404
 
-    comision = monto_pagado * 0.02
-    monto_para_pozo = monto_pagado * 0.98
+    # REGLA: Evitar duplicar orden activa en el mismo bando por el mismo usuario
+    for orden in evento["ordenes_pendientes"]:
+        if orden["usuario"] == usuario and orden["opcion_id"] == opcion_id:
+            return jsonify({
+                "success": False, 
+                "error": "Ya tienes una orden activa en esta misma opción. Si deseas apostar más, crea tu propia predicción o espera a que tu orden actual sea tomada."
+            }), 400
 
+    comision = monto_pagado * 0.02
+    monto_neto = monto_pagado * 0.98
+    
     evento["comision_casa"] += comision
     evento["pozo_total"] += monto_pagado
-    opcion["pozo"] += monto_para_pozo
-    
-    evento["participantes"].append({
-        "usuario": usuario,
-        "opcion_id": opcion_id,
-        "monto": monto_pagado
-    })
+    opcion["pozo"] += monto_neto
 
+    monto_restante = monto_neto
+
+    # Buscar contrapartes en la cola (FIFO)
+    ordenes_contrarias = [o for o in evento["ordenes_pendientes"] if o["opcion_id"] != opcion_id]
+
+    for orden_c in ordenes_contrarias:
+        if monto_restante <= 0:
+            break
+        
+        necesario = orden_c["monto_disponible"]
+        
+        if monto_restante >= necesario:
+            monto_match = necesario
+            monto_restante -= necesario
+            evento["ordenes_pendientes"].remove(orden_c)
+        else:
+            monto_match = monto_restante
+            orden_c["monto_disponible"] -= monto_restante
+            monto_restante = 0.0
+
+        # Registrar match exitoso P2P
+        evento["apuestas_emparejadas"].append({
+            "usuario_a": orden_c["usuario"],
+            "usuario_b": usuario,
+            "opcion_a": orden_c["opcion_id"],
+            "opcion_b": opcion_id,
+            "monto_original": monto_match,
+            "premio_potencial": monto_match * 2
+        })
+
+    # Si sobra monto neto sin contraparte, se queda en la cola
+    if monto_restante > 0:
+        evento["ordenes_pendientes"].append({
+            "usuario": usuario,
+            "opcion_id": opcion_id,
+            "monto_disponible": monto_restante,
+            "monto_original": monto_restante,
+            "fecha": datetime.now().strftime("%Y-%m-%d %H:%M")
+        })
+
+    estado_apuesta = "Emparejado" if monto_restante == 0 else "Parcial / En Cola"
     historial_apuestas.append({
         "evento_id": evento_id,
         "titulo_evento": evento["titulo"],
         "usuario": usuario,
         "opcion_elegida": opcion["nombre"],
         "monto": monto_pagado,
+        "estado": estado_apuesta,
         "fecha": datetime.now().strftime("%Y-%m-%d %H:%M")
     })
     
-    return jsonify({"success": True, "mensaje": f"¡Apuesta registrada en '{opcion['nombre']}'!"})
+    mensaje_resp = f"¡Apuesta registrada en '{opcion['nombre']}' y emparejada con éxito!" if monto_restante == 0 else f"¡Apuesta registrada! Parte de tu monto quedó en cola esperando contraparte."
+    return jsonify({"success": True, "mensaje": mensaje_resp})
 
 @app.route('/api/resolver', methods=['POST'])
 def resolver_evento():
@@ -185,20 +232,26 @@ def resolver_evento():
     evento["estado"] = "resuelto"
     evento["ganador_id"] = ganador_id
     
-    pozo_a_repartir = sum(op["pozo"] for op in evento["opciones"])
-    pozo_ganador = opcion_ganadora["pozo"]
-    
-    if pozo_ganador > 0:
-        for p in evento["participantes"]:
-            if p["opcion_id"] == ganador_id:
-                proporcion = p["monto"] / pozo_ganador
-                premio = proporcion * pozo_a_repartir
-                usuario = p["usuario"]
-                saldos_pendientes[usuario] = saldos_pendientes.get(usuario, 0.0) + premio
+    # 1. LIQUIDACIÓN DE EMPAREJAMIENTOS P2P: Solo ganan los que hicieron match real
+    for match in evento["apuestas_emparejadas"]:
+        if match["opcion_a"] == ganador_id:
+            ganador = match["usuario_a"]
+            premio = match["monto_original"] * 2
+            saldos_pendientes[ganador] = saldos_pendientes.get(ganador, 0.0) + premio
+        elif match["opcion_b"] == ganador_id:
+            ganador = match["usuario_b"]
+            premio = match["monto_original"] * 2
+            saldos_pendientes[ganador] = saldos_pendientes.get(ganador, 0.0) + premio
+
+    # 2. REEMBOLSO AUTOMÁTICO: Las órdenes netas que se quedaron en la cola sin contraparte se devuelven
+    for orden_q in evento["ordenes_pendientes"]:
+        usuario_q = orden_q["usuario"]
+        reintegro = orden_q["monto_disponible"]
+        saldos_pendientes[usuario_q] = saldos_pendientes.get(usuario_q, 0.0) + reintegro
 
     return jsonify({
         "success": True,
-        "mensaje": f"¡Mercado resuelto! Ganó: {opcion_ganadora['nombre']}. Premios acreditados."
+        "mensaje": f"¡Mercado resuelto! Ganó: {opcion_ganadora['nombre']}. Premios acreditados a emparejamientos y fondos en cola devueltos."
     })
 
 @app.route('/api/reclamar', methods=['POST'])
