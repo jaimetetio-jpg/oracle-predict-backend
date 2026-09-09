@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, jsonify, request, render_template
 
 app = Flask(__name__)
@@ -19,8 +19,8 @@ eventos = [
         ],
         "pozo_total": 100.0,
         "comision_casa": 2.0,
-        "ordenes_pendientes": [],     # Cola FIFO de órdenes esperando contraparte P2P
-        "apuestas_emparejadas": []    # Registro de matches exitosos entre usuarios
+        "ordenes_pendientes": [],     # Cola FIFO de órdenes (Makers 0% comisión)
+        "apuestas_emparejadas": []    # Registro de matches (CLOB: Taker paga 2%)
     }
 ]
 
@@ -32,7 +32,7 @@ def index():
     try:
         return render_template('index.html')
     except Exception:
-        return "¡P2Ppredict Admin Backend Funcionando (Con Leaderboard P2P)! 🔮"
+        return "¡P2Ppredict Admin Backend Funcionando (Modelo CLOB + Cierre Pro)! 🔮"
 
 @app.route('/validation-key.txt')
 def validation_key():
@@ -48,13 +48,14 @@ def obtener_eventos():
         if ev["estado"] == "activo":
             try:
                 cierre = datetime.strptime(ev["fecha_cierre"], "%Y-%m-%dT%H:%M")
-                if ahora > cierre:
+                # Estándar Polymarket/Kalshi: Cierre automático 5 minutos antes del evento
+                cierre_seguridad = cierre - timedelta(minutes=5)
+                if ahora > cierre_seguridad:
                     ev["estado"] = "cerrado"
             except Exception:
                 pass
     return jsonify(eventos)
 
-# Endpoint de métricas financieras para el administrador
 @app.route('/api/admin/metricas', methods=['GET'])
 def admin_metricas():
     volumen_total_historico = sum(ev["pozo_total"] for ev in eventos)
@@ -87,12 +88,10 @@ def obtener_saldo(username):
         "historial": mis_apuestas
     })
 
-# NUEVO ENDPOINT: Leaderboard (Ranking de Mejores Usuarios)
 @app.route('/api/leaderboard', methods=['GET'])
 def obtener_leaderboard():
     estadisticas_usuarios = {}
 
-    # Procesar historial de apuestas para calcular métricas
     for h in historial_apuestas:
         usr = h["usuario"]
         if usr not in estadisticas_usuarios:
@@ -106,36 +105,31 @@ def obtener_leaderboard():
         estadisticas_usuarios[usr]["apuestas_totales"] += 1
         estadisticas_usuarios[usr]["volumen_apostado"] += h["monto"]
 
-    # Calcular ganancias reales basadas en mercados resueltos y emparejamientos
     for ev in eventos:
         if ev["estado"] == "resuelto":
             ganador_id = ev["ganador_id"]
             for match in ev["apuestas_emparejadas"]:
-                # Revisar usuario A
+                monto_base = match.get("monto_maker", match.get("monto_original", 0))
                 ua = match["usuario_a"]
                 if ua in estadisticas_usuarios:
                     if match["opcion_a"] == ganador_id:
                         estadisticas_usuarios[ua]["apuestas_ganadas"] += 1
-                        premio = match["monto_original"] * 2
-                        ganancia_neta = premio - match["monto_original"]
-                        estadisticas_usuarios[ua]["ganancias_netas"] += ganancia_neta
+                        premio = monto_base * 2
+                        estadisticas_usuarios[ua]["ganancias_netas"] += (premio - monto_base)
 
-                # Revisar usuario B
                 ub = match["usuario_b"]
                 if ub in estadisticas_usuarios:
                     if match["opcion_b"] == ganador_id:
                         estadisticas_usuarios[ub]["apuestas_ganadas"] += 1
-                        premio = match["monto_original"] * 2
-                        ganancia_neta = premio - match["monto_original"]
-                        estadisticas_usuarios[ub]["ganancias_netas"] += ganancia_neta
+                        premio = monto_base * 2
+                        estadisticas_usuarios[ub]["ganancias_netas"] += (premio - monto_base)
 
-    # Convertir a lista y ordenar por mayores ganancias netas o volumen
     ranking = list(estadisticas_usuarios.values())
     ranking.sort(key=lambda x: (x["ganancias_netas"], x["volumen_apostado"]), reverse=True)
 
     return jsonify({
         "success": True,
-        "leaderboard": ranking[:10]  # Top 10 mejores usuarios
+        "leaderboard": ranking[:10]
     })
 
 @app.route('/api/crear-evento', methods=['POST'])
@@ -169,7 +163,7 @@ def crear_evento():
         "apuestas_emparejadas": []
     }
     eventos.append(nuevo_evento)
-    return jsonify({"success": True, "mensaje": "Mercado P2P creado con éxito", "evento": nuevo_evento})
+    return jsonify({"success": True, "mensaje": "Mercado creado con éxito", "evento": nuevo_evento})
 
 @app.route('/api/participar', methods=['POST'])
 def participar():
@@ -184,31 +178,19 @@ def participar():
         return jsonify({"success": False, "error": "Mercado no encontrado"}), 404
         
     if evento["estado"] != "activo":
-        return jsonify({"success": False, "error": "El mercado ya está cerrado o resuelto."}), 400
+        return jsonify({"success": False, "error": "El mercado ya está cerrado o en período de protección."}), 400
 
     opcion = next((op for op in evento["opciones"] if op["id"] == opcion_id), None)
     if not opcion:
         return jsonify({"success": False, "error": "Opción inválida"}), 404
 
-    # REGLA: Evitar duplicar orden activa en el mismo bando por el mismo usuario
     for orden in evento["ordenes_pendientes"]:
         if orden["usuario"] == usuario and orden["opcion_id"] == opcion_id:
-            return jsonify({
-                "success": False, 
-                "error": "Ya tienes una orden activa en esta misma opción. Si deseas apostar más, crea tu propia predicción o espera a que tu orden actual sea tomada."
-            }), 400
+            return jsonify({"success": False, "error": "Ya tienes una orden activa en esta opción."}), 400
 
-    comision = monto_pagado * 0.02
-    monto_neto = monto_pagado * 0.98
-    
-    evento["comision_casa"] += comision
-    evento["pozo_total"] += monto_pagado
-    opcion["pozo"] += monto_neto
-
-    monto_restante = monto_neto
-
-    # Buscar contrapartes en la cola (FIFO)
+    monto_restante = monto_pagado
     ordenes_contrarias = [o for o in evento["ordenes_pendientes"] if o["opcion_id"] != opcion_id]
+    comision_total_taker = 0.0
 
     for orden_c in ordenes_contrarias:
         if monto_restante <= 0:
@@ -225,17 +207,25 @@ def participar():
             orden_c["monto_disponible"] -= monto_restante
             monto_restante = 0.0
 
-        # Registrar match exitoso P2P
+        comision_match = monto_match * 0.02
+        comision_total_taker += comision_match
+        monto_neto_match = monto_match * 0.98
+
+        evento["pozo_total"] += monto_match
+        opcion["pozo"] += monto_neto_match
+
         evento["apuestas_emparejadas"].append({
             "usuario_a": orden_c["usuario"],
             "usuario_b": usuario,
             "opcion_a": orden_c["opcion_id"],
             "opcion_b": opcion_id,
-            "monto_original": monto_match,
+            "monto_maker": monto_match,
+            "monto_taker_neto": monto_neto_match,
             "premio_potencial": monto_match * 2
         })
 
-    # Si sobra monto neto sin contraparte, se queda en la cola
+    evento["comision_casa"] += comision_total_taker
+
     if monto_restante > 0:
         evento["ordenes_pendientes"].append({
             "usuario": usuario,
@@ -244,8 +234,11 @@ def participar():
             "monto_original": monto_restante,
             "fecha": datetime.now().strftime("%Y-%m-%d %H:%M")
         })
+        evento["pozo_total"] += monto_restante
+        opcion["pozo"] += monto_restante
 
-    estado_apuesta = "Emparejado" if monto_restante == 0 else "Parcial / En Cola"
+    estado_apuesta = "Emparejado (Taker)" if monto_restante == 0 else ("Parcial / En Cola (Maker)" if monto_restante < monto_pagado else "En Cola (Maker 0%)")
+    
     historial_apuestas.append({
         "evento_id": evento_id,
         "titulo_evento": evento["titulo"],
@@ -256,8 +249,7 @@ def participar():
         "fecha": datetime.now().strftime("%Y-%m-%d %H:%M")
     })
     
-    mensaje_resp = f"¡Apuesta registrada en '{opcion['nombre']}' y emparejada con éxito!" if monto_restante == 0 else f"¡Apuesta registrada! Parte de tu monto quedó en cola esperando contraparte."
-    return jsonify({"success": True, "mensaje": mensaje_resp})
+    return jsonify({"success": True, "mensaje": f"Orden procesada. Estado: {estado_apuesta}"})
 
 @app.route('/api/resolver', methods=['POST'])
 def resolver_evento():
@@ -279,18 +271,15 @@ def resolver_evento():
     evento["estado"] = "resuelto"
     evento["ganador_id"] = ganador_id
     
-    # 1. LIQUIDACIÓN DE EMPAREJAMIENTOS P2P: Solo ganan los que hicieron match real
     for match in evento["apuestas_emparejadas"]:
+        monto_base = match.get("monto_maker", match.get("monto_original", 0))
         if match["opcion_a"] == ganador_id:
             ganador = match["usuario_a"]
-            premio = match["monto_original"] * 2
-            saldos_pendientes[ganador] = saldos_pendientes.get(ganador, 0.0) + premio
+            saldos_pendientes[ganador] = saldos_pendientes.get(ganador, 0.0) + (monto_base * 2)
         elif match["opcion_b"] == ganador_id:
             ganador = match["usuario_b"]
-            premio = match["monto_original"] * 2
-            saldos_pendientes[ganador] = saldos_pendientes.get(ganador, 0.0) + premio
+            saldos_pendientes[ganador] = saldos_pendientes.get(ganador, 0.0) + (monto_base * 2)
 
-    # 2. REEMBOLSO AUTOMÁTICO: Las órdenes netas que se quedaron en la cola sin contraparte se devuelven
     for orden_q in evento["ordenes_pendientes"]:
         usuario_q = orden_q["usuario"]
         reintegro = orden_q["monto_disponible"]
@@ -298,7 +287,7 @@ def resolver_evento():
 
     return jsonify({
         "success": True,
-        "mensaje": f"¡Mercado resuelto! Ganó: {opcion_ganadora['nombre']}. Premios acreditados a emparejamientos y fondos en cola devueltos."
+        "mensaje": f"¡Mercado resuelto! Ganó: {opcion_ganadora['nombre']}. Premios y reembolsos al 100% acreditados."
     })
 
 @app.route('/api/reclamar', methods=['POST'])
