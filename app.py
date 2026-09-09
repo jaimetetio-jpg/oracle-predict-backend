@@ -5,11 +5,11 @@ import requests
 
 app = Flask(__name__)
 
-# Base de datos en memoria para el MVP (puedes migrar a PostgreSQL/SQLite luego)
+# Base de datos en memoria para el MVP
 BASE_DATOS = {
     "usuarios": {
         "PioneroDemo": {
-            "saldo_disponible": 50.0,
+            "saldo_disponible": 0.0,
             "historial": [],
             "transacciones": [],
         }
@@ -46,6 +46,7 @@ BASE_DATOS = {
 }
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASS", "admin123")
+PI_API_KEY = os.environ.get("PI_API_KEY", "")
 
 
 @app.route("/")
@@ -57,7 +58,7 @@ def home():
 def obtener_saldo(username):
   if username not in BASE_DATOS["usuarios"]:
     BASE_DATOS["usuarios"][username] = {
-        "saldo_disponible": 10.0,  # Bono de bienvenida para testnet
+        "saldo_disponible": 0.0,
         "historial": [],
         "transacciones": [],
     }
@@ -87,7 +88,7 @@ def participar():
 
   if username not in BASE_DATOS["usuarios"]:
     BASE_DATOS["usuarios"][username] = {
-        "saldo_disponible": 10.0,
+        "saldo_disponible": 0.0,
         "historial": [],
         "transacciones": [],
     }
@@ -96,7 +97,6 @@ def participar():
   if user_data["saldo_disponible"] < monto:
     return jsonify({"success": False, "error": "Saldo insuficiente"})
 
-  # Buscar evento y opción
   evento = next((e for e in BASE_DATOS["eventos"] if e["id"] == evento_id), None)
   if not evento or evento["estado"] != "activo":
     return jsonify({"success": False, "error": "Mercado no disponible"})
@@ -107,11 +107,9 @@ def participar():
   if not opcion:
     return jsonify({"success": False, "error": "Opción inválida"})
 
-  # Descontar saldo y sumar al pozo
   user_data["saldo_disponible"] -= monto
   opcion["pozo"] += monto
 
-  # Registrar en historial del usuario
   user_data["historial"].append({
       "titulo_evento": evento["titulo"],
       "opcion_elegida": opcion["nombre"],
@@ -124,8 +122,25 @@ def participar():
 
 @app.route("/api/pi/aprobar-pago", methods=["POST"])
 def aprobar_pago():
-  # Endpoint simulado para SDK de Pi (Server-to-Server Approval)
-  return jsonify({"success": True})
+  data = request.json
+  payment_id = data.get("paymentId")
+
+  if not PI_API_KEY:
+    return (
+        jsonify({"success": False, "error": "PI_API_KEY no configurada"}),
+        500,
+    )
+
+  headers = {"Authorization": f"Key {PI_API_KEY}"}
+  response = requests.post(
+      f"https://api.minepi.com/v2/payments/{payment_id}/approve", headers=headers
+  )
+
+  if response.status_code == 200:
+    return jsonify({"success": True})
+  return jsonify(
+      {"success": False, "error": "No se pudo aprobar en el servidor de Pi"}
+  ), 400
 
 
 @app.route("/api/pi/completar-pago", methods=["POST"])
@@ -136,27 +151,43 @@ def completar_pago():
   payment_id = data.get("paymentId")
   txid = data.get("txid")
 
-  if username not in BASE_DATOS["usuarios"]:
-    BASE_DATOS["usuarios"][username] = {
-        "saldo_disponible": 0.0,
-        "historial": [],
-        "transacciones": [],
-    }
+  if not PI_API_KEY:
+    return (
+        jsonify({"success": False, "error": "PI_API_KEY no configurada"}),
+        500,
+    )
 
-  BASE_DATOS["usuarios"][username]["saldo_disponible"] += monto
-  BASE_DATOS["usuarios"][username]["transacciones"].append({
-      "tipo": "Recarga Pi",
-      "monto": monto,
-      "txid": txid or payment_id,
-      "fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
-  })
+  headers = {"Authorization": f"Key {PI_API_KEY}"}
+  response = requests.post(
+      f"https://api.minepi.com/v2/payments/{payment_id}/complete",
+      headers=headers,
+      json={"txid": txid},
+  )
 
-  return jsonify({"success": True})
+  if response.status_code == 200:
+    if username not in BASE_DATOS["usuarios"]:
+      BASE_DATOS["usuarios"][username] = {
+          "saldo_disponible": 0.0,
+          "historial": [],
+          "transacciones": [],
+      }
+
+    BASE_DATOS["usuarios"][username]["saldo_disponible"] += monto
+    BASE_DATOS["usuarios"][username]["transacciones"].append({
+        "tipo": "Recarga Pi",
+        "monto": monto,
+        "txid": txid or payment_id,
+        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
+    })
+    return jsonify({"success": True})
+
+  return jsonify(
+      {"success": False, "error": "Error al completar el pago en Pi Network"}
+  ), 400
 
 
 @app.route("/api/leaderboard", methods=["GET"])
 def leaderboard():
-  # Ordenar de mayor a menor ganancia
   sorted_lb = sorted(
       BASE_DATOS["leaderboard"],
       key=lambda x: x["ganancias_netas"],
@@ -175,7 +206,6 @@ def admin_login():
 
 @app.route("/api/admin/pendientes", methods=["GET"])
 def admin_pendientes():
-  # Retorna eventos que estén listos para resolución
   pendientes = [e for e in BASE_DATOS["eventos"] if e["estado"] == "activo"]
   return jsonify({"success": True, "mercados": pendientes})
 
