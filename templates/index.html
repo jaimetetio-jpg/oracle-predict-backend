@@ -94,8 +94,8 @@
         button.btn-crear { background-color: #8957e5; width: 100%; padding: 10px; margin-top: 5px; }
         button.btn-resolver { background-color: #d29922; color: #000; width: 100%; margin-top: 8px; }
         button.btn-reclamar { background-color: #238636; padding: 8px 12px; font-size: 13px; }
-        button.btn-depositar { background-color: #f59e0b; color: #000; width: 100%; margin-top: 5px; }
         button.btn-retirar { background-color: #d29922; color: #000; padding: 8px 12px; font-size: 13px; }
+        button.btn-depositar { background-color: #f59e0b; color: #000; width: 100%; margin-top: 5px; }
         button.btn-admin { background-color: #30363d; color: #fff; border: 1px solid #444; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; }
         button:hover:not(:disabled) { opacity: 0.85; }
         
@@ -678,9 +678,9 @@
                 
                 let html = `
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                        <h4 style="margin:0; color:#f0f6fc;">Gestión de Mercados Activos</h4>
-                        <button onclick="purgarMercadosVacios()" class="btn-admin" style="background:#d9534f; color:#fff;">🗑️ Purgar Mercados sin Liquidez</button>
+                        <h4 style="margin:0; color:#f0f6fc;">Moderación y Control de Mercados</h4>
                     </div>
+                    <p style="font-size:11px; color:#8b949e; margin-bottom:10px;">Selecciona el mercado específico que desees retirar por violar las normas de moderación:</p>
                 `;
 
                 if (mercados.length === 0) {
@@ -689,9 +689,14 @@
                     mercados.forEach(ev => {
                         let pozoTotal = ev.opciones.reduce((acc, o) => acc + o.pozo, 0);
                         html += `
-                            <div style="background:#0d1117; border:1px solid #30363d; padding:10px; border-radius:8px; margin-bottom:8px; font-size:12px;">
-                                <b>#${ev.id} - ${ev.titulo}</b><br>
-                                <span style="color:#8b949e;">Pozo Total: <b>${pozoTotal.toFixed(2)} Pi</b> • Estado: <span style="color:#3fb950;">${ev.estado}</span></span>
+                            <div style="background:#0d1117; border:1px solid #30363d; padding:12px; border-radius:8px; margin-bottom:10px; font-size:12px;">
+                                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                                    <div>
+                                        <b style="color:#f0f6fc; font-size:13px;">#${ev.id} - ${ev.titulo}</b><br>
+                                        <span style="color:#8b949e; display:block; margin-top:4px;">Categoría: <b>${ev.categoria}</b> • Pozo: <b>${pozoTotal.toFixed(2)} Pi</b></span>
+                                    </div>
+                                    <button onclick="eliminarMercadoSeleccionado(${ev.id}, '${ev.titulo.replace(/'/g, "")}')" style="background:#d9534f; color:#fff; border:none; padding:6px 10px; font-size:11px; border-radius:6px; cursor:pointer; font-weight:bold; white-space:nowrap;">🗑️ Borrar</button>
+                                </div>
                             </div>
                         `;
                     });
@@ -702,11 +707,12 @@
             }
         }
 
-        async function purgarMercadosVacios() {
-            if (!confirm("¿Estás seguro de que deseas eliminar todos los mercados que tienen un pozo total de 0 (sin liquidez)?")) return;
+        async function eliminarMercadoSeleccionado(eventoId, titulo) {
+            if (!confirm(`¿Estás seguro de eliminar permanentemente el mercado #${eventoId} ("${titulo}") por atentar contra la moral o las normas?`)) return;
+            
             try {
-                const res = await fetch('/api/admin/limpiar-mercados-vacios', {
-                    method: 'POST',
+                const res = await fetch(`/api/admin/eliminar-mercado/${eventoId}`, {
+                    method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' }
                 });
                 const data = await res.json();
@@ -715,10 +721,10 @@
                     cargarPanelAdmin();
                     cargarMercados();
                 } else {
-                    alert("Error: " + data.error);
+                    alert("Error: " + (data.error || "No se pudo eliminar"));
                 }
             } catch (e) {
-                alert("Error de conexión al purgar mercados.");
+                alert("Error de conexión al intentar eliminar el mercado.");
             }
         }
 
