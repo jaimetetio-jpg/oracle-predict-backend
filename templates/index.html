@@ -21,15 +21,15 @@
             padding: 20px;
             margin: 0;
         }
-        h1 { font-size: 26px; color: #ffffff; margin-bottom: 2px; }
-        p.subtitulo { color: #8b949e; font-size: 14px; margin-bottom: 15px; }
+        h1 { font-size: 26px; color: #ffffff; margin-bottom: 2px; text-align: center; }
+        p.subtitulo { color: #8b949e; font-size: 14px; margin-bottom: 15px; text-align: center; }
         
         .nav-admin-bar {
-            width: 100%; max-width: 400px; display: flex; gap: 10px; margin-bottom: 15px;
+            width: 100%; max-width: 400px; display: flex; gap: 6px; margin-bottom: 15px;
         }
         .btn-vista {
-            flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #30363d;
-            background-color: #161b22; color: #c9d1d9; font-weight: bold; font-size: 13px; cursor: pointer; text-align: center;
+            flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid #30363d;
+            background-color: #161b22; color: #c9d1d9; font-weight: bold; font-size: 12px; cursor: pointer; text-align: center;
         }
         .btn-vista.activo { background-color: #8957e5; border-color: #8957e5; color: #fff; }
 
@@ -37,7 +37,7 @@
             background: linear-gradient(135deg, #1f6feb, #8957e5);
             border-radius: 12px; padding: 15px 20px; width: 100%; max-width: 400px;
             margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4); box-sizing: border-box;
         }
         .wallet-info span { font-size: 12px; color: #f0f6fc; display: block; }
         .wallet-info h2 { font-size: 20px; color: #ffffff; margin: 4px 0 0 0; }
@@ -52,7 +52,7 @@
         .metric-box h3 { font-size: 16px; color: #3fb950; margin: 5px 0 0 0; }
         .metric-box h3.azul { color: #58a6ff; }
 
-        .filtros-container { display: flex; gap: 6px; width: 100%; max-width: 400px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 4px; }
+        .filtros-container { display: flex; gap: 6px; width: 100%; max-width: 400px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 4px; box-sizing: border-box; }
         .tab-filtro {
             background-color: #161b22; border: 1px solid #30363d; color: #8b949e;
             padding: 6px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; white-space: nowrap; font-weight: bold;
@@ -62,13 +62,13 @@
         .card {
             background-color: #161b22; border: 1px solid #30363d; border-radius: 12px;
             padding: 20px; width: 100%; max-width: 400px; margin-bottom: 15px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5); box-sizing: border-box;
         }
         .card h3 { font-size: 16px; color: #f0f6fc; margin-top: 0; margin-bottom: 10px; }
         
         input[type="text"], input[type="datetime-local"], select {
-            width: 92%; padding: 10px; border-radius: 6px; border: 1px solid #30363d;
-            background-color: #0d1117; color: #fff; margin-bottom: 10px; font-size: 14px;
+            width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #30363d;
+            background-color: #0d1117; color: #fff; margin-bottom: 10px; font-size: 14px; box-sizing: border-box;
         }
         label { font-size: 12px; color: #8b949e; display: block; margin-bottom: 4px; text-align: left; }
         
@@ -100,10 +100,16 @@
         .pozo-global { font-size: 13px; color: #58a6ff; margin-bottom: 10px; font-weight: bold; }
         
         .historial-box { font-size: 12px; background: #0d1117; padding: 10px; border-radius: 6px; border: 1px solid #30363d; margin-top: 10px; }
-        .historial-item { border-bottom: 1px solid #21262d; padding: 6px 0; display: flex; justify-content: space-between; }
+        .historial-item { border-bottom: 1px solid #21262d; padding: 6px 0; display: flex; justify-content: space-between; align-items: center; }
+
+        /* Estilos para el Leaderboard */
+        .tabla-leaderboard { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+        .tabla-leaderboard th, .tabla-leaderboard td { padding: 8px; text-align: left; border-bottom: 1px solid #30363d; }
+        .tabla-leaderboard th { color: #8b949e; font-weight: bold; }
+        .tabla-leaderboard td { color: #c9d1d9; }
         
-        #vista-admin { display: none; width: 100%; max-width: 400px; flex-direction: column; align-items: center; }
-        #vista-usuario { display: flex; width: 100%; max-width: 400px; flex-direction: column; align-items: center; }
+        #vista-admin, #vista-ranking { display: none; width: 100%; max-width: 400px; flex-direction: column; align-items: center; box-sizing: border-box; }
+        #vista-usuario { display: flex; width: 100%; max-width: 400px; flex-direction: column; align-items: center; box-sizing: border-box; }
     </style>
 </head>
 <body>
@@ -112,11 +118,12 @@
     <p class="subtitulo" id="lbl-estado-conexion">Conectando con Pi Browser...</p>
 
     <div class="nav-admin-bar">
-        <div id="tab-user" class="btn-vista activo" onclick="cambiarVista('usuario')">🏠 Vista Pública</div>
-        <div id="tab-adm" class="btn-vista" onclick="cambiarVista('admin')">⚙️ Panel de Admin (Juez)</div>
+        <div id="tab-user" class="btn-vista activo" onclick="cambiarVista('usuario')">🏠 Mercados</div>
+        <div id="tab-rank" class="btn-vista" onclick="cambiarVista('ranking')">🏆 Ranking</div>
+        <div id="tab-adm" class="btn-vista" onclick="cambiarVista('admin')">⚙️ Admin</div>
     </div>
 
-    <!-- ================= VISTA USUARIO ================= -->
+    <!-- ================= VISTA USUARIO (MERCADOS) ================= -->
     <div id="vista-usuario">
         <div class="wallet-card">
             <div class="wallet-info">
@@ -159,6 +166,18 @@
 
         <div id="mercados-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
             <div class="card"><h3>Cargando mercados...</h3></div>
+        </div>
+    </div>
+
+    <!-- ================= VISTA RANKING (LEADERBOARD) ================= -->
+    <div id="vista-ranking">
+        <div class="card" style="border-color: #238636;">
+            <h3 style="color: #3fb950; margin-bottom: 4px;">🏆 Salón de la Fama (Top Pioneros)</h3>
+            <p style="font-size: 12px; color: #8b949e; margin-bottom: 12px;">Los mejores pronosticadores ordenados por ganancias netas.</p>
+            
+            <div id="contenedor-leaderboard" style="width: 100%; overflow-x: auto;">
+                <span style="color: #8b949e; font-size: 12px;">Cargando ranking de usuarios...</span>
+            </div>
         </div>
     </div>
 
@@ -212,7 +231,6 @@
                     console.log("Pago incompleto detectado:", payment);
                 }
 
-                // Llamada oficial de inicio de sesión Pi
                 const authResult = await Pi.authenticate(scopes, onIncompletePaymentFound);
                 
                 usuarioActual = authResult.user.username;
@@ -225,7 +243,6 @@
                 inicializarApp();
             } catch (error) {
                 console.error("Error de autenticación Pi:", error);
-                // Fallback para pruebas fuera del Pi Browser si es necesario
                 usuarioActual = "PioneroDemo";
                 document.getElementById('pi-username').innerText = "@" + usuarioActual;
                 document.getElementById('lbl-estado-conexion').innerText = "Modo de Prueba Local (Fuera de Pi Browser)";
@@ -234,16 +251,24 @@
         }
 
         function cambiarVista(vista) {
+            document.getElementById('vista-usuario').style.display = 'none';
+            document.getElementById('vista-ranking').style.display = 'none';
+            document.getElementById('vista-admin').style.display = 'none';
+            
+            document.getElementById('tab-user').classList.remove('activo');
+            document.getElementById('tab-rank').classList.remove('activo');
+            document.getElementById('tab-adm').classList.remove('activo');
+
             if (vista === 'usuario') {
                 document.getElementById('vista-usuario').style.display = 'flex';
-                document.getElementById('vista-admin').style.display = 'none';
                 document.getElementById('tab-user').classList.add('activo');
-                document.getElementById('tab-adm').classList.remove('activo');
-            } else {
-                document.getElementById('vista-usuario').style.display = 'none';
+            } else if (vista === 'ranking') {
+                document.getElementById('vista-ranking').style.display = 'flex';
+                document.getElementById('tab-rank').classList.add('activo');
+                cargarLeaderboard();
+            } else if (vista === 'admin') {
                 document.getElementById('vista-admin').style.display = 'flex';
                 document.getElementById('tab-adm').classList.add('activo');
-                document.getElementById('tab-user').classList.remove('activo');
                 cargarPanelAdmin();
             }
         }
@@ -269,8 +294,8 @@
                         data.historial.reverse().forEach(h => {
                             htmlHist += `
                                 <div class="historial-item">
-                                    <div><b>${h.titulo_evento}</b><br><span style="color: #58a6ff;">Apuesta: ${h.opcion_elegida} (${h.monto} Pi)</span></div>
-                                    <div style="color: #8b949e; font-size: 11px;">${h.fecha}</div>
+                                    <div><b>${h.titulo_evento}</b><br><span style="color: #58a6ff;">Apuesta: ${h.opcion_elegida} (${h.monto} Pi)</span> - <span style="color: #d29922; font-size: 11px;">${h.estado}</span></div>
+                                    <div style="color: #8b949e; font-size: 11px; text-align: right;">${h.fecha}</div>
                                 </div>
                             `;
                         });
@@ -283,6 +308,50 @@
         function toggleHistorial() {
             const el = document.getElementById('contenedor-historial');
             el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function cargarLeaderboard() {
+            try {
+                const response = await fetch('/api/leaderboard');
+                const data = await response.json();
+                const contenedor = document.getElementById('contenedor-leaderboard');
+
+                if (!data.success || data.leaderboard.length === 0) {
+                    contenedor.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Aún no hay suficientes datos en el ranking. ¡Sé el primero en ganar!</span>';
+                    return;
+                }
+
+                let html = `
+                    <table class="tabla-leaderboard">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Pionero</th>
+                                <th>Aciertos</th>
+                                <th>Ganancia Neta</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                data.leaderboard.forEach((user, index) => {
+                    let medalla = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : `${index + 1}`));
+                    html += `
+                        <tr>
+                            <td><b>${medalla}</b></td>
+                            <td>@${user.username}</td>
+                            <td>${user.apuestas_ganadas} / ${user.apuestas_totales}</td>
+                            <td style="color: #3fb950; font-weight: bold;">+${user.ganancias_netas.toFixed(2)} Pi</td>
+                        </tr>
+                    `;
+                });
+
+                html += `</tbody></table>`;
+                contenedor.innerHTML = html;
+            } catch (error) {
+                console.error("Error al cargar Leaderboard:", error);
+                document.getElementById('contenedor-leaderboard').innerHTML = '<span style="color: #f85149; font-size: 12px;">Error al cargar el ranking.</span>';
+            }
         }
 
         async function cargarMercados() {
@@ -386,112 +455,135 @@
                                 <span class="nombre-opcion">${op.nombre} (${porcentaje}%) ${esGanadora ? '🏆' : ''}</span>
                                 <span class="stats-opcion">Pozo: ${op.pozo.toFixed(2)} Pi | <span class="pago-destacado">Paga: ${multiplicador}x</span></span>
                             </div>
-                            <button ${!isActivo ? 'disabled' : ''} onclick="apostar(${ev.id}, ${op.id})">
-                                ${isActivo ? 'Apostar 1 Pi' : 'Cerrado'}
-                            </button>
+                            <div style="font-size: 13px; color: #8b949e;">
+                                ${isActivo ? `
+                                    <div style="display: flex; gap: 6px; align-items: center;">
+                                        <input type="number" id="monto-${ev.id}-${op.id}" value="1.0" min="0.1" step="0.1" style="width: 60px; margin-bottom: 0; padding: 6px; text-align: center;">
+                                        <button onclick="participar(${ev.id}, ${op.id})">Apostar</button>
+                                    </div>
+                                ` : (isResuelto ? (esGanadora ? '<b style="color: #3fb950;">¡Ganadora!</b>' : '') : '<span style="color: #d29922;">Cerrado</span>')}
+                            </div>
                         </div>
                     `;
                 });
 
                 card.innerHTML = `
                     <div class="header-meta">
-                        <span class="badge-categoria">${ev.categoria || 'General'}</span>
+                        <span class="badge-categoria">${ev.categoria}</span>
                         <span class="${badgeClass}">${badgeText}</span>
                     </div>
                     <h3>${ev.titulo}</h3>
-                    <div class="pozo-global">Volumen Total: ${pozoTotalEvento.toFixed(2)} Pi</div>
-                    <div class="opciones-container">${htmlOpciones}</div>
-                    ${isResuelto ? '<div style="margin-top:10px; font-size:12px; color:#3fb950;">Mercado finalizado y recompensas repartidas.</div>' : ''}
+                    <div class="pozo-global">Volumen Total del Mercado: ${pozoTotalEvento.toFixed(2)} Pi</div>
+                    <div class="opciones-container">
+                        ${htmlOpciones}
+                    </div>
                 `;
                 contenedor.appendChild(card);
             });
         }
 
         async function crearMercado() {
-            const titulo = document.getElementById('nuevo-titulo').value;
+            const titulo = document.getElementById('nuevo-titulo').value.trim();
             const categoria = document.getElementById('nueva-categoria').value;
-            const op1 = document.getElementById('opcion-1').value;
-            const op2 = document.getElementById('opcion-2').value;
+            const opcion1 = document.getElementById('opcion-1').value.trim() || 'Sí';
+            const opcion2 = document.getElementById('opcion-2').value.trim() || 'No';
             const fechaCierre = document.getElementById('fecha-cierre').value;
 
-            if (!titulo || !fechaCierre) { alert("Completa el título y la fecha de cierre."); return; }
+            if (!titulo || !fechaCierre) {
+                alert("Por favor completa el título y la fecha de cierre.");
+                return;
+            }
 
             try {
                 const response = await fetch('/api/crear-evento', {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + accessTokenPi 
-                    },
-                    body: JSON.stringify({ titulo, categoria, opcion1, opcion2, fecha_cierre: fechaCierre })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        titulo, categoria, opcion1, opcion2, fecha_cierre: fechaCierre
+                    })
                 });
-                const res = await response.json();
-                if (res.success) {
-                    alert("¡Mercado publicado con éxito!");
+                const data = await response.json();
+                if (data.success) {
+                    alert("¡Mercado creado con éxito!");
                     document.getElementById('nuevo-titulo').value = '';
                     document.getElementById('fecha-cierre').value = '';
-                    inicializarApp();
+                    cargarMercados();
+                } else {
+                    alert("Error: " + data.error);
                 }
-            } catch (error) { console.error("Error:", error); }
+            } catch (error) { console.error("Error al crear mercado:", error); }
         }
 
-        async function apostar(eventoId, opcionId) {
+        async function participar(eventoId, opcionId) {
+            const inputMonto = document.getElementById(`monto-${eventoId}-${opcionId}`);
+            const monto = parseFloat(inputMonto.value);
+
+            if (isNaN(monto) || monto <= 0) {
+                alert("Ingresa un monto válido.");
+                return;
+            }
+
             try {
                 const response = await fetch('/api/participar', {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + accessTokenPi 
-                    },
-                    body: JSON.stringify({ evento_id: eventoId, opcion_id: opcionId, monto: 1.0, username: usuarioActual })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        evento_id: eventoId,
+                        opcion_id: opcionId,
+                        monto: monto,
+                        username: usuarioActual
+                    })
                 });
-                const res = await response.json();
-                if (res.success) {
-                    alert("¡Apuesta realizada!");
-                    inicializarApp();
-                } else { alert("Aviso: " + res.error); }
-            } catch (error) { console.error("Error:", error); }
+                const data = await response.json();
+                if (data.success) {
+                    alert(data.mensaje);
+                    cargarDatosUsuario();
+                    cargarMercados();
+                } else {
+                    alert("Aviso: " + data.error);
+                }
+            } catch (error) { console.error("Error al participar:", error); }
         }
 
         async function resolverMercado(eventoId, ganadorId) {
-            if (!confirm("¿Estás seguro de emitir este veredicto?")) return;
+            if (!confirm("¿Estás seguro de emitir este veredicto? Esta acción es irreversible.")) return;
+
             try {
                 const response = await fetch('/api/resolver', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ evento_id: eventoId, ganador_id: ganadorId })
                 });
-                const res = await response.json();
-                if (res.success) {
-                    alert(res.mensaje);
-                    cambiarVista('usuario');
-                    inicializarApp();
-                } else { alert("Error: " + res.error); }
-            } catch (error) { console.error("Error:", error); }
+                const data = await response.json();
+                if (data.success) {
+                    alert(data.mensaje);
+                    cargarPanelAdmin();
+                    cargarMercados();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (error) { console.error("Error al resolver:", error); }
         }
 
         async function reclamarPremio() {
             try {
                 const response = await fetch('/api/reclamar', {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + accessTokenPi 
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: usuarioActual })
                 });
-                const res = await response.json();
-                if (res.success) {
-                    alert(res.mensaje);
-                    inicializarApp();
-                } else { alert("Aviso: " + res.error); }
-            } catch (error) { console.error("Error:", error); }
+                const data = await response.json();
+                if (data.success) {
+                    alert(data.mensaje);
+                    cargarDatosUsuario();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (error) { console.error("Error al reclamar:", error); }
         }
 
-        // Iniciar la autenticación segura de Pi al cargar la ventana
-        window.onload = () => {
-            autenticarPiNetwork();
-        };
+        // Iniciar autenticación al cargar la página
+        window.onload = autenticarPiNetwork;
     </script>
 </body>
 </html>
