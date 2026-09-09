@@ -676,7 +676,8 @@ def admin_ajustar_saldo():
             c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
                       (username, motivo, monto_ajuste, txid, fecha))
         else:
-            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
+            # CORRECCIÓN APLICADA: Se ajustó de 6 a 5 comodines (?) para coincidir con las 5 columnas de la tabla transacciones en SQLite.
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
                       (username, motivo, monto_ajuste, txid, fecha))
 
         conn.commit()
