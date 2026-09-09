@@ -189,56 +189,65 @@ def participar():
     conn = obtener_conexion()
     c = conn.cursor()
 
-    if DATABASE_URL:
-        c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s", (username,))
-    else:
-        c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
-    row = c.fetchone()
-    
-    saldo_actual = row["saldo_disponible"] if row else 0
-    if not row or saldo_actual < monto:
+    try:
+        if DATABASE_URL:
+            # 1. Bloqueo exclusivo de la fila del usuario para evitar condiciones de carrera (Supabase/PostgreSQL ACID)
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+        else:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+        
+        row = c.fetchone()
+        
+        saldo_actual = row["saldo_disponible"] if row else 0
+        if not row or saldo_actual < monto:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Saldo insuficiente"})
+
+        evento = next((e for e in EVENTOS if e["id"] == evento_id), None)
+        if not evento or evento["estado"] != "activo":
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Mercado no disponible"})
+
+        opcion = next((o for o in evento["opciones"] if o["id"] == opcion_id), None)
+        if not opcion:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Opción inválida"})
+
+        nuevo_saldo = saldo_actual - monto
+        
+        if DATABASE_URL:
+            c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
+        else:
+            c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
+        
+        opcion["pozo"] += monto
+
+        if DATABASE_URL:
+            c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (%s, %s, %s, %s, %s)",
+                      (username, evento["titulo"], opcion["nombre"], monto, "Activo"))
+        else:
+            c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (?, ?, ?, ?, ?)",
+                      (username, evento["titulo"], opcion["nombre"], monto, "Activo"))
+        
+        txid = f"BET_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+        if DATABASE_URL:
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                      (username, "Apuesta", -monto, txid, fecha))
+        else:
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
+                      (username, "Apuesta", -monto, txid, fecha))
+        
+        conn.commit()
+        return jsonify({"success": True, "nuevo_saldo": nuevo_saldo})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
         conn.close()
-        return jsonify({"success": False, "error": "Saldo insuficiente"})
-
-    evento = next((e for e in EVENTOS if e["id"] == evento_id), None)
-    if not evento or evento["estado"] != "activo":
-        conn.close()
-        return jsonify({"success": False, "error": "Mercado no disponible"})
-
-    opcion = next((o for o in evento["opciones"] if o["id"] == opcion_id), None)
-    if not opcion:
-        conn.close()
-        return jsonify({"success": False, "error": "Opción inválida"})
-
-    nuevo_saldo = saldo_actual - monto
-    
-    if DATABASE_URL:
-        c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
-    else:
-        c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
-    
-    opcion["pozo"] += monto
-
-    if DATABASE_URL:
-        c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (%s, %s, %s, %s, %s)",
-                  (username, evento["titulo"], opcion["nombre"], monto, "Activo"))
-    else:
-        c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (?, ?, ?, ?, ?)",
-                  (username, evento["titulo"], opcion["nombre"], monto, "Activo"))
-    
-    txid = f"BET_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
-    if DATABASE_URL:
-        c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
-                  (username, "Apuesta", -monto, txid, fecha))
-    else:
-        c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
-                  (username, "Apuesta", -monto, txid, fecha))
-    
-    conn.commit()
-    conn.close()
-
-    return jsonify({"success": True, "nuevo_saldo": nuevo_saldo})
 
 @app.route("/api/pi/aprobar-pago", methods=["POST"])
 def aprobar_pago():
@@ -272,37 +281,42 @@ def completar_pago():
         conn = obtener_conexion()
         c = conn.cursor()
         
-        if DATABASE_URL:
-            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s", (username,))
-        else:
-            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
-        row = c.fetchone()
-        
-        if not row:
-            nuevo_saldo = monto
+        try:
             if DATABASE_URL:
-                c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (%s, %s)", (username, nuevo_saldo))
+                c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
             else:
-                c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (?, ?)", (username, nuevo_saldo))
-        else:
-            saldo_actual = row["saldo_disponible"]
-            nuevo_saldo = saldo_actual + monto
+                c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+            row = c.fetchone()
+            
+            if not row:
+                nuevo_saldo = monto
+                if DATABASE_URL:
+                    c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (%s, %s)", (username, nuevo_saldo))
+                else:
+                    c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (?, ?)", (username, nuevo_saldo))
+            else:
+                saldo_actual = row["saldo_disponible"]
+                nuevo_saldo = saldo_actual + monto
+                if DATABASE_URL:
+                    c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
+                else:
+                    c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
+            
+            fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
             if DATABASE_URL:
-                c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
+                c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                          (username, "Recarga Pi", monto, txid or payment_id, fecha))
             else:
-                c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
-        
-        fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
-        if DATABASE_URL:
-            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
-                      (username, "Recarga Pi", monto, txid or payment_id, fecha))
-        else:
-            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
-                      (username, "Recarga Pi", monto, txid or payment_id, fecha))
-        
-        conn.commit()
-        conn.close()
-        return jsonify({"success": True, "nuevo_saldo": nuevo_saldo})
+                c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
+                          (username, "Recarga Pi", monto, txid or payment_id, fecha))
+            
+            conn.commit()
+            return jsonify({"success": True, "nuevo_saldo": nuevo_saldo})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"success": False, "error": str(e)}), 500
+        finally:
+            conn.close()
 
     return jsonify({"success": False, "error": "Error al completar el pago en Pi Network"}), 400
 
@@ -315,44 +329,50 @@ def solicitar_retiro():
     conn = obtener_conexion()
     c = conn.cursor()
 
-    if DATABASE_URL:
-        c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s", (username,))
-    else:
-        c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
-    row = c.fetchone()
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+        else:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+        row = c.fetchone()
 
-    if not row:
+        if not row:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Usuario no encontrado"}), 404
+
+        saldo_actual = row["saldo_disponible"]
+        if saldo_actual < monto or monto <= 0:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Saldo insuficiente o monto inválido"}), 400
+
+        nuevo_saldo = saldo_actual - monto
+        if DATABASE_URL:
+            c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
+        else:
+            c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
+        
+        txid = f"RET_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+        if DATABASE_URL:
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                      (username, "Retiro Pi", -monto, txid, fecha))
+        else:
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
+                      (username, "Retiro Pi", -monto, txid, fecha))
+
+        conn.commit()
+        return jsonify({
+            "success": True,
+            "nuevo_saldo": nuevo_saldo,
+            "mensaje": f"Retiro de {monto} Pi procesado correctamente."
+        })
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
         conn.close()
-        return jsonify({"success": False, "error": "Usuario no encontrado"}), 404
-
-    saldo_actual = row["saldo_disponible"]
-    if saldo_actual < monto or monto <= 0:
-        conn.close()
-        return jsonify({"success": False, "error": "Saldo insuficiente o monto inválido"}), 400
-
-    nuevo_saldo = saldo_actual - monto
-    if DATABASE_URL:
-        c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
-    else:
-        c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
-    
-    txid = f"RET_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
-    if DATABASE_URL:
-        c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
-                  (username, "Retiro Pi", -monto, txid, fecha))
-    else:
-        c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
-                  (username, "Retiro Pi", -monto, txid, fecha))
-
-    conn.commit()
-    conn.close()
-
-    return jsonify({
-        "success": True,
-        "nuevo_saldo": nuevo_saldo,
-        "mensaje": f"Retiro de {monto} Pi procesado correctamente."
-    })
 
 @app.route("/api/leaderboard", methods=["GET"])
 def leaderboard():
@@ -475,45 +495,51 @@ def admin_ajustar_saldo():
     conn = obtener_conexion()
     c = conn.cursor()
 
-    if DATABASE_URL:
-        c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s", (username,))
-    else:
-        c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
-    row = c.fetchone()
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+        else:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+        row = c.fetchone()
 
-    if not row:
+        if not row:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Usuario no encontrado en la base de datos"}), 404
+
+        saldo_actual = row["saldo_disponible"]
+        nuevo_saldo = saldo_actual + monto_ajuste
+
+        if nuevo_saldo < 0:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "El saldo resultante no puede ser negativo"}), 400
+
+        if DATABASE_URL:
+            c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
+        else:
+            c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
+
+        txid = f"ADMIN_ADJ_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+        if DATABASE_URL:
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                      (username, motivo, monto_ajuste, txid, fecha))
+        else:
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
+                      (username, motivo, monto_ajuste, txid, fecha))
+
+        conn.commit()
+        return jsonify({
+            "success": True,
+            "mensaje": f"Saldo de {username} ajustado correctamente.",
+            "nuevo_saldo": nuevo_saldo
+        })
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
         conn.close()
-        return jsonify({"success": False, "error": "Usuario no encontrado en la base de datos"}), 404
-
-    saldo_actual = row["saldo_disponible"]
-    nuevo_saldo = saldo_actual + monto_ajuste
-
-    if nuevo_saldo < 0:
-        conn.close()
-        return jsonify({"success": False, "error": "El saldo resultante no puede ser negativo"}), 400
-
-    if DATABASE_URL:
-        c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
-    else:
-        c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
-
-    txid = f"ADMIN_ADJ_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
-    if DATABASE_URL:
-        c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
-                  (username, motivo, monto_ajuste, txid, fecha))
-    else:
-        c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
-                  (username, motivo, monto_ajuste, txid, fecha))
-
-    conn.commit()
-    conn.close()
-
-    return jsonify({
-        "success": True,
-        "mensaje": f"Saldo de {username} ajustado correctamente.",
-        "nuevo_saldo": nuevo_saldo
-    })
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
