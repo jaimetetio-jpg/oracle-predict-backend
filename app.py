@@ -116,6 +116,13 @@ def participar():
       "monto": monto,
       "estado": "Activo",
   })
+  
+  user_data["transacciones"].append({
+      "tipo": "Apuesta",
+      "monto": -monto,
+      "txid": f"BET_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+      "fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
+  })
 
   return jsonify({"success": True, "nuevo_saldo": user_data["saldo_disponible"]})
 
@@ -207,6 +214,8 @@ def solicitar_retiro():
     return jsonify({"success": False, "error": "PI_API_KEY no configurada"}), 500
 
   user_data["saldo_disponible"] -= monto
+  
+  # Registro detallado específico para el historial de retiros
   user_data["transacciones"].append({
       "tipo": "Retiro Pi",
       "monto": -monto,
@@ -217,7 +226,7 @@ def solicitar_retiro():
   return jsonify({
       "success": True,
       "nuevo_saldo": user_data["saldo_disponible"],
-      "mensaje": f"Retiro de {monto} Pi procesado correctamente."
+      "mensaje": f"Retiro de {monto} Pi procesado e ingresado al historial correctamente."
   })
 
 
