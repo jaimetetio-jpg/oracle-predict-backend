@@ -78,6 +78,14 @@
         }
         .clob-tab.activo { background: #1f6feb; color: #fff; border-color: #1f6feb; }
         
+        /* Tarjeta de simulación y ganancia transparente */
+        .preview-ganancia-box {
+            background: #161b22; border: 1px solid #30363d; border-radius: 6px;
+            padding: 8px 10px; margin-bottom: 8px; font-size: 11px;
+        }
+        .preview-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+        .preview-row span { color: #8b949e; }
+
         button {
             background-color: #238636; color: #fff; border: none; padding: 8px 14px;
             border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: bold;
@@ -436,12 +444,12 @@
             filtrados.forEach((ev, index) => {
                 const card = document.createElement('div');
                 card.className = 'card';
-                let pozoTotal = ev.opciones.reduce((acc, curr) => acc + curr.pozo, 0);
-                let isHot = index === 0 && pozoTotal > 0;
+                let pozoTotalEvento = ev.opciones.reduce((acc, curr) => acc + curr.pozo, 0);
+                let isHot = index === 0 && pozoTotalEvento > 0;
 
                 let htmlOpc = '';
                 ev.opciones.forEach(op => {
-                    let porc = pozoTotal > 0 ? ((op.pozo / pozoTotal) * 100).toFixed(1) : 50;
+                    let porc = pozoTotalEvento > 0 ? ((op.pozo / pozoTotalEvento) * 100).toFixed(1) : 50;
                     htmlOpc += `
                         <div class="opcion-row">
                             <div class="opcion-row-top">
@@ -452,7 +460,7 @@
                                 ${ev.estado === 'activo' ? `<button onclick="toggleClobPanel(${ev.id}, ${op.id})">Operar ⚡</button>` : '<span>Cerrado</span>'}
                             </div>
                             
-                            <!-- Panel CLOB expandible para órdenes Market y Limit -->
+                            <!-- Panel CLOB expandible para órdenes Market y Limit con cálculo en tiempo real -->
                             <div id="clob-panel-${ev.id}-${op.id}" class="clob-panel">
                                 <div class="clob-tabs">
                                     <div id="tab-mkt-${ev.id}-${op.id}" class="clob-tab activo" onclick="cambiarTipoOrden(${ev.id}, ${op.id}, 'market')">Mercado (Instant)</div>
@@ -461,15 +469,37 @@
                                 
                                 <div id="form-mkt-${ev.id}-${op.id}">
                                     <label style="font-size:11px;">Monto a apostar (Pi):</label>
-                                    <input type="number" id="input-monto-mkt-${ev.id}-${op.id}" placeholder="Ej: 1.0" step="0.1" style="margin-bottom:6px; font-size:12px; padding:6px;">
+                                    <input type="number" id="input-monto-mkt-${ev.id}-${op.id}" placeholder="Ej: 1.0" step="0.1" style="margin-bottom:6px; font-size:12px; padding:6px;" oninput="actualizarPreviewGanancia(${ev.id}, ${op.id}, 'market', ${op.pozo}, ${pozoTotalEvento})">
+                                    
+                                    <!-- Caja intuitiva de desglose y ganancia potencial -->
+                                    <div class="preview-ganancia-box">
+                                        <div class="preview-row"><span>Inversión:</span> <strong id="lbl-inv-mkt-${ev.id}-${op.id}" style="color:#f59e0b;">0.00 Pi</strong></div>
+                                        <div class="preview-row"><span>Pozo Opción:</span> <span id="lbl-pozo-mkt-${ev.id}-${op.id}">${op.pozo.toFixed(2)} Pi</span></div>
+                                        <div class="preview-row" style="border-top:1px solid #30363d; padding-top:4px; margin-top:2px;">
+                                            <span style="color:#3fb950; font-weight:bold;">Ganancia Est.:</span> 
+                                            <strong id="lbl-gan-mkt-${ev.id}-${op.id}" style="color:#3fb950; font-size:12px;">~ 0.00 Pi</strong>
+                                        </div>
+                                    </div>
+
                                     <button onclick="ejecutarOrdenCLOB(${ev.id}, ${op.id}, 'market')" style="width:100%; padding:6px; font-size:12px; background:#238636;">Ejecutar Orden Market</button>
                                 </div>
 
                                 <div id="form-lmt-${ev.id}-${op.id}" style="display:none;">
                                     <label style="font-size:11px;">Precio Límite (0.01 a 0.99):</label>
                                     <input type="number" id="input-precio-lmt-${ev.id}-${op.id}" placeholder="Ej: 0.55" min="0.01" max="0.99" step="0.01" style="margin-bottom:6px; font-size:12px; padding:6px;">
+                                    
                                     <label style="font-size:11px;">Monto total (Pi):</label>
-                                    <input type="number" id="input-monto-lmt-${ev.id}-${op.id}" placeholder="Ej: 2.0" step="0.1" style="margin-bottom:6px; font-size:12px; padding:6px;">
+                                    <input type="number" id="input-monto-lmt-${ev.id}-${op.id}" placeholder="Ej: 2.0" step="0.1" style="margin-bottom:6px; font-size:12px; padding:6px;" oninput="actualizarPreviewGanancia(${ev.id}, ${op.id}, 'limit', ${op.pozo}, ${pozoTotalEvento})">
+
+                                    <!-- Caja intuitiva de desglose y ganancia potencial Limit -->
+                                    <div class="preview-ganancia-box">
+                                        <div class="preview-row"><span>Inversión:</span> <strong id="lbl-inv-lmt-${ev.id}-${op.id}" style="color:#f59e0b;">0.00 Pi</strong></div>
+                                        <div class="preview-row" style="border-top:1px solid #30363d; padding-top:4px; margin-top:2px;">
+                                            <span style="color:#3fb950; font-weight:bold;">Rendimiento Est.:</span> 
+                                            <strong id="lbl-gan-lmt-${ev.id}-${op.id}" style="color:#3fb950; font-size:12px;">~ 0.00 Pi</strong>
+                                        </div>
+                                    </div>
+
                                     <button onclick="ejecutarOrdenCLOB(${ev.id}, ${op.id}, 'limit')" style="width:100%; padding:6px; font-size:12px; background:#8957e5;">Colocar Orden Límite</button>
                                 </div>
                             </div>
@@ -482,7 +512,7 @@
                         <span class="badge-activo">${ev.estado.toUpperCase()}</span>
                     </div>
                     <h3>${ev.titulo}</h3>
-                    <div class="pozo-global">Volumen: ${pozoTotal.toFixed(2)} Pi</div>
+                    <div class="pozo-global">Volumen: ${pozoTotalEvento.toFixed(2)} Pi</div>
                     <div class="opciones-container">${htmlOpc}</div>`;
                 contenedor.appendChild(card);
             });
@@ -512,6 +542,29 @@
             }
         }
 
+        function actualizarPreviewGanancia(eventoId, opcionId, tipo, pozoActualOp, pozoGlobalEvento) {
+            let inputId = tipo === 'market' ? `input-monto-mkt-${eventoId}-${opcionId}` : `input-monto-lmt-${eventoId}-${opcionId}`;
+            let lblInv = tipo === 'market' ? `lbl-inv-mkt-${eventoId}-${opcionId}` : `lbl-inv-lmt-${eventoId}-${opcionId}`;
+            let lblGan = tipo === 'market' ? `lbl-gan-mkt-${eventoId}-${opcionId}` : `lbl-gan-lmt-${eventoId}-${opcionId}`;
+
+            let monto = parseFloat(document.getElementById(inputId).value) || 0;
+            document.getElementById(lblInv).innerText = monto.toFixed(2) + " Pi";
+
+            if (tipo === 'market') {
+                // Modelo proporcional Pari-mutuel básico
+                let nuevoPozoOp = pozoActualOp + monto;
+                let nuevoPozoGlobal = pozoGlobalEvento + monto;
+                let gananciaEstimada = nuevoPozoOp > 0 ? (monto / nuevoPozoOp) * nuevoPozoGlobal : 0;
+                // Restar leve comisión Taker estimada del 1.5%
+                gananciaEstimada = gananciaEstimada * (1 - 0.015);
+                document.getElementById(lblGan).innerText = "~ " + gananciaEstimada.toFixed(2) + " Pi";
+            } else {
+                // Para orden limit estimada simple
+                let gananciaEstimada = monto * 1.8; // Estimativo base de retorno
+                document.getElementById(lblGan).innerText = "~ " + gananciaEstimada.toFixed(2) + " Pi";
+            }
+        }
+
         async function ejecutarOrdenCLOB(eventoId, opcionId, tipoOrden) {
             let monto, precio = null;
 
@@ -537,7 +590,7 @@
                         username: usuarioActual,
                         evento_id: eventoId,
                         opcion_id: opcionId,
-                        tipo_orden: tipoOrden, // 'market' o 'limit'
+                        tipo_orden: tipoOrden,
                         monto: monto,
                         precio: precio
                     })
