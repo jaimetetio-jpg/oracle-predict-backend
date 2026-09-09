@@ -59,11 +59,24 @@
         .opciones-container { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
         .opcion-row {
             background-color: #21262d; border: 1px solid #30363d; border-radius: 8px;
-            padding: 12px; display: flex; justify-content: space-between; align-items: center;
+            padding: 12px; display: flex; flex-direction: column; gap: 8px;
         }
+        .opcion-row-top { display: flex; justify-content: space-between; align-items: center; }
         .info-opcion { display: flex; flex-direction: column; gap: 4px; }
         .nombre-opcion { font-weight: bold; color: #58a6ff; font-size: 15px; }
         .stats-opcion { font-size: 12px; color: #8b949e; }
+        
+        /* Controles CLOB expandibles */
+        .clob-panel {
+            background: #0d1117; border: 1px dashed #30363d; border-radius: 6px; padding: 10px;
+            display: none; margin-top: 5px; box-sizing: border-box;
+        }
+        .clob-tabs { display: flex; gap: 5px; margin-bottom: 8px; }
+        .clob-tab {
+            flex: 1; font-size: 11px; padding: 4px; text-align: center; background: #161b22;
+            border: 1px solid #30363d; border-radius: 4px; cursor: pointer; color: #8b949e; font-weight: bold;
+        }
+        .clob-tab.activo { background: #1f6feb; color: #fff; border-color: #1f6feb; }
         
         button {
             background-color: #238636; color: #fff; border: none; padding: 8px 14px;
@@ -184,16 +197,14 @@
                 </div>
             </div>
 
-            <!-- SECCIÓN DE ADMINISTRACIÓN AVANZADA (Superusuario) -->
+            <!-- SECCIÓN DE ADMINISTRACIÓN AVANZADA -->
             <div id="admin-panel" style="display: block; padding: 15px; color: #fff; background: #161b22; border: 1px solid #30363d; border-radius: 12px; margin-bottom: 15px; width: 100%; box-sizing: border-box;">
                 <h3>Panel de Superusuario 🛡️</h3>
                 <div style="margin: 12px 0; display: flex; gap: 8px;">
                     <button onclick="cargarPanelAdmin()" class="btn-admin">🎯 Mercados Activos</button>
                     <button onclick="cargarListaUsuarios()" class="btn-admin" style="background: #6200ee;">👥 Auditoría Usuarios</button>
                 </div>
-                <div id="admin-content-area" style="margin-top: 15px;">
-                    <!-- Aquí se cargarán los datos dinámicamente -->
-                </div>
+                <div id="admin-content-area" style="margin-top: 15px;"></div>
             </div>
         </div>
     </div>
@@ -433,11 +444,35 @@
                     let porc = pozoTotal > 0 ? ((op.pozo / pozoTotal) * 100).toFixed(1) : 50;
                     htmlOpc += `
                         <div class="opcion-row">
-                            <div class="info-opcion">
-                                <span class="nombre-opcion">${op.nombre} (${porc}%)</span>
-                                <span class="stats-opcion">Pozo: ${op.pozo.toFixed(2)} Pi</span>
+                            <div class="opcion-row-top">
+                                <div class="info-opcion">
+                                    <span class="nombre-opcion">${op.nombre} (${porc}%)</span>
+                                    <span class="stats-opcion">Pozo: ${op.pozo.toFixed(2)} Pi</span>
+                                </div>
+                                ${ev.estado === 'activo' ? `<button onclick="toggleClobPanel(${ev.id}, ${op.id})">Operar ⚡</button>` : '<span>Cerrado</span>'}
                             </div>
-                            ${ev.estado === 'activo' ? `<button onclick="participar(${ev.id}, ${op.id})">Apostar</button>` : '<span>Cerrado</span>'}
+                            
+                            <!-- Panel CLOB expandible para órdenes Market y Limit -->
+                            <div id="clob-panel-${ev.id}-${op.id}" class="clob-panel">
+                                <div class="clob-tabs">
+                                    <div id="tab-mkt-${ev.id}-${op.id}" class="clob-tab activo" onclick="cambiarTipoOrden(${ev.id}, ${op.id}, 'market')">Mercado (Instant)</div>
+                                    <div id="tab-lmt-${ev.id}-${op.id}" class="clob-tab" onclick="cambiarTipoOrden(${ev.id}, ${op.id}, 'limit')">Límite (Book)</div>
+                                </div>
+                                
+                                <div id="form-mkt-${ev.id}-${op.id}">
+                                    <label style="font-size:11px;">Monto a apostar (Pi):</label>
+                                    <input type="number" id="input-monto-mkt-${ev.id}-${op.id}" placeholder="Ej: 1.0" step="0.1" style="margin-bottom:6px; font-size:12px; padding:6px;">
+                                    <button onclick="ejecutarOrdenCLOB(${ev.id}, ${op.id}, 'market')" style="width:100%; padding:6px; font-size:12px; background:#238636;">Ejecutar Orden Market</button>
+                                </div>
+
+                                <div id="form-lmt-${ev.id}-${op.id}" style="display:none;">
+                                    <label style="font-size:11px;">Precio Límite (0.01 a 0.99):</label>
+                                    <input type="number" id="input-precio-lmt-${ev.id}-${op.id}" placeholder="Ej: 0.55" min="0.01" max="0.99" step="0.01" style="margin-bottom:6px; font-size:12px; padding:6px;">
+                                    <label style="font-size:11px;">Monto total (Pi):</label>
+                                    <input type="number" id="input-monto-lmt-${ev.id}-${op.id}" placeholder="Ej: 2.0" step="0.1" style="margin-bottom:6px; font-size:12px; padding:6px;">
+                                    <button onclick="ejecutarOrdenCLOB(${ev.id}, ${op.id}, 'limit')" style="width:100%; padding:6px; font-size:12px; background:#8957e5;">Colocar Orden Límite</button>
+                                </div>
+                            </div>
                         </div>`;
                 });
 
@@ -453,22 +488,72 @@
             });
         }
 
-        async function participar(eventoId, opcionId) {
-            let monto = parseFloat(prompt("¿Cuántos Pi deseas apostar?", "1.0"));
-            if (isNaN(monto) || monto <= 0) return;
+        function toggleClobPanel(eventoId, opcionId) {
+            const panel = document.getElementById(`clob-panel-${eventoId}-${opcionId}`);
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        }
 
-            const res = await fetch('/api/participar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ evento_id: eventoId, opcion_id: opcionId, monto, username: usuarioActual })
-            });
-            const data = await res.json();
-            if(data.success) {
-                alert("¡Apuesta registrada!");
-                cargarDatosUsuario();
-                cargarMercados();
+        function cambiarTipoOrden(eventoId, opcionId, tipo) {
+            const tabMkt = document.getElementById(`tab-mkt-${eventoId}-${opcionId}`);
+            const tabLmt = document.getElementById(`tab-lmt-${eventoId}-${opcionId}`);
+            const formMkt = document.getElementById(`form-mkt-${eventoId}-${opcionId}`);
+            const formLmt = document.getElementById(`form-lmt-${eventoId}-${opcionId}`);
+
+            if (tipo === 'market') {
+                tabMkt.classList.add('activo');
+                tabLmt.classList.remove('activo');
+                formMkt.style.display = 'block';
+                formLmt.style.display = 'none';
             } else {
-                alert("Error: " + data.error);
+                tabLmt.classList.add('activo');
+                tabMkt.classList.remove('activo');
+                formLmt.style.display = 'block';
+                formMkt.style.display = 'none';
+            }
+        }
+
+        async function ejecutarOrdenCLOB(eventoId, opcionId, tipoOrden) {
+            let monto, precio = null;
+
+            if (tipoOrden === 'market') {
+                monto = parseFloat(document.getElementById(`input-monto-mkt-${eventoId}-${opcionId}`).value);
+            } else {
+                precio = parseFloat(document.getElementById(`input-precio-lmt-${eventoId}-${opcionId}`).value);
+                monto = parseFloat(document.getElementById(`input-monto-lmt-${eventoId}-${opcionId}`).value);
+                if (isNaN(precio) || precio <= 0 || precio >= 1) {
+                    return alert("El precio límite debe estar estrictamente entre 0 y 1.");
+                }
+            }
+
+            if (isNaN(monto) || monto <= 0) {
+                return alert("Por favor ingresa un monto válido.");
+            }
+
+            try {
+                const res = await fetch('/api/clob/orden', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: usuarioActual,
+                        evento_id: eventoId,
+                        opcion_id: opcionId,
+                        tipo_orden: tipoOrden, // 'market' o 'limit'
+                        monto: monto,
+                        precio: precio
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    alert(`¡Orden procesada con éxito! (${tipoOrden.toUpperCase()})`);
+                    cargarDatosUsuario();
+                    cargarMercados();
+                } else {
+                    alert("Error en la orden: " + data.error);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Error de conexión al enviar la orden al motor CLOB.");
             }
         }
 
