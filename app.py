@@ -4,6 +4,9 @@ from flask import Flask, jsonify, request, render_template
 
 app = Flask(__name__)
 
+# Token de seguridad para las funciones de administración
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "p2ppredict_admin_secret_2026")
+
 eventos = [
     {
         "id": 1,
@@ -11,7 +14,7 @@ eventos = [
         "categoria": "Deportes",
         "fecha_inicio": "2026-06-01T00:00",
         "fecha_cierre": "2026-06-15T23:59",
-        "estado": "activo", # activo, cerrado, resuelto
+        "estado": "activo",
         "ganador_id": None,
         "opciones": [
             {"id": 0, "nombre": "Sí", "pozo": 50.0},
@@ -19,20 +22,26 @@ eventos = [
         ],
         "pozo_total": 100.0,
         "comision_casa": 2.0,
-        "ordenes_pendientes": [],     # Cola FIFO de órdenes (Makers 0% comisión)
-        "apuestas_emparejadas": []    # Registro de matches (CLOB: Taker paga 2%)
+        "ordenes_pendientes": [],
+        "apuestas_emparejadas": []
     }
 ]
 
 saldos_pendientes = {}
 historial_apuestas = []
 
+def verificar_admin():
+    token = request.headers.get('X-Admin-Token')
+    if not token and request.is_json:
+        token = (request.json or {}).get('admin_token')
+    return token == ADMIN_TOKEN
+
 @app.route('/')
 def index():
     try:
         return render_template('index.html')
     except Exception:
-        return "¡P2Ppredict Admin Backend Funcionando (Modelo CLOB + Cierre Pro)! 🔮"
+        return "¡P2Ppredict Backend Pro (CLOB + Admin Auth) Funcionando! 🔮"
 
 @app.route('/validation-key.txt')
 def validation_key():
@@ -44,20 +53,46 @@ def validation_key():
 @app.route('/api/eventos', methods=['GET'])
 def obtener_eventos():
     ahora = datetime.now()
+    categoria_filtro = request.args.get('categoria')
+    busqueda = request.args.get('q', '').lower()
+
+    eventos_procesados = []
     for ev in eventos:
         if ev["estado"] == "activo":
             try:
                 cierre = datetime.strptime(ev["fecha_cierre"], "%Y-%m-%dT%H:%M")
-                # Estándar Polymarket/Kalshi: Cierre automático 5 minutos antes del evento
-                cierre_seguridad = cierre - timedelta(minutes=5)
-                if ahora > cierre_seguridad:
+                if ahora > (cierre - timedelta(minutes=5)):
                     ev["estado"] = "cerrado"
             except Exception:
                 pass
-    return jsonify(eventos)
+        
+        if categoria_filtro and categoria_filtro != "Todos" and ev["categoria"] != categoria_filtro:
+            continue
+        if busqueda and busqueda not in ev["titulo"].lower():
+            continue
+            
+        eventos_procesados.append(ev)
+        
+    return jsonify(eventos_procesados)
 
-@app.route('/api/admin/metricas', methods=['GET'])
+@app.route('/api/evento/<int:evento_id>/libro', methods=['GET'])
+def obtener_libro_ordenes(evento_id):
+    evento = next((ev for ev in eventos if ev["id"] == evento_id), None)
+    if not evento:
+        return jsonify({"success": False, "error": "Mercado no encontrado"}), 404
+        
+    return jsonify({
+        "success": True,
+        "evento_id": evento_id,
+        "ordenes_pendientes": evento["ordenes_pendientes"],
+        "apuestas_emparejadas": evento["apuestas_emparejadas"]
+    })
+
+@app.route('/api/admin/metricas', methods=['GET', 'POST'])
 def admin_metricas():
+    if not verificar_admin():
+        return jsonify({"success": False, "error": "Acceso no autorizado. Token de administrador inválido."}), 401
+
     volumen_total_historico = sum(ev["pozo_total"] for ev in eventos)
     comision_total_casa = sum(ev["comision_casa"] for ev in eventos)
     poi_activos = sum(ev["pozo_total"] for ev in eventos if ev["estado"] != "resuelto")
@@ -72,8 +107,11 @@ def admin_metricas():
         "total_mercados": len(eventos)
     })
 
-@app.route('/api/admin/pendientes', methods=['GET'])
+@app.route('/api/admin/pendientes', methods=['GET', 'POST'])
 def admin_pendientes():
+    if not verificar_admin():
+        return jsonify({"success": False, "error": "Acceso no autorizado. Token de administrador inválido."}), 401
+
     pendientes = [ev for ev in eventos if ev["estado"] != "resuelto"]
     return jsonify({"success": True, "mercados": pendientes})
 
@@ -81,11 +119,26 @@ def admin_pendientes():
 def obtener_saldo(username):
     saldo = saldos_pendientes.get(username, 0.0)
     mis_apuestas = [h for h in historial_apuestas if h["usuario"] == username]
+    
+    ordenes_activas_usuario = []
+    for ev in eventos:
+        for orden in ev["ordenes_pendientes"]:
+            if orden["usuario"] == username:
+                ordenes_activas_usuario.append({
+                    "evento_id": ev["id"],
+                    "titulo_evento": ev["titulo"],
+                    "orden_id": orden["id"],
+                    "opcion_id": orden["opcion_id"],
+                    "monto_disponible": orden["monto_disponible"],
+                    "fecha": orden["fecha"]
+                })
+
     return jsonify({
         "success": True, 
         "username": username, 
         "saldo_disponible": round(saldo, 4),
-        "historial": mis_apuestas
+        "historial": mis_apuestas,
+        "ordenes_en_cola": ordenes_activas_usuario
     })
 
 @app.route('/api/leaderboard', methods=['GET'])
@@ -134,6 +187,9 @@ def obtener_leaderboard():
 
 @app.route('/api/crear-evento', methods=['POST'])
 def crear_evento():
+    if not verificar_admin():
+        return jsonify({"success": False, "error": "Acceso no autorizado. Token de administrador inválido."}), 401
+
     data = request.json or {}
     titulo = data.get('titulo')
     categoria = data.get('categoria', 'General')
@@ -227,7 +283,9 @@ def participar():
     evento["comision_casa"] += comision_total_taker
 
     if monto_restante > 0:
+        orden_id_generado = f"ord_{int(datetime.now().timestamp() * 1000)}"
         evento["ordenes_pendientes"].append({
+            "id": orden_id_generado,
             "usuario": usuario,
             "opcion_id": opcion_id,
             "monto_disponible": monto_restante,
@@ -251,8 +309,46 @@ def participar():
     
     return jsonify({"success": True, "mensaje": f"Orden procesada. Estado: {estado_apuesta}"})
 
+@app.route('/api/orden/cancelar', methods=['POST'])
+def cancelar_orden():
+    data = request.json or {}
+    evento_id = int(data.get('evento_id', 0))
+    orden_id = data.get('orden_id')
+    usuario = data.get('username')
+
+    evento = next((ev for ev in eventos if ev["id"] == evento_id), None)
+    if not evento:
+        return jsonify({"success": False, "error": "Mercado no encontrado"}), 404
+
+    orden_a_cancelar = None
+    for orden in evento["ordenes_pendientes"]:
+        if orden.get("id") == orden_id and orden["usuario"] == usuario:
+            orden_a_cancelar = orden
+            break
+
+    if not orden_a_cancelar:
+        return jsonify({"success": False, "error": "Orden no encontrada o no pertenece al usuario."}), 404
+
+    evento["ordenes_pendientes"].remove(orden_a_cancelar)
+    
+    monto_a_liberar = orden_a_cancelar["monto_disponible"]
+    evento["pozo_total"] -= monto_a_liberar
+    for op in evento["opciones"]:
+        if op["id"] == orden_a_cancelar["opcion_id"]:
+            op["pozo"] -= monto_a_liberar
+
+    saldos_pendientes[usuario] = saldos_pendientes.get(usuario, 0.0) + monto_a_liberar
+
+    return jsonify({
+        "success": True, 
+        "mensaje": f"¡Orden cancelada con éxito! Se han devuelto {round(monto_a_liberar, 4)} Pi a tu saldo."
+    })
+
 @app.route('/api/resolver', methods=['POST'])
 def resolver_evento():
+    if not verificar_admin():
+        return jsonify({"success": False, "error": "Acceso no autorizado. Token de administrador inválido."}), 401
+
     data = request.json or {}
     evento_id = int(data.get('evento_id', 0))
     ganador_id = int(data.get('ganador_id', 0))
