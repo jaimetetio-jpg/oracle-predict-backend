@@ -1,13 +1,21 @@
 import os
 from datetime import datetime
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import requests
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASS", "admin123")
+# Configuración de clave secreta para firmar las sesiones de forma segura
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "p2ppredict_secret_key_ultra_segura_2026")
+
+# Blindaje de contraseña de administrador mediante Hash (PBKDF2)
+# Por defecto genera un hash seguro para la clave "admin123" si no hay variable de entorno
+DEFAULT_ADMIN_HASH = generate_password_hash("admin123")
+ADMIN_PASSWORD_HASH = os.environ.get("ADMIN_PASSWORD_HASH", DEFAULT_ADMIN_HASH)
+
 PI_API_KEY = os.environ.get("PI_API_KEY", "")
 # URL de conexión a PostgreSQL (Supabase). Si no existe, usa SQLite como respaldo local.
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -356,20 +364,35 @@ def leaderboard():
     conn.close()
     return jsonify({"success": True, "leaderboard": ranking})
 
+# ================= RUTAS DE ADMINISTRADOR BLINDADAS =================
+
 @app.route("/api/admin/login", methods=["POST"])
 def admin_login():
-    data = request.json
-    if data.get("password") == ADMIN_PASSWORD:
-        return jsonify({"success": True})
-    return jsonify({"success": False}), 401
+    data = request.json or {}
+    password = data.get("password", "")
+    
+    # Comprobación segura mediante hash criptográfico
+    if check_password_hash(ADMIN_PASSWORD_HASH, password):
+        session['is_admin'] = True
+        return jsonify({"success": True, "message": "Acceso de administrador autorizado"})
+    
+    return jsonify({"success": False, "error": "Credenciales inválidas"}), 401
 
 @app.route("/api/admin/pendientes", methods=["GET"])
 def admin_pendientes():
+    # Verificación de sesión activa de administrador
+    if not session.get('is_admin'):
+        return jsonify({"success": False, "error": "No autorizado"}), 403
+        
     pendientes = [e for e in EVENTOS if e["estado"] == "activo"]
     return jsonify({"success": True, "mercados": pendientes})
 
 @app.route("/api/resolver", methods=["POST"])
 def resolver_evento():
+    # Verificación de sesión activa de administrador
+    if not session.get('is_admin'):
+        return jsonify({"success": False, "error": "No autorizado"}), 403
+
     data = request.json
     evento_id = data.get("evento_id")
     ganador_id = data.get("ganador_id")
