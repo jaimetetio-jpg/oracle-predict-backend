@@ -58,11 +58,24 @@ def inicializar_bd():
                         monto DOUBLE PRECISION,
                         estado TEXT
                     )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS ordenes_clob (
+                        id SERIAL PRIMARY KEY,
+                        username TEXT,
+                        evento_id INTEGER,
+                        opcion_id INTEGER,
+                        tipo_orden TEXT,
+                        accion TEXT,
+                        precio DOUBLE PRECISION,
+                        cantidad DOUBLE PRECISION,
+                        estado TEXT DEFAULT 'activa',
+                        fecha TEXT
+                    )''')
     else:
         # Tablas con sintaxis para SQLite (respaldo)
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (username TEXT PRIMARY KEY, saldo_disponible REAL DEFAULT 0.0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS transacciones (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, tipo TEXT, monto REAL, txid TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS historial_apuestas (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, titulo_evento TEXT, opcion_elegida TEXT, monto REAL, estado TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS ordenes_clob (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, evento_id INTEGER, opcion_id INTEGER, tipo_orden TEXT, accion TEXT, precio REAL, cantidad REAL, estado TEXT DEFAULT 'activa', fecha TEXT)''')
     
     conn.commit()
     conn.close()
@@ -382,6 +395,110 @@ def leaderboard():
     ranking = [{"username": row["username"], "ganancias_netas": row["saldo_disponible"]} for row in c.fetchall()]
     conn.close()
     return jsonify({"success": True, "leaderboard": ranking})
+
+# ================= NUEVO ENDPOINT CLOB (LIMIT & MARKET) =================
+
+@app.route("/api/clob/orden", methods=["POST"])
+def procesar_orden_clob():
+    data = request.json or {}
+    username = data.get("username")
+    evento_id = data.get("evento_id")
+    opcion_id = data.get("opcion_id")
+    tipo_orden = data.get("tipo_orden", "limit").lower()  # 'limit' o 'market'
+    accion = data.get("accion", "compra").lower()          # 'compra' o 'venta'
+    cantidad = float(data.get("cantidad", 0))              # Monto en Pi
+    precio = float(data.get("precio", 0.5))                # Requerido para Limit
+
+    if not username or cantidad <= 0:
+        return jsonify({"success": False, "error": "Datos de orden inválidos o saldo faltante"}), 400
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+
+    try:
+        # 1. Bloqueo de fila ACID del usuario
+        if DATABASE_URL:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+        else:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+        
+        row = c.fetchone()
+        saldo_actual = row["saldo_disponible"] if row else 0
+
+        if saldo_actual < cantidad:
+            conn.rollback()
+            return jsonify({"success": False, "error": "Saldo insuficiente para procesar la orden CLOB"})
+
+        # Descontar saldo temporalmente para asegurar la operación
+        nuevo_saldo = saldo_actual - cantidad
+        if DATABASE_URL:
+            c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
+        else:
+            c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
+
+        fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+        evento = next((e for e in EVENTOS if e["id"] == evento_id), None)
+        titulo_evento = evento["titulo"] if evento else f"Evento {evento_id}"
+
+        # ==========================================
+        # CASO A: ORDEN MARKET (Ejecución Instantánea)
+        # ==========================================
+        if tipo_orden == "market":
+            # Comisión del 1.5% aplicada al Taker de Mercado
+            comision_taker = cantidad * 0.015
+            monto_efectivo = cantidad - comision_taker
+
+            txid = f"CLOB_MKT_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            
+            if DATABASE_URL:
+                c.execute("INSERT INTO ordenes_clob (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, estado, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                          (username, evento_id, opcion_id, "market", accion, 0.0, cantidad, "completada", fecha))
+                c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (%s, %s, %s, %s, %s)",
+                          (username, titulo_evento, f"Opción {opcion_id} [Market]", cantidad, "Ejecutada"))
+                c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                          (username, "Comisión CLOB Market (1.5%)", -comision_taker, txid, fecha))
+            else:
+                c.execute("INSERT INTO ordenes_clob (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, estado, fecha) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                          (username, evento_id, opcion_id, "market", accion, 0.0, cantidad, "completada", fecha))
+                c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (?, ?, ?, ?, ?)",
+                          (username, titulo_evento, f"Opción {opcion_id} [Market]", cantidad, "Ejecutada"))
+                c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
+                          (username, "Comisión CLOB Market (1.5%)", -comision_taker, txid, fecha))
+
+            conn.commit()
+            return jsonify({
+                "success": True, 
+                "nuevo_saldo": nuevo_saldo, 
+                "mensaje": "¡Orden Market ejecutada al instante! (Comisión aplicada: 1.5%)"
+            })
+
+        # ==========================================
+        # CASO B: ORDEN LIMIT (Libro de Órdenes)
+        # ==========================================
+        else:
+            if precio <= 0 or precio >= 1:
+                conn.rollback()
+                return jsonify({"success": False, "error": "Precio Limit fuera de rango (debe ser entre 0 y 1)"}), 400
+
+            if DATABASE_URL:
+                c.execute("INSERT INTO ordenes_clob (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, estado, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                          (username, evento_id, opcion_id, "limit", accion, precio, cantidad, "activa", fecha))
+            else:
+                c.execute("INSERT INTO ordenes_clob (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, estado, fecha) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                          (username, evento_id, opcion_id, "limit", accion, precio, cantidad, "activa", fecha))
+
+            conn.commit()
+            return jsonify({
+                "success": True, 
+                "nuevo_saldo": nuevo_saldo, 
+                "mensaje": f"Orden Limit registrada en el CLOB al precio de {precio} (Esperando Maker/Match)"
+            })
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
 
 # ================= RUTAS DE ADMINISTRADOR BLINDADAS Y EXTENDIDAS =================
 
