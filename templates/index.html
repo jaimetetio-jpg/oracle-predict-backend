@@ -21,8 +21,32 @@
             padding: 20px;
             margin: 0;
         }
-        h1 { font-size: 26px; color: #ffffff; margin-bottom: 2px; text-align: center; }
-        p.subtitulo { color: #8b949e; font-size: 14px; margin-bottom: 15px; text-align: center; }
+        
+        /* LOGO Y CABECERA PRO */
+        .brand-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+        .brand-logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #2b1055, #7597de);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(137, 87, 229, 0.4);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            overflow: hidden;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        .brand-titles h1 { font-size: 24px; color: #ffffff; margin: 0; text-align: left; }
+        .brand-titles span { font-size: 11px; color: #8b949e; letter-spacing: 0.5px; }
+
+        p.subtitulo { color: #8b949e; font-size: 13px; margin-bottom: 15px; text-align: center; }
         
         .nav-admin-bar {
             width: 100%; max-width: 400px; display: flex; gap: 6px; margin-bottom: 15px;
@@ -52,6 +76,8 @@
         .metric-box h3 { font-size: 16px; color: #3fb950; margin: 5px 0 0 0; }
         .metric-box h3.azul { color: #58a6ff; }
 
+        /* BARRA DE BÚSQUEDA Y FILTROS */
+        .buscador-container { width: 100%; max-width: 400px; margin-bottom: 10px; box-sizing: border-box; }
         .filtros-container { display: flex; gap: 6px; width: 100%; max-width: 400px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 4px; box-sizing: border-box; }
         .tab-filtro {
             background-color: #161b22; border: 1px solid #30363d; color: #8b949e;
@@ -66,7 +92,7 @@
         }
         .card h3 { font-size: 16px; color: #f0f6fc; margin-top: 0; margin-bottom: 10px; }
         
-        input[type="text"], input[type="datetime-local"], select {
+        input[type="text"], input[type="number"], input[type="datetime-local"], select {
             width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #30363d;
             background-color: #0d1117; color: #fff; margin-bottom: 10px; font-size: 14px; box-sizing: border-box;
         }
@@ -90,6 +116,7 @@
         button.btn-crear { background-color: #8957e5; width: 100%; padding: 10px; margin-top: 5px; }
         button.btn-resolver { background-color: #d29922; color: #000; width: 100%; margin-top: 8px; }
         button.btn-reclamar { background-color: #238636; padding: 10px 16px; font-size: 14px; }
+        button.btn-cancelar { background-color: #da3633; padding: 4px 8px; font-size: 11px; }
         button:hover:not(:disabled) { opacity: 0.85; }
         
         .header-meta { display: flex; justify-content: space-between; font-size: 11px; color: #8b949e; margin-bottom: 6px; }
@@ -99,8 +126,8 @@
         .badge-resuelto { color: #58a6ff; font-weight: bold; }
         .pozo-global { font-size: 13px; color: #58a6ff; margin-bottom: 10px; font-weight: bold; }
         
-        .historial-box { font-size: 12px; background: #0d1117; padding: 10px; border-radius: 6px; border: 1px solid #30363d; margin-top: 10px; }
-        .historial-item { border-bottom: 1px solid #21262d; padding: 6px 0; display: flex; justify-content: space-between; align-items: center; }
+        .historial-box, .cola-box { font-size: 12px; background: #0d1117; padding: 10px; border-radius: 6px; border: 1px solid #30363d; margin-top: 10px; }
+        .historial-item, .cola-item { border-bottom: 1px solid #21262d; padding: 6px 0; display: flex; justify-content: space-between; align-items: center; }
 
         /* Estilos para el Leaderboard */
         .tabla-leaderboard { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
@@ -114,7 +141,23 @@
 </head>
 <body>
 
-    <h1>P2Ppredict 🔮</h1>
+    <!-- LOGO Y TÍTULO PROFESIONAL -->
+    <div class="brand-header">
+        <div class="brand-logo">
+            <!-- LOGO SVG VECTORIAL PROFESIONAL (P2Ppredict) -->
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+                <path d="M12 48L24 34L36 40L52 18" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M40 18H52V30" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="24" cy="34" r="4" fill="#3fb950"/>
+                <circle cx="52" cy="18" r="5" fill="#3fb950"/>
+                <path d="M16 52H48" stroke="#8957e5" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <div class="brand-titles">
+            <h1>P2P<span style="color: #f59e0b;">predict</span></h1>
+            <span>CLOB ENGINE • PI NETWORK</span>
+        </div>
+    </div>
     <p class="subtitulo" id="lbl-estado-conexion">Conectando con Pi Browser...</p>
 
     <div class="nav-admin-bar">
@@ -133,6 +176,14 @@
             <button class="btn-reclamar" id="btn-reclamar" onclick="reclamarPremio()" disabled>Reclamar</button>
         </div>
 
+        <!-- SECCIÓN DE ÓRDENES ACTIVAS EN COLA (MAKERS) -->
+        <div class="card" style="border-color: #8957e5; padding: 15px;">
+            <h3 style="margin-bottom: 5px; cursor: pointer; color: #8957e5;" onclick="toggleCola()">⏳ Mis Órdenes en Cola (Makers 0%) ▾</h3>
+            <div id="contenedor-cola-maker" class="cola-box" style="display: none;">
+                <span style="color: #8b949e;">No tienes órdenes esperando match.</span>
+            </div>
+        </div>
+
         <div class="card" style="padding: 15px;">
             <h3 style="margin-bottom: 5px; cursor: pointer;" onclick="toggleHistorial()">📋 Ver Mi Historial de Apuestas ▾</h3>
             <div id="contenedor-historial" class="historial-box" style="display: none;">
@@ -140,12 +191,17 @@
             </div>
         </div>
 
+        <!-- BARRA DE BÚSQUEDA Y FILTROS -->
+        <div class="buscador-container">
+            <input type="text" id="input-buscar" placeholder="🔍 Buscar mercados por título..." oninput="filtrarEventosYBusqueda()">
+        </div>
+
         <div class="filtros-container">
-            <div class="tab-filtro activo" onclick="filtrar('todos', this)">Todos</div>
-            <div class="tab-filtro" onclick="filtrar('activo', this)">Activos</div>
-            <div class="tab-filtro" onclick="filtrar('Deportes', this)">Deportes</div>
-            <div class="tab-filtro" onclick="filtrar('Cripto', this)">Cripto</div>
-            <div class="tab-filtro" onclick="filtrar('resuelto', this)">Resueltos</div>
+            <div class="tab-filtro activo" onclick="seleccionarFiltro('todos', this)">Todos</div>
+            <div class="tab-filtro" onclick="seleccionarFiltro('activo', this)">Activos</div>
+            <div class="tab-filtro" onclick="seleccionarFiltro('Deportes', this)">Deportes</div>
+            <div class="tab-filtro" onclick="seleccionarFiltro('Cripto', this)">Cripto</div>
+            <div class="tab-filtro" onclick="seleccionarFiltro('resuelto', this)">Resueltos</div>
         </div>
 
         <div class="card">
@@ -156,6 +212,7 @@
                 <option value="Cripto">Cripto</option>
                 <option value="Política">Política</option>
                 <option value="Tecnología">Tecnología</option>
+                <option value="General">General</option>
             </select>
             <input type="text" id="opcion-1" placeholder="Opción 1" value="Sí">
             <input type="text" id="opcion-2" placeholder="Opción 2" value="No">
@@ -286,6 +343,7 @@
                     document.getElementById('saldo-usuario').innerText = `${data.saldo_disponible.toFixed(4)} Pi`;
                     document.getElementById('btn-reclamar').disabled = data.saldo_disponible <= 0;
                     
+                    // Renderizar historial de apuestas
                     const histCont = document.getElementById('contenedor-historial');
                     if (data.historial.length === 0) {
                         histCont.innerHTML = '<span style="color: #8b949e;">Aún no tienes apuestas registradas.</span>';
@@ -301,6 +359,26 @@
                         });
                         histCont.innerHTML = htmlHist;
                     }
+
+                    // Renderizar órdenes activas en cola (Makers) con botón de cancelar
+                    const colaCont = document.getElementById('contenedor-cola-maker');
+                    if (!data.ordenes_en_cola || data.ordenes_en_cola.length === 0) {
+                        colaCont.innerHTML = '<span style="color: #8b949e;">No tienes órdenes esperando match en este momento.</span>';
+                    } else {
+                        let htmlCola = '';
+                        data.ordenes_en_cola.forEach(ord => {
+                            htmlCola += `
+                                <div class="cola-item">
+                                    <div>
+                                        <b>${ord.titulo_evento}</b><br>
+                                        <span style="color: #3fb950;">Disponible en cola: ${ord.monto_disponible.toFixed(2)} Pi</span>
+                                    </div>
+                                    <button class="btn-cancelar" onclick="cancelarOrden(${ord.evento_id}, '${ord.orden_id}')">Cancelar</button>
+                                </div>
+                            `;
+                        });
+                        colaCont.innerHTML = htmlCola;
+                    }
                 }
             } catch (error) { console.error("Error al cargar usuario:", error); }
         }
@@ -308,6 +386,32 @@
         function toggleHistorial() {
             const el = document.getElementById('contenedor-historial');
             el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function toggleCola() {
+            const el = document.getElementById('contenedor-cola-maker');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function cancelarOrden(eventoId, ordenId) {
+            if (!confirm("¿Deseas cancelar esta orden en cola? Tus fondos se devolverán al instante a tu saldo.")) return;
+            try {
+                const response = await fetch('/api/orden/cancelar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ evento_id: eventoId, orden_id: ordenId, username: usuarioActual })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert(data.mensaje);
+                    cargarDatosUsuario();
+                    cargarMercados();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (error) {
+                console.error("Error al cancelar orden:", error);
+            }
         }
 
         async function cargarLeaderboard() {
@@ -406,10 +510,14 @@
             } catch (error) { console.error("Error al cargar admin:", error); }
         }
 
-        function filtrar(criterio, elemento) {
+        function seleccionarFiltro(criterio, elemento) {
             document.querySelectorAll('.tab-filtro').forEach(t => t.classList.remove('activo'));
             elemento.classList.add('activo');
             filtroActual = criterio;
+            renderizarMercados();
+        }
+
+        function filtrarEventosYBusqueda() {
             renderizarMercados();
         }
 
@@ -417,7 +525,14 @@
             const contenedor = document.getElementById('mercados-container');
             contenedor.innerHTML = '';
 
+            const textoBusqueda = document.getElementById('input-buscar').value.toLowerCase().trim();
+
             let filtrados = eventosGlobales.filter(ev => {
+                // Filtro por texto de búsqueda
+                if (textoBusqueda && !ev.titulo.toLowerCase().includes(textoBusqueda)) {
+                    return false;
+                }
+                // Filtro por categoría o estado
                 if (filtroActual === 'todos') return true;
                 if (filtroActual === 'activo') return ev.estado === 'activo';
                 if (filtroActual === 'resuelto') return ev.estado === 'resuelto';
@@ -425,7 +540,7 @@
             });
 
             if (filtrados.length === 0) {
-                contenedor.innerHTML = '<div class="card"><h3>No hay mercados en esta categoría</h3></div>';
+                contenedor.innerHTML = '<div class="card"><h3>No se encontraron mercados</h3></div>';
                 return;
             }
 
