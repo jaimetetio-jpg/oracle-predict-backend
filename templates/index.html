@@ -4,53 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>P2Ppredict - Exchange Descentralizado de Predicciones</title>
-    <!-- 1. Importar el SDK oficial de Pi Network -->
+    <!-- 1. SDK oficial de Pi Network -->
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
     <script>
-        // Inicializar el SDK de Pi (Modo Sandbox/Testnet por defecto)
-        Pi.init({ version: "2.0", sandbox: false });
+        Pi.init({ version: "2.0", sandbox: true }); // Cambiar sandbox a false en Mainnet
     </script>
     <style>
         body {
-            background-color: #0d1117;
-            color: #c9d1d9;
+            background-color: #0d1117; color: #c9d1d9;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-            margin: 0;
+            display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0;
         }
-        
-        /* LOGO Y CABECERA PRO */
-        .brand-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 4px;
-        }
+        .brand-header { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
         .brand-logo {
-            width: 48px;
-            height: 48px;
-            border-radius: 14px;
+            width: 48px; height: 48px; border-radius: 14px;
             background: linear-gradient(135deg, #2b1055, #7597de);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 15px rgba(137, 87, 229, 0.4);
-            border: 1px solid rgba(245, 158, 11, 0.3);
-            overflow: hidden;
-            padding: 8px;
-            box-sizing: border-box;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 15px rgba(137, 87, 229, 0.4); border: 1px solid rgba(245, 158, 11, 0.3);
+            padding: 8px; box-sizing: border-box;
         }
         .brand-titles h1 { font-size: 24px; color: #ffffff; margin: 0; text-align: left; }
         .brand-titles span { font-size: 11px; color: #8b949e; letter-spacing: 0.5px; }
-
         p.subtitulo { color: #8b949e; font-size: 13px; margin-bottom: 15px; text-align: center; }
         
-        .nav-admin-bar {
-            width: 100%; max-width: 400px; display: flex; gap: 6px; margin-bottom: 15px;
-        }
+        .nav-admin-bar { width: 100%; max-width: 400px; display: flex; gap: 6px; margin-bottom: 15px; }
         .btn-vista {
             flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid #30363d;
             background-color: #161b22; color: #c9d1d9; font-weight: bold; font-size: 12px; cursor: pointer; text-align: center;
@@ -66,25 +43,6 @@
         .wallet-info span { font-size: 12px; color: #f0f6fc; display: block; }
         .wallet-info h2 { font-size: 20px; color: #ffffff; margin: 4px 0 0 0; }
         
-        .metrics-grid {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; width: 100%;
-        }
-        .metric-box {
-            background-color: #21262d; border: 1px solid #30363d; border-radius: 8px; padding: 12px; text-align: center;
-        }
-        .metric-box span { font-size: 11px; color: #8b949e; display: block; }
-        .metric-box h3 { font-size: 16px; color: #3fb950; margin: 5px 0 0 0; }
-        .metric-box h3.azul { color: #58a6ff; }
-
-        /* BARRA DE BÚSQUEDA Y FILTROS */
-        .buscador-container { width: 100%; max-width: 400px; margin-bottom: 10px; box-sizing: border-box; }
-        .filtros-container { display: flex; gap: 6px; width: 100%; max-width: 400px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 4px; box-sizing: border-box; }
-        .tab-filtro {
-            background-color: #161b22; border: 1px solid #30363d; color: #8b949e;
-            padding: 6px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; white-space: nowrap; font-weight: bold;
-        }
-        .tab-filtro.activo { background-color: #238636; color: #fff; border-color: #238636; }
-
         .card {
             background-color: #161b22; border: 1px solid #30363d; border-radius: 12px;
             padding: 20px; width: 100%; max-width: 400px; margin-bottom: 15px;
@@ -92,7 +50,7 @@
         }
         .card h3 { font-size: 16px; color: #f0f6fc; margin-top: 0; margin-bottom: 10px; }
         
-        input[type="text"], input[type="number"], input[type="datetime-local"], select {
+        input[type="text"], input[type="number"], input[type="datetime-local"], select, input[type="password"] {
             width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #30363d;
             background-color: #0d1117; color: #fff; margin-bottom: 10px; font-size: 14px; box-sizing: border-box;
         }
@@ -116,7 +74,7 @@
         button.btn-crear { background-color: #8957e5; width: 100%; padding: 10px; margin-top: 5px; }
         button.btn-resolver { background-color: #d29922; color: #000; width: 100%; margin-top: 8px; }
         button.btn-reclamar { background-color: #238636; padding: 10px 16px; font-size: 14px; }
-        button.btn-cancelar { background-color: #da3633; padding: 4px 8px; font-size: 11px; }
+        button.btn-depositar { background-color: #f59e0b; color: #000; width: 100%; margin-top: 5px; }
         button:hover:not(:disabled) { opacity: 0.85; }
         
         .header-meta { display: flex; justify-content: space-between; font-size: 11px; color: #8b949e; margin-bottom: 6px; }
@@ -126,15 +84,9 @@
         .badge-resuelto { color: #58a6ff; font-weight: bold; }
         .pozo-global { font-size: 13px; color: #58a6ff; margin-bottom: 10px; font-weight: bold; }
         
-        .historial-box, .cola-box { font-size: 12px; background: #0d1117; padding: 10px; border-radius: 6px; border: 1px solid #30363d; margin-top: 10px; }
-        .historial-item, .cola-item { border-bottom: 1px solid #21262d; padding: 6px 0; display: flex; justify-content: space-between; align-items: center; }
+        .historial-box { font-size: 12px; background: #0d1117; padding: 10px; border-radius: 6px; border: 1px solid #30363d; margin-top: 10px; }
+        .historial-item { border-bottom: 1px solid #21262d; padding: 6px 0; display: flex; justify-content: space-between; align-items: center; }
 
-        /* Estilos para el Leaderboard */
-        .tabla-leaderboard { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
-        .tabla-leaderboard th, .tabla-leaderboard td { padding: 8px; text-align: left; border-bottom: 1px solid #30363d; }
-        .tabla-leaderboard th { color: #8b949e; font-weight: bold; }
-        .tabla-leaderboard td { color: #c9d1d9; }
-        
         #vista-admin, #vista-ranking { display: none; width: 100%; max-width: 400px; flex-direction: column; align-items: center; box-sizing: border-box; }
         #vista-usuario { display: flex; width: 100%; max-width: 400px; flex-direction: column; align-items: center; box-sizing: border-box; }
     </style>
@@ -144,7 +96,6 @@
     <!-- LOGO Y TÍTULO PROFESIONAL -->
     <div class="brand-header">
         <div class="brand-logo">
-            <!-- LOGO SVG VECTORIAL PROFESIONAL (P2Ppredict) -->
             <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
                 <path d="M12 48L24 34L36 40L52 18" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M40 18H52V30" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -166,7 +117,7 @@
         <div id="tab-adm" class="btn-vista" onclick="cambiarVista('admin')">⚙️ Admin</div>
     </div>
 
-    <!-- ================= VISTA USUARIO (MERCADOS) ================= -->
+    <!-- ================= VISTA USUARIO ================= -->
     <div id="vista-usuario">
         <div class="wallet-card">
             <div class="wallet-info">
@@ -176,11 +127,12 @@
             <button class="btn-reclamar" id="btn-reclamar" onclick="reclamarPremio()" disabled>Reclamar</button>
         </div>
 
-        <!-- SECCIÓN DE ÓRDENES ACTIVAS EN COLA (MAKERS) -->
-        <div class="card" style="border-color: #8957e5; padding: 15px;">
-            <h3 style="margin-bottom: 5px; cursor: pointer; color: #8957e5;" onclick="toggleCola()">⏳ Mis Órdenes en Cola (Makers 0%) ▾</h3>
-            <div id="contenedor-cola-maker" class="cola-box" style="display: none;">
-                <span style="color: #8b949e;">No tienes órdenes esperando match.</span>
+        <!-- RECARGAR SALDO CON PI (Pi.createPayment) -->
+        <div class="card" style="padding: 12px; border-color: #f59e0b;">
+            <h3 style="color: #f59e0b; margin-bottom: 8px;">💳 Recargar Saldo con Pi</h3>
+            <div style="display: flex; gap: 6px;">
+                <input type="number" id="input-recarga" value="5.0" min="1.0" step="1.0" style="margin-bottom:0;">
+                <button class="btn-depositar" onclick="recargarConPi()">Depositar</button>
             </div>
         </div>
 
@@ -191,34 +143,8 @@
             </div>
         </div>
 
-        <!-- BARRA DE BÚSQUEDA Y FILTROS -->
-        <div class="buscador-container">
-            <input type="text" id="input-buscar" placeholder="🔍 Buscar mercados por título..." oninput="filtrarEventosYBusqueda()">
-        </div>
-
-        <div class="filtros-container">
-            <div class="tab-filtro activo" onclick="seleccionarFiltro('todos', this)">Todos</div>
-            <div class="tab-filtro" onclick="seleccionarFiltro('activo', this)">Activos</div>
-            <div class="tab-filtro" onclick="seleccionarFiltro('Deportes', this)">Deportes</div>
-            <div class="tab-filtro" onclick="seleccionarFiltro('Cripto', this)">Cripto</div>
-            <div class="tab-filtro" onclick="seleccionarFiltro('resuelto', this)">Resueltos</div>
-        </div>
-
-        <div class="card">
-            <h3>Crear Nuevo Mercado</h3>
-            <input type="text" id="nuevo-titulo" placeholder="Pregunta (Ej: ¿ETH llega a 5k?)">
-            <select id="nueva-categoria">
-                <option value="Deportes">Deportes</option>
-                <option value="Cripto">Cripto</option>
-                <option value="Política">Política</option>
-                <option value="Tecnología">Tecnología</option>
-                <option value="General">General</option>
-            </select>
-            <input type="text" id="opcion-1" placeholder="Opción 1" value="Sí">
-            <input type="text" id="opcion-2" placeholder="Opción 2" value="No">
-            <label>Fecha y Hora de Cierre:</label>
-            <input type="datetime-local" id="fecha-cierre">
-            <button class="btn-crear" onclick="crearMercado()">Publicar Mercado</button>
+        <div class="buscador-container" style="width: 100%;">
+            <input type="text" id="input-buscar" placeholder="🔍 Buscar mercados..." oninput="renderizarMercados()">
         </div>
 
         <div id="mercados-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
@@ -226,83 +152,53 @@
         </div>
     </div>
 
-    <!-- ================= VISTA RANKING (LEADERBOARD) ================= -->
+    <!-- ================= VISTA RANKING ================= -->
     <div id="vista-ranking">
         <div class="card" style="border-color: #238636;">
-            <h3 style="color: #3fb950; margin-bottom: 4px;">🏆 Salón de la Fama (Top Pioneros)</h3>
-            <p style="font-size: 12px; color: #8b949e; margin-bottom: 12px;">Los mejores pronosticadores ordenados por ganancias netas.</p>
-            
-            <div id="contenedor-leaderboard" style="width: 100%; overflow-x: auto;">
-                <span style="color: #8b949e; font-size: 12px;">Cargando ranking de usuarios...</span>
-            </div>
+            <h3 style="color: #3fb950; margin-bottom: 4px;">🏆 Salón de la Fama</h3>
+            <div id="contenedor-leaderboard"><span style="color: #8b949e; font-size: 12px;">Cargando...</span></div>
         </div>
     </div>
 
-    <!-- ================= VISTA ADMIN MASTER ================= -->
+    <!-- ================= VISTA ADMIN MASTER (PROTEGIDA CON CLAVE) ================= -->
     <div id="vista-admin">
-        <div class="card" style="border-color: #8957e5;">
-            <h3 style="color: #8957e5; margin-bottom: 4px;">📊 Estadísticas Financieras</h3>
-            <p style="font-size: 12px; color: #8b949e; margin-bottom: 12px;">Control de ingresos y comisiones de tu app.</p>
-            
-            <div class="metrics-grid">
-                <div class="metric-box">
-                    <span>Comisión de la Casa</span>
-                    <h3 id="stat-comision">0.0000 Pi</h3>
-                </div>
-                <div class="metric-box">
-                    <span>Volumen Global</span>
-                    <h3 class="azul" id="stat-volumen">0.0000 Pi</h3>
-                </div>
-                <div class="metric-box">
-                    <span>Pozos Activos</span>
-                    <h3 class="azul" id="stat-juego">0.0000 Pi</h3>
-                </div>
-                <div class="metric-box">
-                    <span>Por Reclamar</span>
-                    <h3 id="stat-pendientes">0.0000 Pi</h3>
+        <div id="admin-login-box" class="card" style="border-color: #8957e5;">
+            <h3 style="color: #8957e5;">🔒 Acceso Restringido Admin</h3>
+            <label>Contraseña Maestra:</label>
+            <input type="password" id="admin-pass-input" placeholder="Ingresa tu clave de admin">
+            <button class="btn-crear" onclick="verificarAdminPassword()">Acceder al Panel</button>
+        </div>
+
+        <div id="admin-panel-content" style="display: none; width: 100%; display: flex; flex-direction: column; align-items: center;">
+            <div class="card" style="border-color: #d29922;">
+                <h3 style="color: #d29922;">🚨 Alerta: Mercados Finalizados (Pendientes de Veredicto)</h3>
+                <div id="admin-pendientes-container">
+                    <span style="color: #8b949e; font-size: 12px;">No hay mercados pendientes.</span>
                 </div>
             </div>
-        </div>
-
-        <div class="card" style="border-color: #d29922;">
-            <h3 style="color: #d29922;">🛡️ Mercados Pendientes de Veredicto</h3>
-        </div>
-
-        <div id="admin-pendientes-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
-            <div class="card"><h3>Cargando panel...</h3></div>
         </div>
     </div>
 
     <script>
         let usuarioActual = "Invitado";
         let accessTokenPi = "";
-        let filtroActual = 'todos';
         let eventosGlobales = [];
 
-        // Autenticación oficial con el SDK de Pi Network
         async function autenticarPiNetwork() {
             try {
-                const scopes = ['username', 'payments'];
-                
-                function onIncompletePaymentFound(payment) {
-                    console.log("Pago incompleto detectado:", payment);
-                }
-
-                const authResult = await Pi.authenticate(scopes, onIncompletePaymentFound);
-                
+                const authResult = await Pi.authenticate(['username', 'payments'], (payment) => {
+                    console.log("Pago incompleto encontrado:", payment);
+                });
                 usuarioActual = authResult.user.username;
                 accessTokenPi = authResult.accessToken;
-                
                 document.getElementById('pi-username').innerText = "@" + usuarioActual;
-                document.getElementById('lbl-estado-conexion').innerText = "Autenticado con Pi Network (Modo Seguro)";
+                document.getElementById('lbl-estado-conexion').innerText = "Conectado a Pi Network (Mainnet/Testnet)";
                 document.getElementById('lbl-estado-conexion').style.color = "#3fb950";
-
                 inicializarApp();
             } catch (error) {
-                console.error("Error de autenticación Pi:", error);
                 usuarioActual = "PioneroDemo";
                 document.getElementById('pi-username').innerText = "@" + usuarioActual;
-                document.getElementById('lbl-estado-conexion').innerText = "Modo de Prueba Local (Fuera de Pi Browser)";
+                document.getElementById('lbl-estado-conexion').innerText = "Modo de Prueba Local";
                 inicializarApp();
             }
         }
@@ -326,7 +222,18 @@
             } else if (vista === 'admin') {
                 document.getElementById('vista-admin').style.display = 'flex';
                 document.getElementById('tab-adm').classList.add('activo');
+            }
+        }
+
+        function verificarAdminPassword() {
+            const pass = document.getElementById('admin-pass-input').value;
+            // Clave de administrador configurable (cámbiala por la tuya)
+            if (pass === "AdminP2P2026*") {
+                document.getElementById('admin-login-box').style.display = 'none';
+                document.getElementById('admin-panel-content').style.display = 'flex';
                 cargarPanelAdmin();
+            } else {
+                alert("Contraseña incorrecta.");
             }
         }
 
@@ -343,119 +250,66 @@
                     document.getElementById('saldo-usuario').innerText = `${data.saldo_disponible.toFixed(4)} Pi`;
                     document.getElementById('btn-reclamar').disabled = data.saldo_disponible <= 0;
                     
-                    // Renderizar historial de apuestas
                     const histCont = document.getElementById('contenedor-historial');
                     if (data.historial.length === 0) {
-                        histCont.innerHTML = '<span style="color: #8b949e;">Aún no tienes apuestas registradas.</span>';
+                        histCont.innerHTML = '<span style="color: #8b949e;">Sin apuestas aún.</span>';
                     } else {
                         let htmlHist = '';
                         data.historial.reverse().forEach(h => {
-                            htmlHist += `
-                                <div class="historial-item">
-                                    <div><b>${h.titulo_evento}</b><br><span style="color: #58a6ff;">Apuesta: ${h.opcion_elegida} (${h.monto} Pi)</span> - <span style="color: #d29922; font-size: 11px;">${h.estado}</span></div>
-                                    <div style="color: #8b949e; font-size: 11px; text-align: right;">${h.fecha}</div>
-                                </div>
-                            `;
+                            htmlHist += `<div class="historial-item"><div><b>${h.titulo_evento}</b><br><span style="color: #58a6ff;">${h.opcion_elegida} (${h.monto} Pi)</span></div><div style="color: #d29922;">${h.estado}</div></div>`;
                         });
                         histCont.innerHTML = htmlHist;
                     }
-
-                    // Renderizar órdenes activas en cola (Makers) con botón de cancelar
-                    const colaCont = document.getElementById('contenedor-cola-maker');
-                    if (!data.ordenes_en_cola || data.ordenes_en_cola.length === 0) {
-                        colaCont.innerHTML = '<span style="color: #8b949e;">No tienes órdenes esperando match en este momento.</span>';
-                    } else {
-                        let htmlCola = '';
-                        data.ordenes_en_cola.forEach(ord => {
-                            htmlCola += `
-                                <div class="cola-item">
-                                    <div>
-                                        <b>${ord.titulo_evento}</b><br>
-                                        <span style="color: #3fb950;">Disponible en cola: ${ord.monto_disponible.toFixed(2)} Pi</span>
-                                    </div>
-                                    <button class="btn-cancelar" onclick="cancelarOrden(${ord.evento_id}, '${ord.orden_id}')">Cancelar</button>
-                                </div>
-                            `;
-                        });
-                        colaCont.innerHTML = htmlCola;
-                    }
                 }
-            } catch (error) { console.error("Error al cargar usuario:", error); }
+            } catch (e) { console.error(e); }
         }
 
-        function toggleHistorial() {
-            const el = document.getElementById('contenedor-historial');
-            el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function toggleCola() {
-            const el = document.getElementById('contenedor-cola-maker');
-            el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        }
-
-        async function cancelarOrden(eventoId, ordenId) {
-            if (!confirm("¿Deseas cancelar esta orden en cola? Tus fondos se devolverán al instante a tu saldo.")) return;
-            try {
-                const response = await fetch('/api/orden/cancelar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ evento_id: eventoId, orden_id: ordenId, username: usuarioActual })
-                });
-                const data = await response.json();
-                if (data.success) {
-                    alert(data.mensaje);
-                    cargarDatosUsuario();
-                    cargarMercados();
-                } else {
-                    alert("Error: " + data.error);
-                }
-            } catch (error) {
-                console.error("Error al cancelar orden:", error);
+        // INTEGRACIÓN OFICIAL DE PI CREATE PAYMENT (U2A)
+        function recargarConPi() {
+            const montoRecarga = parseFloat(document.getElementById('input-recarga').value);
+            if (isNaN(montoRecarga) || montoRecarga <= 0) {
+                alert("Ingresa un monto válido para recargar.");
+                return;
             }
-        }
 
-        async function cargarLeaderboard() {
-            try {
-                const response = await fetch('/api/leaderboard');
-                const data = await response.json();
-                const contenedor = document.getElementById('contenedor-leaderboard');
+            const paymentData = {
+                amount: montoRecarga,
+                memo: `Recarga de saldo para P2Ppredict - @${usuarioActual}`,
+                metadata: { tipo: "recarga_saldo", username: usuarioActual }
+            };
 
-                if (!data.success || data.leaderboard.length === 0) {
-                    contenedor.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Aún no hay suficientes datos en el ranking. ¡Sé el primero en ganar!</span>';
-                    return;
+            const paymentCallbacks = {
+                onReadyForServerApproval: function(paymentId) {
+                    console.log("Listo para aprobación del servidor:", paymentId);
+                    fetch('/api/pi/aprobar-pago', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId: paymentId })
+                    });
+                },
+                onReadyForServerCompletion: function(paymentId, txid) {
+                    console.log("Completando pago en servidor:", paymentId, txid);
+                    fetch('/api/pi/completar-pago', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId: paymentId, txid: txid, username: usuarioActual, monto: montoRecarga })
+                    }).then(res => res.json()).then(data => {
+                        if(data.success) {
+                            alert(`¡Recarga exitosa de ${montoRecarga} Pi añadida a tu saldo!`);
+                            cargarDatosUsuario();
+                        }
+                    });
+                },
+                onCancel: function(paymentId) {
+                    console.log("Pago cancelado:", paymentId);
+                },
+                onError: function(error, payment) {
+                    console.error("Error en pago Pi:", error);
+                    alert("Hubo un error al procesar el pago con Pi.");
                 }
+            };
 
-                let html = `
-                    <table class="tabla-leaderboard">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Pionero</th>
-                                <th>Aciertos</th>
-                                <th>Ganancia Neta</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-
-                data.leaderboard.forEach((user, index) => {
-                    let medalla = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : `${index + 1}`));
-                    html += `
-                        <tr>
-                            <td><b>${medalla}</b></td>
-                            <td>@${user.username}</td>
-                            <td>${user.apuestas_ganadas} / ${user.apuestas_totales}</td>
-                            <td style="color: #3fb950; font-weight: bold;">+${user.ganancias_netas.toFixed(2)} Pi</td>
-                        </tr>
-                    `;
-                });
-
-                html += `</tbody></table>`;
-                contenedor.innerHTML = html;
-            } catch (error) {
-                console.error("Error al cargar Leaderboard:", error);
-                document.getElementById('contenedor-leaderboard').innerHTML = '<span style="color: #f85149; font-size: 12px;">Error al cargar el ranking.</span>';
-            }
+            Pi.createPayment(paymentData, paymentCallbacks);
         }
 
         async function cargarMercados() {
@@ -463,241 +317,107 @@
                 const response = await fetch('/api/eventos');
                 eventosGlobales = await response.json();
                 renderizarMercados();
-            } catch (error) { console.error("Error al cargar mercados:", error); }
-        }
-
-        async function cargarPanelAdmin() {
-            try {
-                const resMetricas = await fetch('/api/admin/metricas');
-                const dataMetricas = await resMetricas.json();
-                if (dataMetricas.success) {
-                    document.getElementById('stat-comision').innerText = `${dataMetricas.comision_casa.toFixed(4)} Pi`;
-                    document.getElementById('stat-volumen').innerText = `${dataMetricas.volumen_total.toFixed(4)} Pi`;
-                    document.getElementById('stat-juego').innerText = `${dataMetricas.fondos_en_juego.toFixed(4)} Pi`;
-                    document.getElementById('stat-pendientes').innerText = `${dataMetricas.premios_por_reclamar.toFixed(4)} Pi`;
-                }
-
-                const response = await fetch('/api/admin/pendientes');
-                const data = await response.json();
-                const contenedor = document.getElementById('admin-pendientes-container');
-                contenedor.innerHTML = '';
-
-                if (!data.success || data.mercados.length === 0) {
-                    contenedor.innerHTML = '<div class="card"><h3>No hay mercados pendientes de resolución.</h3></div>';
-                    return;
-                }
-
-                data.mercados.forEach(ev => {
-                    const card = document.createElement('div');
-                    card.className = 'card';
-                    let pozoTotalEvento = ev.opciones.reduce((acc, curr) => acc + curr.pozo, 0);
-
-                    card.innerHTML = `
-                        <div class="header-meta">
-                            <span class="badge-categoria">${ev.categoria}</span>
-                            <span class="badge-cerrado">Cierre: ${ev.fecha_cierre.replace('T', ' ')}</span>
-                        </div>
-                        <h3>${ev.titulo}</h3>
-                        <div class="pozo-global">Volumen del Pozo: ${pozoTotalEvento.toFixed(2)} Pi</div>
-                        <div style="margin-top: 10px;">
-                            <label>Emitir Veredicto:</label>
-                            <button class="btn-resolver" onclick="resolverMercado(${ev.id}, ${ev.opciones[0].id})">🏆 Ganó: ${ev.opciones[0].nombre}</button>
-                            <button class="btn-resolver" onclick="resolverMercado(${ev.id}, ${ev.opciones[1].id})">🏆 Ganó: ${ev.opciones[1].nombre}</button>
-                        </div>
-                    `;
-                    contenedor.appendChild(card);
-                });
-            } catch (error) { console.error("Error al cargar admin:", error); }
-        }
-
-        function seleccionarFiltro(criterio, elemento) {
-            document.querySelectorAll('.tab-filtro').forEach(t => t.classList.remove('activo'));
-            elemento.classList.add('activo');
-            filtroActual = criterio;
-            renderizarMercados();
-        }
-
-        function filtrarEventosYBusqueda() {
-            renderizarMercados();
+            } catch (e) { console.error(e); }
         }
 
         function renderizarMercados() {
             const contenedor = document.getElementById('mercados-container');
             contenedor.innerHTML = '';
-
             const textoBusqueda = document.getElementById('input-buscar').value.toLowerCase().trim();
 
-            let filtrados = eventosGlobales.filter(ev => {
-                // Filtro por texto de búsqueda
-                if (textoBusqueda && !ev.titulo.toLowerCase().includes(textoBusqueda)) {
-                    return false;
-                }
-                // Filtro por categoría o estado
-                if (filtroActual === 'todos') return true;
-                if (filtroActual === 'activo') return ev.estado === 'activo';
-                if (filtroActual === 'resuelto') return ev.estado === 'resuelto';
-                return ev.categoria === filtroActual;
-            });
+            let filtrados = eventosGlobales.filter(ev => !textoBusqueda || ev.titulo.toLowerCase().includes(textoBusqueda));
 
             if (filtrados.length === 0) {
-                contenedor.innerHTML = '<div class="card"><h3>No se encontraron mercados</h3></div>';
+                contenedor.innerHTML = '<div class="card"><h3>No hay mercados disponibles</h3></div>';
                 return;
             }
 
             filtrados.forEach(ev => {
                 const card = document.createElement('div');
                 card.className = 'card';
-                
-                let pozoTotalEvento = ev.opciones.reduce((acc, curr) => acc + curr.pozo, 0);
-                let pozoDespuesDeComision = pozoTotalEvento * 0.98;
+                let pozoTotal = ev.opciones.reduce((acc, curr) => acc + curr.pozo, 0);
                 let isActivo = ev.estado === 'activo';
-                let isResuelto = ev.estado === 'resuelto';
-                
-                let badgeClass = 'badge-activo';
-                let badgeText = '● ACTIVO';
-                if (ev.estado === 'cerrado') { badgeClass = 'badge-cerrado'; badgeText = '■ CERRADO'; }
-                if (isResuelto) { badgeClass = 'badge-resuelto'; badgeText = '✔ RESUELTO'; }
 
-                let htmlOpciones = '';
+                let htmlOpc = '';
                 ev.opciones.forEach(op => {
-                    let porcentaje = pozoTotalEvento > 0 ? ((op.pozo / pozoTotalEvento) * 100).toFixed(1) : 50.0;
-                    let multiplicador = op.pozo > 0 ? (pozoDespuesDeComision / op.pozo).toFixed(2) : "2.00";
-                    let esGanadora = isResuelto && ev.ganador_id === op.id;
-                    
-                    htmlOpciones += `
-                        <div class="opcion-row" style="${esGanadora ? 'border: 2px solid #3fb950;' : ''}">
+                    let porc = pozoTotal > 0 ? ((op.pozo / pozoTotal) * 100).toFixed(1) : 50;
+                    htmlOpc += `
+                        <div class="opcion-row">
                             <div class="info-opcion">
-                                <span class="nombre-opcion">${op.nombre} (${porcentaje}%) ${esGanadora ? '🏆' : ''}</span>
-                                <span class="stats-opcion">Pozo: ${op.pozo.toFixed(2)} Pi | <span class="pago-destacado">Paga: ${multiplicador}x</span></span>
+                                <span class="nombre-opcion">${op.nombre} (${porc}%)</span>
+                                <span class="stats-opcion">Pozo: ${op.pozo.toFixed(2)} Pi</span>
                             </div>
-                            <div style="font-size: 13px; color: #8b949e;">
-                                ${isActivo ? `
-                                    <div style="display: flex; gap: 6px; align-items: center;">
-                                        <input type="number" id="monto-${ev.id}-${op.id}" value="1.0" min="0.1" step="0.1" style="width: 60px; margin-bottom: 0; padding: 6px; text-align: center;">
-                                        <button onclick="participar(${ev.id}, ${op.id})">Apostar</button>
-                                    </div>
-                                ` : (isResuelto ? (esGanadora ? '<b style="color: #3fb950;">¡Ganadora!</b>' : '') : '<span style="color: #d29922;">Cerrado</span>')}
-                            </div>
-                        </div>
-                    `;
+                            ${isActivo ? `<button onclick="participar(${ev.id}, ${op.id})">Apostar</button>` : '<span>Cerrado</span>'}
+                        </div>`;
                 });
 
                 card.innerHTML = `
-                    <div class="header-meta">
-                        <span class="badge-categoria">${ev.categoria}</span>
-                        <span class="${badgeClass}">${badgeText}</span>
-                    </div>
+                    <div class="header-meta"><span class="badge-categoria">${ev.categoria}</span><span class="badge-activo">${ev.estado.toUpperCase()}</span></div>
                     <h3>${ev.titulo}</h3>
-                    <div class="pozo-global">Volumen Total del Mercado: ${pozoTotalEvento.toFixed(2)} Pi</div>
-                    <div class="opciones-container">
-                        ${htmlOpciones}
-                    </div>
-                `;
+                    <div class="pozo-global">Volumen: ${pozoTotal.toFixed(2)} Pi</div>
+                    <div class="opciones-container">${htmlOpc}</div>`;
                 contenedor.appendChild(card);
             });
         }
 
-        async function crearMercado() {
-            const titulo = document.getElementById('nuevo-titulo').value.trim();
-            const categoria = document.getElementById('nueva-categoria').value;
-            const opcion1 = document.getElementById('opcion-1').value.trim() || 'Sí';
-            const opcion2 = document.getElementById('opcion-2').value.trim() || 'No';
-            const fechaCierre = document.getElementById('fecha-cierre').value;
-
-            if (!titulo || !fechaCierre) {
-                alert("Por favor completa el título y la fecha de cierre.");
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/crear-evento', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        titulo, categoria, opcion1, opcion2, fecha_cierre: fechaCierre
-                    })
-                });
-                const data = await response.json();
-                if (data.success) {
-                    alert("¡Mercado creado con éxito!");
-                    document.getElementById('nuevo-titulo').value = '';
-                    document.getElementById('fecha-cierre').value = '';
-                    cargarMercados();
-                } else {
-                    alert("Error: " + data.error);
-                }
-            } catch (error) { console.error("Error al crear mercado:", error); }
-        }
-
         async function participar(eventoId, opcionId) {
-            const inputMonto = document.getElementById(`monto-${eventoId}-${opcionId}`);
-            const monto = parseFloat(inputMonto.value);
+            let montoStr = prompt("¿Cuántos Pi deseas apostar?", "1.0");
+            let monto = parseFloat(montoStr);
+            if (isNaN(monto) || monto <= 0) return;
 
-            if (isNaN(monto) || monto <= 0) {
-                alert("Ingresa un monto válido.");
-                return;
+            const res = await fetch('/api/participar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ evento_id: eventoId, opcion_id: opcionId, monto: monto, username: usuarioActual })
+            });
+            const data = await res.json();
+            if(data.success) {
+                alert("¡Apuesta registrada con éxito!");
+                cargarDatosUsuario();
+                cargarMercados();
+            } else {
+                alert("Error: " + data.error);
             }
-
-            try {
-                const response = await fetch('/api/participar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        evento_id: eventoId,
-                        opcion_id: opcionId,
-                        monto: monto,
-                        username: usuarioActual
-                    })
-                });
-                const data = await response.json();
-                if (data.success) {
-                    alert(data.mensaje);
-                    cargarDatosUsuario();
-                    cargarMercados();
-                } else {
-                    alert("Aviso: " + data.error);
-                }
-            } catch (error) { console.error("Error al participar:", error); }
         }
 
-        async function resolverMercado(eventoId, ganadorId) {
-            if (!confirm("¿Estás seguro de emitir este veredicto? Esta acción es irreversible.")) return;
-
+        async function cargarPanelAdmin() {
             try {
-                const response = await fetch('/api/resolver', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ evento_id: eventoId, ganador_id: ganadorId })
-                });
-                const data = await response.json();
-                if (data.success) {
-                    alert(data.mensaje);
-                    cargarPanelAdmin();
-                    cargarMercados();
-                } else {
-                    alert("Error: " + data.error);
+                const res = await fetch('/api/admin/pendientes');
+                const data = await res.json();
+                const cont = document.getElementById('admin-pendientes-container');
+                if(!data.success || data.mercados.length === 0) {
+                    cont.innerHTML = '<span style="color: #3fb950; font-size: 12px;">✅ No hay eventos finalizados esperando veredicto. Todo al día.</span>';
+                    return;
                 }
-            } catch (error) { console.error("Error al resolver:", error); }
+                let html = '';
+                data.mercados.forEach(ev => {
+                    html += `
+                        <div style="background: #0d1117; padding: 10px; border-radius: 6px; margin-top: 8px; border: 1px solid #30363d;">
+                            <b>🚨 ${ev.titulo}</b><br><span style="font-size:11px; color:#8b949e;">Cerró el: ${ev.fecha_cierre}</span>
+                            <div style="margin-top:6px;">
+                                <button class="btn-resolver" onclick="resolver(${ev.id}, ${ev.opciones[0].id})">Ganador: ${ev.opciones[0].nombre}</button>
+                                <button class="btn-resolver" onclick="resolver(${ev.id}, ${ev.opciones[1].id})">Ganador: ${ev.opciones[1].nombre}</button>
+                            </div>
+                        </div>`;
+                });
+                cont.innerHTML = html;
+            } catch(e) { console.error(e); }
         }
 
-        async function reclamarPremio() {
-            try {
-                const response = await fetch('/api/reclamar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: usuarioActual })
-                });
-                const data = await response.json();
-                if (data.success) {
-                    alert(data.mensaje);
-                    cargarDatosUsuario();
-                } else {
-                    alert("Error: " + data.error);
-                }
-            } catch (error) { console.error("Error al reclamar:", error); }
+        async function resolver(eventoId, ganadorId) {
+            if(!confirm("¿Confirmar este resultado? Los premios se repartirán automáticamente a los ganadores.")) return;
+            const res = await fetch('/api/resolver', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ evento_id: eventoId, ganador_id: ganadorId })
+            });
+            const data = await res.json();
+            if(data.success) {
+                alert("¡Mercado resuelto con éxito!");
+                cargarPanelAdmin();
+            }
         }
 
-        // Iniciar autenticación al cargar la página
         window.onload = autenticarPiNetwork;
     </script>
 </body>
