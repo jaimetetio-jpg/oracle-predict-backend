@@ -11,10 +11,9 @@ app = Flask(__name__)
 # Configuración de clave secreta para firmar las sesiones de forma segura
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "p2ppredict_secret_key_ultra_segura_2026")
 
-# Blindaje de contraseña de administrador mediante Hash (PBKDF2)
-# Por defecto genera un hash seguro para la clave "admin123" si no hay variable de entorno
-DEFAULT_ADMIN_HASH = generate_password_hash("admin123")
-ADMIN_PASSWORD_HASH = os.environ.get("ADMIN_PASSWORD_HASH", DEFAULT_ADMIN_HASH)
+# Generación automática del hash seguro para la contraseña de administrador
+RAW_ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Anthony*2023")
+ADMIN_PASSWORD_HASH = generate_password_hash(RAW_ADMIN_PASSWORD)
 
 PI_API_KEY = os.environ.get("PI_API_KEY", "")
 # URL de conexión a PostgreSQL (Supabase). Si no existe, usa SQLite como respaldo local.
@@ -364,14 +363,14 @@ def leaderboard():
     conn.close()
     return jsonify({"success": True, "leaderboard": ranking})
 
-# ================= RUTAS DE ADMINISTRADOR BLINDADAS =================
+# ================= RUTAS DE ADMINISTRADOR BLINDADAS Y EXTENDIDAS =================
 
 @app.route("/api/admin/login", methods=["POST"])
 def admin_login():
     data = request.json or {}
     password = data.get("password", "")
     
-    # Comprobación segura mediante hash criptográfico
+    # Comprobación segura mediante hash automático
     if check_password_hash(ADMIN_PASSWORD_HASH, password):
         session['is_admin'] = True
         return jsonify({"success": True, "message": "Acceso de administrador autorizado"})
@@ -380,7 +379,6 @@ def admin_login():
 
 @app.route("/api/admin/pendientes", methods=["GET"])
 def admin_pendientes():
-    # Verificación de sesión activa de administrador
     if not session.get('is_admin'):
         return jsonify({"success": False, "error": "No autorizado"}), 403
         
@@ -389,7 +387,6 @@ def admin_pendientes():
 
 @app.route("/api/resolver", methods=["POST"])
 def resolver_evento():
-    # Verificación de sesión activa de administrador
     if not session.get('is_admin'):
         return jsonify({"success": False, "error": "No autorizado"}), 403
 
@@ -404,6 +401,119 @@ def resolver_evento():
     evento["estado"] = "finalizado"
     evento["ganador_id"] = ganador_id
     return jsonify({"success": True})
+
+# --- GESTIÓN Y AUDITORÍA DE USUARIOS ---
+
+@app.route("/api/admin/usuarios", methods=["GET"])
+def admin_listar_usuarios():
+    """Lista todos los usuarios registrados y sus saldos"""
+    if not session.get('is_admin'):
+        return jsonify({"success": False, "error": "No autorizado"}), 403
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+    c.execute("SELECT username, saldo_disponible FROM usuarios ORDER BY saldo_disponible DESC")
+    usuarios = [dict(row) for row in c.fetchall()]
+    conn.close()
+
+    return jsonify({"success": True, "usuarios": usuarios})
+
+@app.route("/api/admin/usuario/<username>", methods=["GET"])
+def admin_detalle_usuario(username):
+    """Consulta el detalle, apuestas y transacciones de un usuario específico"""
+    if not session.get('is_admin'):
+        return jsonify({"success": False, "error": "No autorizado"}), 403
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+
+    if DATABASE_URL:
+        c.execute("SELECT * FROM usuarios WHERE username = %s", (username,))
+    else:
+        c.execute("SELECT * FROM usuarios WHERE username = ?", (username,))
+    user_row = c.fetchone()
+
+    if not user_row:
+        conn.close()
+        return jsonify({"success": False, "error": "Usuario no encontrado"}), 404
+
+    if DATABASE_URL:
+        c.execute("SELECT * FROM historial_apuestas WHERE username = %s ORDER BY id DESC", (username,))
+    else:
+        c.execute("SELECT * FROM historial_apuestas WHERE username = ? ORDER BY id DESC", (username,))
+    apuestas = [dict(row) for row in c.fetchall()]
+
+    if DATABASE_URL:
+        c.execute("SELECT * FROM transacciones WHERE username = %s ORDER BY id DESC", (username,))
+    else:
+        c.execute("SELECT * FROM transacciones WHERE username = ? ORDER BY id DESC", (username,))
+    transacciones = [dict(row) for row in c.fetchall()]
+
+    conn.close()
+
+    return jsonify({
+        "success": True,
+        "usuario": dict(user_row),
+        "apuestas": apuestas,
+        "transacciones": transacciones
+    })
+
+@app.route("/api/admin/ajustar-saldo", methods=["POST"])
+def admin_ajustar_saldo():
+    """Ajusta de forma manual el saldo de un usuario"""
+    if not session.get('is_admin'):
+        return jsonify({"success": False, "error": "No autorizado"}), 403
+
+    data = request.json or {}
+    username = data.get("username")
+    monto_ajuste = float(data.get("monto", 0))
+    motivo = data.get("motivo", "Ajuste Administrativo")
+
+    if not username:
+        return jsonify({"success": False, "error": "Falta el nombre de usuario"}), 400
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+
+    if DATABASE_URL:
+        c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s", (username,))
+    else:
+        c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+    row = c.fetchone()
+
+    if not row:
+        conn.close()
+        return jsonify({"success": False, "error": "Usuario no encontrado en la base de datos"}), 404
+
+    saldo_actual = row["saldo_disponible"]
+    nuevo_saldo = saldo_actual + monto_ajuste
+
+    if nuevo_saldo < 0:
+        conn.close()
+        return jsonify({"success": False, "error": "El saldo resultante no puede ser negativo"}), 400
+
+    if DATABASE_URL:
+        c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
+    else:
+        c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
+
+    txid = f"ADMIN_ADJ_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+    if DATABASE_URL:
+        c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                  (username, motivo, monto_ajuste, txid, fecha))
+    else:
+        c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
+                  (username, motivo, monto_ajuste, txid, fecha))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "success": True,
+        "mensaje": f"Saldo de {username} ajustado correctamente.",
+        "nuevo_saldo": nuevo_saldo
+    })
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
