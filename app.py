@@ -23,7 +23,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 def obtener_conexion():
     if DATABASE_URL:
         # Conexión profesional a PostgreSQL en la nube (Supabase)
-        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor, connect_timeout=10)
         return conn
     else:
         # Respaldo local SQLite si la URL externa no estuviera configurada
@@ -199,12 +199,15 @@ def participar():
     opcion_id = data.get("opcion_id")
     monto = float(data.get("monto", 0))
 
+    if monto <= 0:
+        return jsonify({"success": False, "error": "El monto de la participación debe ser mayor a 0"}), 400
+
     conn = obtener_conexion()
     c = conn.cursor()
 
     try:
         if DATABASE_URL:
-            # 1. Bloqueo exclusivo de la fila del usuario para evitar condiciones de carrera (Supabase/PostgreSQL ACID)
+            # Bloqueo exclusivo de la fila del usuario para evitar condiciones de carrera (Supabase/PostgreSQL ACID)
             c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
         else:
             c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
@@ -215,19 +218,19 @@ def participar():
         if not row or saldo_actual < monto:
             conn.rollback()
             conn.close()
-            return jsonify({"success": False, "error": "Saldo insuficiente"})
+            return jsonify({"success": False, "error": "Saldo insuficiente para completar la operación"})
 
         evento = next((e for e in EVENTOS if e["id"] == evento_id), None)
         if not evento or evento["estado"] != "activo":
             conn.rollback()
             conn.close()
-            return jsonify({"success": False, "error": "Mercado no disponible"})
+            return jsonify({"success": False, "error": "Mercado no disponible o finalizado"})
 
         opcion = next((o for o in evento["opciones"] if o["id"] == opcion_id), None)
         if not opcion:
             conn.rollback()
             conn.close()
-            return jsonify({"success": False, "error": "Opción inválida"})
+            return jsonify({"success": False, "error": "Opción de predicción inválida"})
 
         nuevo_saldo = saldo_actual - monto
         
@@ -255,10 +258,14 @@ def participar():
                       (username, "Apuesta", -monto, txid, fecha))
         
         conn.commit()
-        return jsonify({"success": True, "nuevo_saldo": nuevo_saldo})
+        return jsonify({
+            "success": True, 
+            "nuevo_saldo": nuevo_saldo,
+            "mensaje": "¡Apuesta registrada con éxito!"
+        })
     except Exception as e:
         conn.rollback()
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": f"Error interno en la transacción: {str(e)}"}), 500
     finally:
         conn.close()
 
@@ -267,14 +274,17 @@ def aprobar_pago():
     data = request.json
     payment_id = data.get("paymentId")
     if not PI_API_KEY:
-        return jsonify({"success": False, "error": "PI_API_KEY no configurada"}), 500
+        return jsonify({"success": False, "error": "PI_API_KEY no configurada en el servidor"}), 500
 
     headers = {"Authorization": f"Key {PI_API_KEY}"}
-    response = requests.post(f"https://api.minepi.com/v2/payments/{payment_id}/approve", headers=headers)
-    
-    if response.status_code == 200:
-        return jsonify({"success": True})
-    return jsonify({"success": False, "error": "No se pudo aprobar en el servidor de Pi"}), 400
+    try:
+        response = requests.post(f"https://api.minepi.com/v2/payments/{payment_id}/approve", headers=headers, timeout=10)
+        if response.status_code == 200:
+            return jsonify({"success": True})
+    except requests.exceptions.RequestException:
+        return jsonify({"success": False, "error": "Error de red al conectar con los servidores de Pi Network"}), 504
+        
+    return jsonify({"success": False, "error": "No se pudo aprobar el pago en el servidor de Pi"}), 400
 
 @app.route("/api/pi/completar-pago", methods=["POST"])
 def completar_pago():
@@ -285,59 +295,68 @@ def completar_pago():
     txid = data.get("txid")
 
     if not PI_API_KEY:
-        return jsonify({"success": False, "error": "PI_API_KEY no configurada"}), 500
+        return jsonify({"success": False, "error": "PI_API_KEY no configurada en el servidor"}), 500
 
     headers = {"Authorization": f"Key {PI_API_KEY}"}
-    response = requests.post(f"https://api.minepi.com/v2/payments/{payment_id}/complete", headers=headers, json={"txid": txid})
+    try:
+        response = requests.post(f"https://api.minepi.com/v2/payments/{payment_id}/complete", headers=headers, json={"txid": txid}, timeout=10)
+        if response.status_code != 200:
+            return jsonify({"success": False, "error": "Error al completar el pago en Pi Network"}), 400
+    except requests.exceptions.RequestException:
+        return jsonify({"success": False, "error": "Error de red al conectar con los servidores de Pi Network"}), 504
 
-    if response.status_code == 200:
-        conn = obtener_conexion()
-        c = conn.cursor()
+    conn = obtener_conexion()
+    c = conn.cursor()
+    
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+        else:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+        row = c.fetchone()
         
-        try:
+        if not row:
+            nuevo_saldo = monto
             if DATABASE_URL:
-                c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+                c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (%s, %s)", (username, nuevo_saldo))
             else:
-                c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
-            row = c.fetchone()
-            
-            if not row:
-                nuevo_saldo = monto
-                if DATABASE_URL:
-                    c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (%s, %s)", (username, nuevo_saldo))
-                else:
-                    c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (?, ?)", (username, nuevo_saldo))
-            else:
-                saldo_actual = row["saldo_disponible"]
-                nuevo_saldo = saldo_actual + monto
-                if DATABASE_URL:
-                    c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
-                else:
-                    c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
-            
-            fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+                c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (?, ?)", (username, nuevo_saldo))
+        else:
+            saldo_actual = row["saldo_disponible"]
+            nuevo_saldo = saldo_actual + monto
             if DATABASE_URL:
-                c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
-                          (username, "Recarga Pi", monto, txid or payment_id, fecha))
+                c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
             else:
-                c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
-                          (username, "Recarga Pi", monto, txid or payment_id, fecha))
-            
-            conn.commit()
-            return jsonify({"success": True, "nuevo_saldo": nuevo_saldo})
-        except Exception as e:
-            conn.rollback()
-            return jsonify({"success": False, "error": str(e)}), 500
-        finally:
-            conn.close()
-
-    return jsonify({"success": False, "error": "Error al completar el pago en Pi Network"}), 400
+                c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
+        
+        fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+        if DATABASE_URL:
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                      (username, "Recarga Pi", monto, txid or payment_id, fecha))
+        else:
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
+                      (username, "Recarga Pi", monto, txid or payment_id, fecha))
+        
+        conn.commit()
+        return jsonify({
+            "success": True, 
+            "nuevo_saldo": nuevo_saldo,
+            "mensaje": f"Recarga de {monto} Pi acreditada con éxito."
+        })
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": f"Error al procesar la base de datos: {str(e)}"}), 500
+    finally:
+        conn.close()
 
 @app.route("/api/retirar", methods=["POST"])
 def solicitar_retiro():
     data = request.json
     username = data.get("username")
     monto = float(data.get("monto", 0))
+
+    if monto <= 0:
+        return jsonify({"success": False, "error": "El monto del retiro debe ser mayor a 0"}), 400
 
     conn = obtener_conexion()
     c = conn.cursor()
@@ -355,10 +374,10 @@ def solicitar_retiro():
             return jsonify({"success": False, "error": "Usuario no encontrado"}), 404
 
         saldo_actual = row["saldo_disponible"]
-        if saldo_actual < monto or monto <= 0:
+        if saldo_actual < monto:
             conn.rollback()
             conn.close()
-            return jsonify({"success": False, "error": "Saldo insuficiente o monto inválido"}), 400
+            return jsonify({"success": False, "error": "Saldo insuficiente para procesar el retiro"}), 400
 
         nuevo_saldo = saldo_actual - monto
         if DATABASE_URL:
@@ -396,7 +415,7 @@ def leaderboard():
     conn.close()
     return jsonify({"success": True, "leaderboard": ranking})
 
-# ================= NUEVO ENDPOINT CLOB (LIMIT & MARKET) =================
+# ================= ENDPOINT CLOB (LIMIT & MARKET) =================
 
 @app.route("/api/clob/orden", methods=["POST"])
 def procesar_orden_clob():
@@ -416,7 +435,7 @@ def procesar_orden_clob():
     c = conn.cursor()
 
     try:
-        # 1. Bloqueo de fila ACID del usuario
+        # Bloqueo de fila ACID del usuario
         if DATABASE_URL:
             c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
         else:
@@ -454,14 +473,14 @@ def procesar_orden_clob():
                 c.execute("INSERT INTO ordenes_clob (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, estado, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
                           (username, evento_id, opcion_id, "market", accion, 0.0, cantidad, "completada", fecha))
                 c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (%s, %s, %s, %s, %s)",
-                          (username, titulo_evento, f"Opción {opcion_id} [Market]", cantidad, "Ejecutada"))
+                          (username, titulo_evento, f"Opción {opcion_id} [Market]", monto_efectivo, "Ejecutada"))
                 c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
                           (username, "Comisión CLOB Market (1.5%)", -comision_taker, txid, fecha))
             else:
                 c.execute("INSERT INTO ordenes_clob (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, estado, fecha) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                           (username, evento_id, opcion_id, "market", accion, 0.0, cantidad, "completada", fecha))
                 c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (?, ?, ?, ?, ?)",
-                          (username, titulo_evento, f"Opción {opcion_id} [Market]", cantidad, "Ejecutada"))
+                          (username, titulo_evento, f"Opción {opcion_id} [Market]", monto_efectivo, "Ejecutada"))
                 c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
                           (username, "Comisión CLOB Market (1.5%)", -comision_taker, txid, fecha))
 
@@ -537,7 +556,7 @@ def resolver_evento():
 
     evento["estado"] = "finalizado"
     evento["ganador_id"] = ganador_id
-    return jsonify({"success": True})
+    return jsonify({"success": True, "mensaje": "Evento resuelto correctamente"})
 
 # --- GESTIÓN Y AUDITORÍA DE USUARIOS ---
 
