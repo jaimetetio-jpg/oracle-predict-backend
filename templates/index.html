@@ -82,8 +82,8 @@
         .badge-activo { color: #3fb950; font-weight: bold; }
         .pozo-global { font-size: 13px; color: #58a6ff; margin-bottom: 10px; font-weight: bold; }
         
-        .historial-box { font-size: 12px; background: #0d1117; padding: 10px; border-radius: 6px; border: 1px solid #30363d; margin-top: 10px; }
-        .historial-item { border-bottom: 1px solid #21262d; padding: 6px 0; display: flex; justify-content: space-between; align-items: center; }
+        .historial-box { font-size: 12px; background: #0d1117; padding: 10px; border-radius: 6px; border: 1px solid #30363d; margin-top: 10px; max-height: 180px; overflow-y: auto; }
+        .historial-item { border-bottom: 1px solid #21262d; padding: 8px 0; display: flex; justify-content: space-between; align-items: center; }
 
         #vista-admin, #vista-ranking { display: none; width: 100%; max-width: 400px; flex-direction: column; align-items: center; box-sizing: border-box; }
         #vista-usuario { display: flex; width: 100%; max-width: 400px; flex-direction: column; align-items: center; box-sizing: border-box; }
@@ -143,7 +143,7 @@
         </div>
 
         <div class="card" style="padding: 12px;">
-            <h3 style="margin-bottom: 5px; cursor: pointer; color: #58a6ff;" onclick="toggleTransacciones()">📜 Historial de Transacciones ▾</h3>
+            <h3 style="margin-bottom: 5px; cursor: pointer; color: #58a6ff;" onclick="toggleTransacciones()">📜 Historial de Transacciones & Retiros ▾</h3>
             <div id="contenedor-transacciones" class="historial-box" style="display: none;">
                 <span style="color: #8b949e;">Sin transacciones registradas.</span>
             </div>
@@ -278,13 +278,22 @@
 
                     const txCont = document.getElementById('contenedor-transacciones');
                     if (!data.transacciones || data.transacciones.length === 0) {
-                        txCont.innerHTML = '<span style="color: #8b949e;">Sin transacciones.</span>';
+                        txCont.innerHTML = '<span style="color: #8b949e;">Sin transacciones o retiros registrados.</span>';
                     } else {
                         let html = '';
                         data.transacciones.slice().reverse().forEach(tx => {
                             let colorMonto = tx.monto > 0 ? '#3fb950' : '#f85149';
                             let signo = tx.monto > 0 ? '+' : '';
-                            html += `<div class="historial-item"><div><b style="color:${colorMonto};">${signo}${tx.monto} Pi</b><br><span style="font-size:10px; color:#8b949e;">TX: ${tx.txid}</span></div><div style="color: #c9d1d9;">${tx.tipo}</div></div>`;
+                            let badgeTipo = tx.tipo === 'Retiro Pi' ? 'style="color: #d29922; font-weight: bold;"' : 'style="color: #c9d1d9;"';
+                            
+                            html += `
+                                <div class="historial-item">
+                                    <div>
+                                        <b style="color:${colorMonto};">${signo}${tx.monto} Pi</b><br>
+                                        <span style="font-size:10px; color:#8b949e;">ID: ${tx.txid} • ${tx.fecha}</span>
+                                    </div>
+                                    <div ${badgeTipo}>${tx.tipo}</div>
+                                </div>`;
                         });
                         txCont.innerHTML = html;
                     }
@@ -491,7 +500,7 @@
             alert("¡Premio reclamado con éxito!");
         }
 
-        window.onload = autenticarPiNetwork;
+        window.onload = autentikanPiNetwork = autenticarPiNetwork;
     </script>
 </body>
 </html>
