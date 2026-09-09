@@ -32,7 +32,7 @@ def index():
     try:
         return render_template('index.html')
     except Exception:
-        return "¡P2Ppredict Admin Backend Funcionando (Modo P2P Cola Estricta)! 🔮"
+        return "¡P2Ppredict Admin Backend Funcionando (Con Leaderboard P2P)! 🔮"
 
 @app.route('/validation-key.txt')
 def validation_key():
@@ -59,11 +59,7 @@ def obtener_eventos():
 def admin_metricas():
     volumen_total_historico = sum(ev["pozo_total"] for ev in eventos)
     comision_total_casa = sum(ev["comision_casa"] for ev in eventos)
-    
-    # Pozos activos o fondos en juego que aún no han sido repartidos
     poi_activos = sum(ev["pozo_total"] for ev in eventos if ev["estado"] != "resuelto")
-    
-    # Total de premios pendientes por reclamar por los usuarios
     total_premios_pendientes = sum(saldos_pendientes.values())
 
     return jsonify({
@@ -89,6 +85,57 @@ def obtener_saldo(username):
         "username": username, 
         "saldo_disponible": round(saldo, 4),
         "historial": mis_apuestas
+    })
+
+# NUEVO ENDPOINT: Leaderboard (Ranking de Mejores Usuarios)
+@app.route('/api/leaderboard', methods=['GET'])
+def obtener_leaderboard():
+    estadisticas_usuarios = {}
+
+    # Procesar historial de apuestas para calcular métricas
+    for h in historial_apuestas:
+        usr = h["usuario"]
+        if usr not in estadisticas_usuarios:
+            estadisticas_usuarios[usr] = {
+                "username": usr,
+                "apuestas_totales": 0,
+                "volumen_apostado": 0.0,
+                "ganancias_netas": 0.0,
+                "apuestas_ganadas": 0
+            }
+        estadisticas_usuarios[usr]["apuestas_totales"] += 1
+        estadisticas_usuarios[usr]["volumen_apostado"] += h["monto"]
+
+    # Calcular ganancias reales basadas en mercados resueltos y emparejamientos
+    for ev in eventos:
+        if ev["estado"] == "resuelto":
+            ganador_id = ev["ganador_id"]
+            for match in ev["apuestas_emparejadas"]:
+                # Revisar usuario A
+                ua = match["usuario_a"]
+                if ua in estadisticas_usuarios:
+                    if match["opcion_a"] == ganador_id:
+                        estadisticas_usuarios[ua]["apuestas_ganadas"] += 1
+                        premio = match["monto_original"] * 2
+                        ganancia_neta = premio - match["monto_original"]
+                        estadisticas_usuarios[ua]["ganancias_netas"] += ganancia_neta
+
+                # Revisar usuario B
+                ub = match["usuario_b"]
+                if ub in estadisticas_usuarios:
+                    if match["opcion_b"] == ganador_id:
+                        estadisticas_usuarios[ub]["apuestas_ganadas"] += 1
+                        premio = match["monto_original"] * 2
+                        ganancia_neta = premio - match["monto_original"]
+                        estadisticas_usuarios[ub]["ganancias_netas"] += ganancia_neta
+
+    # Convertir a lista y ordenar por mayores ganancias netas o volumen
+    ranking = list(estadisticas_usuarios.values())
+    ranking.sort(key=lambda x: (x["ganancias_netas"], x["volumen_apostado"]), reverse=True)
+
+    return jsonify({
+        "success": True,
+        "leaderboard": ranking[:10]  # Top 10 mejores usuarios
     })
 
 @app.route('/api/crear-evento', methods=['POST'])
