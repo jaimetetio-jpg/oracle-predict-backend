@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>P2Ppredict - Exchange Descentralizado de Predicciones</title>
-    <!-- 1. SDK oficial de Pi Network -->
+    <!-- SDK oficial de Pi Network -->
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
     <script>
-        Pi.init({ version: "2.0", sandbox: true }); // Cambiar sandbox a false en Mainnet
+        Pi.init({ version: "2.0", sandbox: true }); // Cambiar a false al desplegar en Mainnet
     </script>
     <style>
         body {
@@ -50,7 +50,7 @@
         }
         .card h3 { font-size: 16px; color: #f0f6fc; margin-top: 0; margin-bottom: 10px; }
         
-        input[type="text"], input[type="number"], input[type="datetime-local"], select, input[type="password"] {
+        input[type="text"], input[type="number"], input[type="password"] {
             width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #30363d;
             background-color: #0d1117; color: #fff; margin-bottom: 10px; font-size: 14px; box-sizing: border-box;
         }
@@ -64,7 +64,6 @@
         .info-opcion { display: flex; flex-direction: column; gap: 4px; }
         .nombre-opcion { font-weight: bold; color: #58a6ff; font-size: 15px; }
         .stats-opcion { font-size: 12px; color: #8b949e; }
-        .pago-destacado { color: #3fb950; font-weight: bold; }
         
         button {
             background-color: #238636; color: #fff; border: none; padding: 8px 14px;
@@ -80,8 +79,6 @@
         .header-meta { display: flex; justify-content: space-between; font-size: 11px; color: #8b949e; margin-bottom: 6px; }
         .badge-categoria { background-color: #30363d; padding: 2px 6px; border-radius: 4px; color: #f0f6fc; }
         .badge-activo { color: #3fb950; font-weight: bold; }
-        .badge-cerrado { color: #d29922; font-weight: bold; }
-        .badge-resuelto { color: #58a6ff; font-weight: bold; }
         .pozo-global { font-size: 13px; color: #58a6ff; margin-bottom: 10px; font-weight: bold; }
         
         .historial-box { font-size: 12px; background: #0d1117; padding: 10px; border-radius: 6px; border: 1px solid #30363d; margin-top: 10px; }
@@ -93,7 +90,6 @@
 </head>
 <body>
 
-    <!-- LOGO Y TÍTULO PROFESIONAL -->
     <div class="brand-header">
         <div class="brand-logo">
             <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
@@ -127,7 +123,6 @@
             <button class="btn-reclamar" id="btn-reclamar" onclick="reclamarPremio()" disabled>Reclamar</button>
         </div>
 
-        <!-- RECARGAR SALDO CON PI (Pi.createPayment) -->
         <div class="card" style="padding: 12px; border-color: #f59e0b;">
             <h3 style="color: #f59e0b; margin-bottom: 8px;">💳 Recargar Saldo con Pi</h3>
             <div style="display: flex; gap: 6px;">
@@ -143,7 +138,14 @@
             </div>
         </div>
 
-        <div class="buscador-container" style="width: 100%;">
+        <div class="card" style="padding: 12px;">
+            <h3 style="margin-bottom: 5px; cursor: pointer; color: #58a6ff;" onclick="toggleTransacciones()">📜 Historial de Recargas ▾</h3>
+            <div id="contenedor-transacciones" class="historial-box" style="display: none;">
+                <span style="color: #8b949e;">Sin recargas registradas.</span>
+            </div>
+        </div>
+
+        <div style="width: 100%;">
             <input type="text" id="input-buscar" placeholder="🔍 Buscar mercados..." oninput="renderizarMercados()">
         </div>
 
@@ -160,7 +162,7 @@
         </div>
     </div>
 
-    <!-- ================= VISTA ADMIN MASTER (PROTEGIDA CON CLAVE) ================= -->
+    <!-- ================= VISTA ADMIN ================= -->
     <div id="vista-admin">
         <div id="admin-login-box" class="card" style="border-color: #8957e5;">
             <h3 style="color: #8957e5;">🔒 Acceso Restringido Admin</h3>
@@ -169,9 +171,9 @@
             <button class="btn-crear" onclick="verificarAdminPassword()">Acceder al Panel</button>
         </div>
 
-        <div id="admin-panel-content" style="display: none; width: 100%; display: flex; flex-direction: column; align-items: center;">
+        <div id="admin-panel-content" style="display: none; width: 100%; flex-direction: column; align-items: center;">
             <div class="card" style="border-color: #d29922;">
-                <h3 style="color: #d29922;">🚨 Alerta: Mercados Finalizados (Pendientes de Veredicto)</h3>
+                <h3 style="color: #d29922;">🚨 Mercados Finalizados (Pendientes de Veredicto)</h3>
                 <div id="admin-pendientes-container">
                     <span style="color: #8b949e; font-size: 12px;">No hay mercados pendientes.</span>
                 </div>
@@ -181,18 +183,14 @@
 
     <script>
         let usuarioActual = "Invitado";
-        let accessTokenPi = "";
         let eventosGlobales = [];
 
         async function autenticarPiNetwork() {
             try {
-                const authResult = await Pi.authenticate(['username', 'payments'], (payment) => {
-                    console.log("Pago incompleto encontrado:", payment);
-                });
+                const authResult = await Pi.authenticate(['username', 'payments'], () => {});
                 usuarioActual = authResult.user.username;
-                accessTokenPi = authResult.accessToken;
                 document.getElementById('pi-username').innerText = "@" + usuarioActual;
-                document.getElementById('lbl-estado-conexion').innerText = "Conectado a Pi Network (Mainnet/Testnet)";
+                document.getElementById('lbl-estado-conexion').innerText = "Conectado a Pi Network";
                 document.getElementById('lbl-estado-conexion').style.color = "#3fb950";
                 inicializarApp();
             } catch (error) {
@@ -207,7 +205,6 @@
             document.getElementById('vista-usuario').style.display = 'none';
             document.getElementById('vista-ranking').style.display = 'none';
             document.getElementById('vista-admin').style.display = 'none';
-            
             document.getElementById('tab-user').classList.remove('activo');
             document.getElementById('tab-rank').classList.remove('activo');
             document.getElementById('tab-adm').classList.remove('activo');
@@ -225,16 +222,31 @@
             }
         }
 
-        function verificarAdminPassword() {
+        async function verificarAdminPassword() {
             const pass = document.getElementById('admin-pass-input').value;
-            // Clave de administrador configurable (cámbiala por la tuya)
-            if (pass === "AdminP2P2026*") {
+            const res = await fetch('/api/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pass })
+            });
+            const data = await res.json();
+            if (data.success) {
                 document.getElementById('admin-login-box').style.display = 'none';
                 document.getElementById('admin-panel-content').style.display = 'flex';
                 cargarPanelAdmin();
             } else {
                 alert("Contraseña incorrecta.");
             }
+        }
+
+        function toggleHistorial() {
+            const el = document.getElementById('contenedor-historial');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function toggleTransacciones() {
+            const el = document.getElementById('contenedor-transacciones');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
         }
 
         async function inicializarApp() {
@@ -244,78 +256,73 @@
 
         async function cargarDatosUsuario() {
             try {
-                const response = await fetch(`/api/saldo/${usuarioActual}`);
-                const data = await response.json();
+                const res = await fetch(`/api/saldo/${usuarioActual}`);
+                const data = await res.json();
                 if (data.success) {
                     document.getElementById('saldo-usuario').innerText = `${data.saldo_disponible.toFixed(4)} Pi`;
-                    document.getElementById('btn-reclamar').disabled = data.saldo_disponible <= 0;
                     
                     const histCont = document.getElementById('contenedor-historial');
-                    if (data.historial.length === 0) {
+                    if (!data.historial || data.historial.length === 0) {
                         histCont.innerHTML = '<span style="color: #8b949e;">Sin apuestas aún.</span>';
                     } else {
-                        let htmlHist = '';
-                        data.historial.reverse().forEach(h => {
-                            htmlHist += `<div class="historial-item"><div><b>${h.titulo_evento}</b><br><span style="color: #58a6ff;">${h.opcion_elegida} (${h.monto} Pi)</span></div><div style="color: #d29922;">${h.estado}</div></div>`;
+                        let html = '';
+                        data.historial.slice().reverse().forEach(h => {
+                            html += `<div class="historial-item"><div><b>${h.titulo_evento}</b><br><span style="color: #58a6ff;">${h.opcion_elegida} (${h.monto} Pi)</span></div><div style="color: #d29922;">${h.estado}</div></div>`;
                         });
-                        histCont.innerHTML = htmlHist;
+                        histCont.innerHTML = html;
+                    }
+
+                    const txCont = document.getElementById('contenedor-transacciones');
+                    if (!data.transacciones || data.transacciones.length === 0) {
+                        txCont.innerHTML = '<span style="color: #8b949e;">Sin recargas.</span>';
+                    } else {
+                        let html = '';
+                        data.transacciones.slice().reverse().forEach(tx => {
+                            html += `<div class="historial-item"><div><b>+${tx.monto} Pi</b><br><span style="font-size:10px; color:#8b949e;">TX: ${tx.txid}</span></div><div style="color: #3fb950;">${tx.tipo}</div></div>`;
+                        });
+                        txCont.innerHTML = html;
                     }
                 }
             } catch (e) { console.error(e); }
         }
 
-        // INTEGRACIÓN OFICIAL DE PI CREATE PAYMENT (U2A)
         function recargarConPi() {
-            const montoRecarga = parseFloat(document.getElementById('input-recarga').value);
-            if (isNaN(montoRecarga) || montoRecarga <= 0) {
-                alert("Ingresa un monto válido para recargar.");
-                return;
-            }
+            const monto = parseFloat(document.getElementById('input-recarga').value);
+            if (isNaN(monto) || monto <= 0) return alert("Monto inválido.");
 
-            const paymentData = {
-                amount: montoRecarga,
-                memo: `Recarga de saldo para P2Ppredict - @${usuarioActual}`,
+            Pi.createPayment({
+                amount: monto,
+                memo: `Recarga P2Ppredict - @${usuarioActual}`,
                 metadata: { tipo: "recarga_saldo", username: usuarioActual }
-            };
-
-            const paymentCallbacks = {
-                onReadyForServerApproval: function(paymentId) {
-                    console.log("Listo para aprobación del servidor:", paymentId);
+            }, {
+                onReadyForServerApproval: (paymentId) => {
                     fetch('/api/pi/aprobar-pago', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ paymentId: paymentId })
+                        body: JSON.stringify({ paymentId })
                     });
                 },
-                onReadyForServerCompletion: function(paymentId, txid) {
-                    console.log("Completando pago en servidor:", paymentId, txid);
+                onReadyForServerCompletion: (paymentId, txid) => {
                     fetch('/api/pi/completar-pago', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ paymentId: paymentId, txid: txid, username: usuarioActual, monto: montoRecarga })
+                        body: JSON.stringify({ paymentId, txid, username: usuarioActual, monto })
                     }).then(res => res.json()).then(data => {
                         if(data.success) {
-                            alert(`¡Recarga exitosa de ${montoRecarga} Pi añadida a tu saldo!`);
+                            alert(`¡Recarga de ${monto} Pi exitosa!`);
                             cargarDatosUsuario();
                         }
                     });
                 },
-                onCancel: function(paymentId) {
-                    console.log("Pago cancelado:", paymentId);
-                },
-                onError: function(error, payment) {
-                    console.error("Error en pago Pi:", error);
-                    alert("Hubo un error al procesar el pago con Pi.");
-                }
-            };
-
-            Pi.createPayment(paymentData, paymentCallbacks);
+                onCancel: () => {},
+                onError: () => alert("Error en el pago Pi.")
+            });
         }
 
         async function cargarMercados() {
             try {
-                const response = await fetch('/api/eventos');
-                eventosGlobales = await response.json();
+                const res = await fetch('/api/eventos');
+                eventosGlobales = await res.json();
                 renderizarMercados();
             } catch (e) { console.error(e); }
         }
@@ -323,20 +330,19 @@
         function renderizarMercados() {
             const contenedor = document.getElementById('mercados-container');
             contenedor.innerHTML = '';
-            const textoBusqueda = document.getElementById('input-buscar').value.toLowerCase().trim();
-
-            let filtrados = eventosGlobales.filter(ev => !textoBusqueda || ev.titulo.toLowerCase().includes(textoBusqueda));
+            const filtro = document.getElementById('input-buscar').value.toLowerCase().trim();
+            const filtrados = eventosGlobales.filter(ev => !filtro || ev.titulo.toLowerCase().includes(filtro));
 
             if (filtrados.length === 0) {
-                contenedor.innerHTML = '<div class="card"><h3>No hay mercados disponibles</h3></div>';
+                contenedor.innerHTML = '<div class="card"><h3>No hay mercados</h3></div>';
                 return;
             }
 
-            filtrados.forEach(ev => {
+            filtrados.forEach((ev, index) => {
                 const card = document.createElement('div');
                 card.className = 'card';
                 let pozoTotal = ev.opciones.reduce((acc, curr) => acc + curr.pozo, 0);
-                let isActivo = ev.estado === 'activo';
+                let isHot = index === 0 && pozoTotal > 0;
 
                 let htmlOpc = '';
                 ev.opciones.forEach(op => {
@@ -347,12 +353,15 @@
                                 <span class="nombre-opcion">${op.nombre} (${porc}%)</span>
                                 <span class="stats-opcion">Pozo: ${op.pozo.toFixed(2)} Pi</span>
                             </div>
-                            ${isActivo ? `<button onclick="participar(${ev.id}, ${op.id})">Apostar</button>` : '<span>Cerrado</span>'}
+                            ${ev.estado === 'activo' ? `<button onclick="participar(${ev.id}, ${op.id})">Apostar</button>` : '<span>Cerrado</span>'}
                         </div>`;
                 });
 
                 card.innerHTML = `
-                    <div class="header-meta"><span class="badge-categoria">${ev.categoria}</span><span class="badge-activo">${ev.estado.toUpperCase()}</span></div>
+                    <div class="header-meta">
+                        <span class="badge-categoria">${ev.categoria} ${isHot ? '🔥 HOT' : ''}</span>
+                        <span class="badge-activo">${ev.estado.toUpperCase()}</span>
+                    </div>
                     <h3>${ev.titulo}</h3>
                     <div class="pozo-global">Volumen: ${pozoTotal.toFixed(2)} Pi</div>
                     <div class="opciones-container">${htmlOpc}</div>`;
@@ -361,23 +370,40 @@
         }
 
         async function participar(eventoId, opcionId) {
-            let montoStr = prompt("¿Cuántos Pi deseas apostar?", "1.0");
-            let monto = parseFloat(montoStr);
+            let monto = parseFloat(prompt("¿Cuántos Pi deseas apostar?", "1.0"));
             if (isNaN(monto) || monto <= 0) return;
 
             const res = await fetch('/api/participar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ evento_id: eventoId, opcion_id: opcionId, monto: monto, username: usuarioActual })
+                body: JSON.stringify({ evento_id: eventoId, opcion_id: opcionId, monto, username: usuarioActual })
             });
             const data = await res.json();
             if(data.success) {
-                alert("¡Apuesta registrada con éxito!");
+                alert("¡Apuesta registrada!");
                 cargarDatosUsuario();
                 cargarMercados();
             } else {
                 alert("Error: " + data.error);
             }
+        }
+
+        async function cargarLeaderboard() {
+            try {
+                const res = await fetch('/api/leaderboard');
+                const data = await res.json();
+                const cont = document.getElementById('contenedor-leaderboard');
+                if(!data.success || data.leaderboard.length === 0) {
+                    cont.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Sin datos.</span>';
+                    return;
+                }
+                let html = '<table style="width:100%; font-size:12px; border-collapse:collapse;"><tr><th>#</th><th>Pionero</th><th>Ganancia</th></tr>';
+                data.leaderboard.forEach((u, idx) => {
+                    html += `<tr><td>${idx+1}</td><td>@${u.username}</td><td style="color:#3fb950;">+${u.ganancias_netas.toFixed(2)} Pi</td></tr>`;
+                });
+                html += '</table>';
+                cont.innerHTML = html;
+            } catch(e) { console.error(e); }
         }
 
         async function cargarPanelAdmin() {
@@ -386,17 +412,17 @@
                 const data = await res.json();
                 const cont = document.getElementById('admin-pendientes-container');
                 if(!data.success || data.mercados.length === 0) {
-                    cont.innerHTML = '<span style="color: #3fb950; font-size: 12px;">✅ No hay eventos finalizados esperando veredicto. Todo al día.</span>';
+                    cont.innerHTML = '<span style="color: #3fb950; font-size: 12px;">✅ Todo al día. No hay eventos finalizados.</span>';
                     return;
                 }
                 let html = '';
                 data.mercados.forEach(ev => {
                     html += `
                         <div style="background: #0d1117; padding: 10px; border-radius: 6px; margin-top: 8px; border: 1px solid #30363d;">
-                            <b>🚨 ${ev.titulo}</b><br><span style="font-size:11px; color:#8b949e;">Cerró el: ${ev.fecha_cierre}</span>
+                            <b>🚨 ${ev.titulo}</b><br><span style="font-size:11px; color:#8b949e;">Cierre: ${ev.fecha_cierre}</span>
                             <div style="margin-top:6px;">
-                                <button class="btn-resolver" onclick="resolver(${ev.id}, ${ev.opciones[0].id})">Ganador: ${ev.opciones[0].nombre}</button>
-                                <button class="btn-resolver" onclick="resolver(${ev.id}, ${ev.opciones[1].id})">Ganador: ${ev.opciones[1].nombre}</button>
+                                <button class="btn-resolver" onclick="resolver(${ev.id}, ${ev.opciones[0].id})">Ganó: ${ev.opciones[0].nombre}</button>
+                                <button class="btn-resolver" onclick="resolver(${ev.id}, ${ev.opciones[1].id})">Ganó: ${ev.opciones[1].nombre}</button>
                             </div>
                         </div>`;
                 });
@@ -405,7 +431,7 @@
         }
 
         async function resolver(eventoId, ganadorId) {
-            if(!confirm("¿Confirmar este resultado? Los premios se repartirán automáticamente a los ganadores.")) return;
+            if(!confirm("¿Confirmar veredicto y repartir premios?")) return;
             const res = await fetch('/api/resolver', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -413,8 +439,9 @@
             });
             const data = await res.json();
             if(data.success) {
-                alert("¡Mercado resuelto con éxito!");
+                alert("¡Mercado resuelto y premios repartidos!");
                 cargarPanelAdmin();
+                cargarMercados();
             }
         }
 
