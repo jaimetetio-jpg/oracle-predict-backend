@@ -186,6 +186,41 @@ def completar_pago():
   ), 400
 
 
+@app.route("/api/retirar", methods=["POST"])
+def solicitar_retiro():
+  data = request.json
+  username = data.get("username")
+  monto = float(data.get("monto", 0))
+
+  if username not in BASE_DATOS["usuarios"]:
+    return jsonify({"success": False, "error": "Usuario no encontrado"}), 404
+
+  user_data = BASE_DATOS["usuarios"][username]
+
+  if user_data["saldo_disponible"] < monto:
+    return jsonify({"success": False, "error": "Saldo insuficiente para retirar"}), 400
+
+  if monto <= 0:
+    return jsonify({"success": False, "error": "Monto inválido"}), 400
+
+  if not PI_API_KEY:
+    return jsonify({"success": False, "error": "PI_API_KEY no configurada"}), 500
+
+  user_data["saldo_disponible"] -= monto
+  user_data["transacciones"].append({
+      "tipo": "Retiro Pi",
+      "monto": -monto,
+      "txid": f"RET_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+      "fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
+  })
+
+  return jsonify({
+      "success": True,
+      "nuevo_saldo": user_data["saldo_disponible"],
+      "mensaje": f"Retiro de {monto} Pi procesado correctamente."
+  })
+
+
 @app.route("/api/leaderboard", methods=["GET"])
 def leaderboard():
   sorted_lb = sorted(
