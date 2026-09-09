@@ -75,6 +75,7 @@
         button.btn-reclamar { background-color: #238636; padding: 8px 12px; font-size: 13px; }
         button.btn-depositar { background-color: #f59e0b; color: #000; width: 100%; margin-top: 5px; }
         button.btn-retirar { background-color: #d29922; color: #000; padding: 8px 12px; font-size: 13px; }
+        button.btn-admin { background-color: #30363d; color: #fff; border: 1px solid #444; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; }
         button:hover:not(:disabled) { opacity: 0.85; }
         
         .header-meta { display: flex; justify-content: space-between; font-size: 11px; color: #8b949e; margin-bottom: 6px; }
@@ -182,12 +183,44 @@
                     <span style="color: #8b949e; font-size: 12px;">No hay mercados pendientes.</span>
                 </div>
             </div>
+
+            <!-- SECCIÓN DE ADMINISTRACIÓN AVANZADA (Superusuario) -->
+            <div id="admin-panel" style="display: block; padding: 15px; color: #fff; background: #161b22; border: 1px solid #30363d; border-radius: 12px; margin-bottom: 15px; width: 100%; box-sizing: border-box;">
+                <h3>Panel de Superusuario 🛡️</h3>
+                <div style="margin: 12px 0; display: flex; gap: 8px;">
+                    <button onclick="cargarPanelAdmin()" class="btn-admin">🎯 Mercados Activos</button>
+                    <button onclick="cargarListaUsuarios()" class="btn-admin" style="background: #6200ee;">👥 Auditoría Usuarios</button>
+                </div>
+                <div id="admin-content-area" style="margin-top: 15px;">
+                    <!-- Aquí se cargarán los datos dinámicamente -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PARA AJUSTAR SALDO O VER DETALLE DE USUARIO -->
+    <div id="modal-usuario" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: #1e1e24; padding: 25px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; border: 1px solid #30363d;">
+            <h3 id="modal-username-title" style="color: #f0f6fc;">Detalle de Usuario</h3>
+            <div id="modal-user-details" style="margin: 15px 0; color: #c9d1d9;"></div>
+            
+            <hr style="border-color: #333; margin: 15px 0;">
+            
+            <h4 style="color: #f0f6fc;">Ajustar Saldo Manualmente</h4>
+            <input type="number" id="ajuste-monto" placeholder="Ej: 5 o -2" step="0.1" style="width: 100%; padding: 10px; margin-bottom: 10px; background: #0d1117; border: 1px solid #30363d; color: #fff; border-radius: 6px;">
+            <input type="text" id="ajuste-motivo" placeholder="Motivo (Ej: Bono de recarga)" style="width: 100%; padding: 10px; margin-bottom: 15px; background: #0d1117; border: 1px solid #30363d; color: #fff; border-radius: 6px;">
+            
+            <div style="display: flex; gap: 8px;">
+                <button onclick="ejecutarAjusteSaldo()" style="background: #238636; color: #fff; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold;">Aplicar Ajuste</button>
+                <button onclick="cerrarModalUsuario()" style="background: #d9534f; color: #fff; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer;">Cerrar</button>
+            </div>
         </div>
     </div>
 
     <script>
         let usuarioActual = "Invitado";
         let eventosGlobales = [];
+        let usuarioSeleccionadoActual = "";
 
         async function autenticarPiNetwork() {
             try {
@@ -461,17 +494,17 @@
             try {
                 const res = await fetch('/api/admin/pendientes');
                 const data = await res.json();
-                const cont = document.getElementById('admin-pendientes-container');
+                const cont = document.getElementById('admin-content-area');
                 if(!data.success || data.mercados.length === 0) {
-                    cont.innerHTML = '<span style="color: #3fb950; font-size: 12px;">✅ Todo al día. No hay eventos finalizados.</span>';
+                    cont.innerHTML = '<span style="color: #3fb950; font-size: 12px;">✅ Todo al día. No hay eventos finalizados pendientes de veredicto.</span>';
                     return;
                 }
-                let html = '';
+                let html = '<h4 style="color: #d29922; margin-top:0;">Mercados Pendientes de Resolución</h4>';
                 data.mercados.forEach(ev => {
                     html += `
                         <div style="background: #0d1117; padding: 10px; border-radius: 6px; margin-top: 8px; border: 1px solid #30363d;">
                             <b>🚨 ${ev.titulo}</b><br><span style="font-size:11px; color:#8b949e;">Cierre: ${ev.fecha_cierre}</span>
-                            <div style="margin-top:6px;">
+                            <div style="margin-top:6px; display: flex; gap: 6px;">
                                 <button class="btn-resolver" onclick="resolver(${ev.id}, ${ev.opciones[0].id})">Ganó: ${ev.opciones[0].nombre}</button>
                                 <button class="btn-resolver" onclick="resolver(${ev.id}, ${ev.opciones[1].id})">Ganó: ${ev.opciones[1].nombre}</button>
                             </div>
@@ -479,6 +512,111 @@
                 });
                 cont.innerHTML = html;
             } catch(e) { console.error(e); }
+        }
+
+        async function cargarListaUsuarios() {
+            const contenedor = document.getElementById("admin-content-area");
+            contenedor.innerHTML = "<p style='font-size: 12px; color: #8b949e;'>Cargando lista de usuarios...</p>";
+
+            try {
+                const res = await fetch("/api/admin/usuarios");
+                const data = await res.json();
+
+                if (data.success) {
+                    let html = `<h4 style="color: #58a6ff; margin-top:0;">Usuarios Registrados (${data.usuarios.length})</h4>`;
+                    html += `<div style="max-height: 250px; overflow-y: auto;"><table style="width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 12px;">
+                                <tr style="background: #0d1117; text-align: left;">
+                                    <th style="padding: 8px;">Usuario</th>
+                                    <th style="padding: 8px;">Saldo</th>
+                                    <th style="padding: 8px;">Acción</th>
+                                </tr>`;
+                    
+                    data.usuarios.forEach(u => {
+                        html += `<tr style="border-bottom: 1px solid #30363d;">
+                                    <td style="padding: 8px;">@${u.username}</td>
+                                    <td style="padding: 8px; color: #3fb950; font-weight: bold;">${u.saldo_disponible.toFixed(2)} Pi</td>
+                                    <td style="padding: 8px;">
+                                        <button onclick="verDetalleUsuario('${u.username}')" style="background: #1f6feb; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">Auditar</button>
+                                    </td>
+                                 </tr>`;
+                    });
+                    html += `</table></div>`;
+                    contenedor.innerHTML = html;
+                } else {
+                    contenedor.innerHTML = `<p style="color: #f85149; font-size: 12px;">Error al cargar usuarios: ${data.error}</p>`;
+                }
+            } catch (err) {
+                contenedor.innerHTML = `<p style="color: #f85149; font-size: 12px;">Error de conexión con el servidor.</p>`;
+            }
+        }
+
+        async function verDetalleUsuario(username) {
+            usuarioSeleccionadoActual = username;
+            document.getElementById("modal-username-title").innerText = `Auditoría: @${username}`;
+            document.getElementById("modal-user-details").innerHTML = "Cargando historial...";
+            document.getElementById("modal-usuario").style.display = "flex";
+
+            try {
+                const res = await fetch(`/api/admin/usuario/${username}`);
+                const data = await res.json();
+
+                if (data.success) {
+                    let html = `<p><b>Saldo Actual:</b> <span style="color: #3fb950;">${data.usuario.saldo_disponible.toFixed(4)} Pi</span></p>`;
+                    
+                    html += `<h5 style="margin: 8px 0 4px 0; color: #58a6ff;">Últimas Transacciones:</h5><ul style="font-size: 11px; max-height: 80px; overflow-y: auto; background: #0d1117; padding: 6px; border-radius: 4px; margin:0; padding-left:15px;">`;
+                    if (!data.transacciones || data.transacciones.length === 0) html += `<li>Sin transacciones</li>`;
+                    data.transacciones.forEach(t => {
+                        html += `<li>[${t.fecha}] ${t.tipo}: ${t.monto} Pi</li>`;
+                    });
+                    html += `</ul>`;
+
+                    html += `<h5 style="margin: 8px 0 4px 0; color: #58a6ff;">Historial de Apuestas:</h5><ul style="font-size: 11px; max-height: 80px; overflow-y: auto; background: #0d1117; padding: 6px; border-radius: 4px; margin:0; padding-left:15px;">`;
+                    if (!data.apuestas || data.apuestas.length === 0) html += `<li>Sin apuestas registradas</li>`;
+                    data.apuestas.forEach(a => {
+                        html += `<li><b>${a.titulo_evento}</b> - Opción: ${a.opcion_elegida} (${a.monto} Pi) [${a.estado}]</li>`;
+                    });
+                    html += `</ul>`;
+
+                    document.getElementById("modal-user-details").innerHTML = html;
+                } else {
+                    document.getElementById("modal-user-details").innerHTML = `<p style="color:#f85149;">No se pudo cargar la información.</p>`;
+                }
+            } catch (err) {
+                document.getElementById("modal-user-details").innerHTML = `<p style="color:#f85149;">Error de red.</p>`;
+            }
+        }
+
+        async function ejecutarAjusteSaldo() {
+            const monto = parseFloat(document.getElementById("ajuste-monto").value);
+            const motivo = document.getElementById("ajuste-motivo").value || "Ajuste Administrativo";
+
+            if (isNaN(monto)) {
+                alert("Por favor ingresa un monto válido (ej: 5 o -2).");
+                return;
+            }
+
+            try {
+                const res = await fetch("/api/admin/ajustar-saldo", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: usuarioSeleccionadoActual, monto: monto, motivo: motivo })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    alert(data.mensaje);
+                    cerrarModalUsuario();
+                    cargarListaUsuarios();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (err) {
+                alert("Error de conexión al procesar el ajuste.");
+            }
+        }
+
+        function cerrarModalUsuario() {
+            document.getElementById("modal-usuario").style.display = "none";
         }
 
         async function resolver(eventoId, ganadorId) {
@@ -500,7 +638,7 @@
             alert("¡Premio reclamado con éxito!");
         }
 
-        window.onload = autentikanPiNetwork = autenticarPiNetwork;
+        window.onload = autenticarPiNetwork;
     </script>
 </body>
 </html>
