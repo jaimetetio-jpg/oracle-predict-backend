@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>P2Ppredict</title>
+    <!-- SDK oficial de Pi Network -->
+    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+    <script>
+        Pi.init({ version: "2.0", sandbox: true });
+    </script>
     <style>
         :root {
             --bg-color: #0f111a;
@@ -340,10 +345,10 @@
             </div>
         </div>
 
-        <!-- ACORDEÓN: Historial de Depósitos / Retiros -->
+        <!-- ACORDEÓN: Gestión de Billetera (Depósito / Retiro con Pi SDK) -->
         <div class="accordion-card" id="acc-wallet">
             <button class="accordion-header" onclick="toggleAccordion('acc-wallet')">
-                <span>💳 Gestión de Billetera (Depósito / Retiro)</span>
+                <span>💳 Gestión de Billetera (Pi Wallet SDK)</span>
                 <span>▾</span>
             </button>
             <div class="accordion-content">
@@ -351,7 +356,7 @@
                     <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Monto en Pi</label>
                     <input type="number" id="wallet-amount" class="form-control" placeholder="0.00" min="0.1" step="0.1" style="margin-bottom: 8px;">
                     <div style="display: flex; gap: 6px;">
-                        <button class="action-btn" style="flex:1; background: var(--success);" onclick="depositarApp()">Depositar a App</button>
+                        <button class="action-btn" style="flex:1; background: var(--success);" onclick="depositarConPiSDK()">Depositar con Pi Wallet</button>
                         <button class="action-btn" style="flex:1; background: var(--danger);" onclick="retirarBilletera()">Retirar a Billetera</button>
                     </div>
                 </div>
@@ -392,16 +397,14 @@
             </div>
         </div>
 
-        <!-- SOPORTE DIRECTO (Sincronizado y sin duplicar) -->
+        <!-- SOPORTE DIRECTO -->
         <div class="support-card" id="support-box">
             <button class="support-header" onclick="toggleSupport()">
                 <span>💬 Soporte Directo P2Ppredict</span>
                 <span>▾</span>
             </button>
             <div class="support-body">
-                <div class="chat-messages" id="chat-messages">
-                    <!-- Contenido renderizado dinámicamente -->
-                </div>
+                <div class="chat-messages" id="chat-messages"></div>
                 <div class="chat-input-area">
                     <input type="text" class="chat-input" id="chat-input" placeholder="Escribe tu duda...">
                     <button class="chat-send-btn" onclick="enviarMensajeSoporte()">Enviar</button>
@@ -427,7 +430,7 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Monto a Invertir / Apostar en el Mercado (Pi)</label>
+                <label>Monto a Invertir / Apostar en el Mercado (Pi) [Requerido]</label>
                 <input type="number" class="form-control" id="new-stake" placeholder="Ej: 10" min="1" step="0.1" value="1">
             </div>
             <button class="action-btn" onclick="crearMercado()" style="width: 100%; margin-top: 5px;">Publicar Mercado</button>
@@ -444,7 +447,7 @@
         </div>
     </div>
 
-    <!-- VISTA: ADMIN CON CONTRASEÑA Y GESTIÓN AVANZADA -->
+    <!-- VISTA: ADMIN -->
     <div id="view-admin" class="section-view">
         <!-- Pantalla de Login de Administrador -->
         <div id="admin-login-card" class="market-card">
@@ -457,9 +460,8 @@
             <button class="action-btn" onclick="verificarLoginAdmin()" style="width: 100%; background: #dc2626;">Entrar al Panel</button>
         </div>
 
-        <!-- Panel de Control Administrador (Oculto hasta autenticarse) -->
+        <!-- Panel de Control Administrador -->
         <div id="admin-dashboard-card" style="display: none;">
-            <!-- Widget de Balance de la App -->
             <div class="market-card" style="border-color: #38bdf8;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
@@ -470,7 +472,6 @@
                 </div>
             </div>
 
-            <!-- Gestión de Mercados (Cerrar anticipadamente o Declarar Ganador SÍ / NO) -->
             <div class="market-card">
                 <div class="market-title" style="margin-bottom: 10px;">⚡ Gestión y Moderación de Mercados</div>
                 <div id="admin-markets-list" style="font-size: 0.85rem; color: var(--text-muted);">
@@ -478,15 +479,12 @@
                 </div>
             </div>
 
-            <!-- Panel de Respuestas a Usuarios (Soporte Admin) -->
             <div class="support-card" style="display: block; margin-top: 0;">
                 <div class="support-header" style="cursor: default; color: #a78bfa;">
                     <span>💬 Bandeja de Soporte a Usuarios</span>
                 </div>
                 <div class="support-body" style="display: block; padding-top: 4px;">
-                    <div class="chat-messages" id="admin-support-box" style="height: 140px;">
-                        <!-- Contenido sincronizado con historialChat -->
-                    </div>
+                    <div class="chat-messages" id="admin-support-box" style="height: 140px;"></div>
                     <div class="chat-input-area">
                         <input type="text" class="chat-input" id="admin-chat-reply" placeholder="Escribe respuesta como Admin...">
                         <button class="chat-send-btn" onclick="enviarRespuestaAdmin()">Responder</button>
@@ -509,18 +507,61 @@
             document.getElementById('user-balance').innerText = saldoUsuario.toFixed(2) + ' Pi';
         }
 
-        function depositarApp() {
+        // Integración del Pi SDK oficial para depósitos reales
+        async function depositarConPiSDK() {
             const input = document.getElementById('wallet-amount');
             const monto = parseFloat(input.value);
+            
             if (isNaN(monto) || monto <= 0) {
-                alert("Introduce un monto válido para depositar.");
+                alert("Por favor ingresa un monto válido en Pi para depositar.");
                 return;
             }
-            saldoUsuario += monto;
-            actualizarBalanceUI();
-            document.getElementById('wallet-history').innerHTML = `Depositados +${monto.toFixed(2)} Pi desde tu billetera.`;
-            input.value = '';
-            alert(`¡Depósito de ${monto.toFixed(2)} Pi exitoso!`);
+
+            try {
+                const scopes = ['username', 'payments', 'wallet_address'];
+                const authResult = await Pi.authenticate(scopes, (payment) => {
+                    console.log("Pago incompleto encontrado:", payment);
+                });
+                
+                console.log(`Usuario autenticado: ${authResult.user.username}`);
+                document.getElementById('user-handle').innerText = '@' + authResult.user.username;
+
+                const paymentData = {
+                    amount: monto,
+                    memo: `Depósito de ${monto} Pi a P2Ppredict`,
+                    metadata: { app: "P2Ppredict", user: authResult.user.username },
+                };
+
+                const callbacks = {
+                    onReadyForServerApproval: function(paymentId) {
+                        console.log("Listo para aprobación del servidor:", paymentId);
+                    },
+                    onReadyForServerCompletion: function(paymentId, txid) {
+                        saldoUsuario += monto;
+                        actualizarBalanceUI();
+                        document.getElementById('wallet-history').innerHTML = `Depositados +${monto.toFixed(2)} Pi desde Pi Wallet (TX: ${txid.substring(0,8)}...)`;
+                        input.value = '';
+                        alert(`¡Depósito de ${monto.toFixed(2)} Pi exitoso vía Pi Network!`);
+                    },
+                    onCancel: function(paymentId) {
+                        alert("El pago fue cancelado en la Pi Wallet.");
+                    },
+                    onError: function(error, payment) {
+                        alert("Error en la pasarela de Pi Network: " + (error.message || error));
+                    }
+                };
+
+                Pi.createPayment(paymentData, callbacks);
+
+            } catch (err) {
+                // Modo simulador de respaldo si se abre fuera del navegador nativo de Pi
+                console.warn("Pi SDK no disponible o error de autenticación, usando modo de prueba local:", err);
+                saldoUsuario += monto;
+                actualizarBalanceUI();
+                document.getElementById('wallet-history').innerHTML = `Depositados +${monto.toFixed(2)} Pi (Modo Simulación).`;
+                input.value = '';
+                alert(`¡Depósito simulado de ${monto.toFixed(2)} Pi exitoso!`);
+            }
         }
 
         function retirarBilletera() {
@@ -536,9 +577,9 @@
             }
             saldoUsuario -= monto;
             actualizarBalanceUI();
-            document.getElementById('wallet-history').innerHTML = `Retirados -${monto.toFixed(2)} Pi hacia tu billetera.`;
+            document.getElementById('wallet-history').innerHTML = `Retirados -${monto.toFixed(2)} Pi hacia tu billetera personal.`;
             input.value = '';
-            alert(`¡Retiro de ${monto.toFixed(2)} Pi procesado con éxito!`);
+            alert(`¡Retiro de ${monto.toFixed(2)} Pi procesado con éxito hacia tu Pi Wallet!`);
         }
 
         function toggleAccordion(id) {
@@ -616,9 +657,9 @@
             container.innerHTML = filtrados.map(m => `
                 <div class="market-card">
                     <div class="market-title">${m.pregunta}</div>
-                    <div class="market-meta">Categoría: ${m.categoria} | Apuesta inicial: <b>${m.inversion || 1} Pi</b> | Estado: ${m.estado || 'Activo'}</div>
+                    <div class="market-meta">Categoría: ${m.categoria} | Apuesta obligatoria inicial: <b>${m.inversion || 1} Pi</b> | Estado: ${m.estado || 'Activo'}</div>
                     <div style="display: flex; gap: 6px; align-items: center;">
-                        <input type="number" id="bet-amt-${m.id}" class="form-control" value="${m.inversion || 1}" min="0.1" step="0.1" style="width: 90px; padding: 6px;">
+                        <input type="number" id="bet-amt-${m.id}" class="form-control" value="${m.inversion || 1}" min="0.1" step="0.1" style="width: 90px; padding: 6px;" placeholder="Inversión">
                         <button class="action-btn" style="flex: 1;" onclick="participar(${m.id})">Apostar / Participar</button>
                     </div>
                 </div>
@@ -646,7 +687,7 @@
             }
 
             if (monto > saldoUsuario) {
-                alert("No tienes suficiente saldo en la app. Deposita desde tu billetera primero.");
+                alert("No tienes suficiente saldo en la app. Deposita desde tu Pi Wallet primero.");
                 return;
             }
 
@@ -687,8 +728,12 @@
                 alert("Escribe una pregunta para el mercado.");
                 return;
             }
+            if (isNaN(inversion) || inversion <= 0) {
+                alert("Debes indicar cuánto estás dispuesto a invertir en esta predicción.");
+                return;
+            }
             if (inversion > saldoUsuario) {
-                alert("No tienes suficiente saldo en la app para cubrir la inversión inicial de esta predicción.");
+                alert("No tienes suficiente saldo en la app para cubrir la inversión inicial obligatoria de esta predicción.");
                 return;
             }
 
@@ -701,7 +746,7 @@
                 const data = await res.json();
                 saldoUsuario -= inversion;
                 actualizarBalanceUI();
-                alert(data.mensaje || "¡Mercado creado exitosamente!");
+                alert(data.mensaje || `¡Mercado creado con inversión inicial de ${inversion.toFixed(2)} Pi!`);
                 document.getElementById('new-question').value = '';
                 document.getElementById('new-stake').value = '1';
                 switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
@@ -709,7 +754,7 @@
             } catch (e) {
                 saldoUsuario -= inversion;
                 actualizarBalanceUI();
-                alert("¡Mercado creado exitosamente!");
+                alert(`¡Mercado creado con inversión inicial de ${inversion.toFixed(2)} Pi!`);
                 document.getElementById('new-question').value = '';
                 document.getElementById('new-stake').value = '1';
                 switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
