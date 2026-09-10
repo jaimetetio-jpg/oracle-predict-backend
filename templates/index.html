@@ -3,969 +3,614 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2Ppredict - Red Descentralizada de Predicciones</title>
-    <!-- SDK de Pi Network -->
-    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-    <script>
-        if (typeof Pi !== 'undefined') {
-            Pi.init({ version: "2.0", sandbox: false });
-        }
-    </script>
-    <!-- Chart.js para gráficos financieros -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Socket.io para tiempo real -->
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    
+    <title>P2Ppredict</title>
     <style>
         :root {
-            --bg-color: #0d1117;
-            --card-bg: #161b22;
-            --text-color: #c9d1d9;
-            --subtext: #8b949e;
-            --border-color: #30363d;
-            --accent: #1f6feb;
-            --accent-hover: #388bfd;
-            --chat-primary: #8957e5;
-            --chat-bg-user: rgba(137, 87, 229, 0.12);
-            --chat-bg-admin: #21262d;
+            --bg-color: #0f111a;
+            --card-bg: #181b28;
+            --text-color: #ffffff;
+            --text-muted: #8c92ac;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --border-color: #2a2e43;
+            --badge-bg: #222639;
         }
 
-        body.light-mode {
-            --bg-color: #f0f2f5;
+        [data-theme="light"] {
+            --bg-color: #f3f4f6;
             --card-bg: #ffffff;
-            --text-color: #24292e;
-            --subtext: #586069;
-            --border-color: #e1e4e8;
-            --accent: #0366d6;
-            --accent-hover: #005cc5;
-            --chat-primary: #6f42c1;
-            --chat-bg-user: rgba(111, 66, 193, 0.08);
-            --chat-bg-admin: #f6f8fa;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+            --text-color: #111827;
+            --text-muted: #6b7280;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --border-color: #e5e7eb;
+            --badge-bg: #f0f1f5;
         }
 
         body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
-            padding-bottom: 70px;
+            margin: 0;
+            padding: 12px;
+            box-sizing: border-box;
+            transition: background-color 0.3s, color 0.3s;
         }
 
         header {
-            background-color: var(--card-bg);
-            border-bottom: 1px solid var(--border-color);
-            padding: 12px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
+            margin-bottom: 15px;
         }
 
-        .logo {
-            font-size: 18px;
-            font-weight: bold;
-            color: var(--accent);
+        .logo-area {
             display: flex;
             align-items: center;
             gap: 6px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #38bdf8;
         }
 
         .user-info {
             display: flex;
             align-items: center;
             gap: 10px;
-            font-size: 13px;
+            font-size: 0.9rem;
         }
 
-        .theme-toggle {
-            background: none;
+        .theme-btn {
+            background: var(--card-bg);
             border: 1px solid var(--border-color);
             color: var(--text-color);
-            padding: 4px 8px;
-            border-radius: 4px;
+            padding: 5px 10px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 0.8rem;
         }
 
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 16px;
-        }
-
-        .connection-status {
-            font-size: 11px;
-            color: var(--subtext);
-            text-align: center;
-            margin-bottom: 12px;
-            padding: 4px;
-            border-radius: 4px;
-        }
-
+        /* Navigation tabs */
         .nav-tabs {
             display: flex;
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
+            gap: 6px;
+            margin-bottom: 15px;
+            background: var(--card-bg);
+            padding: 4px;
             border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 16px;
+            border: 1px solid var(--border-color);
         }
 
-        .tab {
+        .nav-tab {
             flex: 1;
-            text-align: center;
-            padding: 10px;
-            font-size: 12px;
-            font-weight: bold;
-            color: var(--subtext);
-            cursor: pointer;
-            background: none;
+            background: transparent;
             border: none;
-        }
-
-        .tab.activo {
-            color: var(--text-color);
-            background-color: var(--accent);
-        }
-
-        .card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 16px;
-        }
-
-        h3 {
-            font-size: 16px;
-            margin-bottom: 8px;
-        }
-
-        button {
-            background-color: var(--accent);
-            color: #ffffff;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: bold;
-        }
-
-        button:hover {
-            background-color: var(--accent-hover);
-        }
-
-        input[type="number"], input[type="text"], input[type="password"], select {
-            width: 100%;
-            background: var(--bg-color);
-            border: 1px solid var(--border-color);
-            color: var(--text-color);
+            color: var(--text-muted);
             padding: 8px;
             border-radius: 6px;
-            font-size: 12px;
-            margin-top: 4px;
-            margin-bottom: 8px;
-            outline: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: center;
         }
 
-        input[type="text"]:focus, input[type="number"]:focus, input[type="password"]:focus, select:focus {
-            border-color: var(--accent);
+        .nav-tab.active {
+            background: var(--accent);
+            color: #ffffff;
         }
 
-        .filter-container {
+        /* Search & Filters */
+        .search-box {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-color);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        .filter-pills {
             display: flex;
             gap: 6px;
+            margin-bottom: 15px;
             overflow-x: auto;
-            margin-bottom: 16px;
             padding-bottom: 4px;
         }
 
-        .filter-badge {
+        .pill {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
-            color: var(--subtext);
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 11px;
+            color: var(--text-muted);
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 0.8rem;
             cursor: pointer;
             white-space: nowrap;
         }
 
-        .filter-badge.activo {
+        .pill.active {
             background: var(--accent);
             color: #fff;
             border-color: var(--accent);
         }
 
-        .toast-container {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .toast {
-            background: #238636;
-            color: #fff;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: bold;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            text-align: center;
-        }
-
-        .toast.error {
-            background: #da3633;
-        }
-
-        /* Alerta de Cierre Admin */
-        .admin-alert-badge {
-            display: inline-block;
-            background: rgba(218, 54, 51, 0.15);
-            color: #f85149;
-            border: 1px solid rgba(218, 54, 51, 0.4);
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-bottom: 6px;
-            font-weight: bold;
-        }
-
-        /* ================= ESTILOS CHAT DE SOPORTE ================= */
-        .support-card {
-            border: 1px solid var(--chat-primary) !important;
-            box-shadow: 0 4px 20px rgba(137, 87, 229, 0.08);
-            position: relative;
+        /* Collapsible Accordions (Mis Apuestas, CLOB, etc.) */
+        .accordion-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            margin-bottom: 10px;
             overflow: hidden;
         }
 
-        .support-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; width: 4px; height: 100%;
-            background: var(--chat-primary);
-        }
-
-        .support-header {
+        .accordion-header {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 0.9rem;
+            font-weight: 600;
             display: flex;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
-            user-select: none;
         }
 
-        .support-title-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .support-body-container {
+        .accordion-content {
+            padding: 0 15px 12px 15px;
             display: none;
-            margin-top: 12px;
-            animation: fadeInChat 0.25s ease-in-out;
+            font-size: 0.85rem;
+            color: var(--text-muted);
         }
 
-        @keyframes fadeInChat {
-            from { opacity: 0; transform: translateY(-4px); }
-            to { opacity: 1; transform: translateY(0); }
+        .accordion-card.open .accordion-content {
+            display: block;
         }
 
-        .chat-messages-box {
-            height: 180px;
-            overflow-y: auto;
+        /* Market Cards */
+        .market-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .market-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .market-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .action-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 7px 14px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .action-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        /* Support Chat Box */
+        .support-card {
+            border: 1px solid #7c3aed;
+            border-radius: 10px;
+            background: var(--card-bg);
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .support-header {
+            background: transparent;
+            border: none;
+            width: 100%;
+            padding: 12px 15px;
+            color: #a78bfa;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .support-body {
+            padding: 0 12px 12px 12px;
+            display: none;
+        }
+
+        .support-card.open .support-body {
+            display: block;
+        }
+
+        .chat-messages {
             background: var(--bg-color);
             border: 1px solid var(--border-color);
-            padding: 10px;
             border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 10px;
-            scroll-behavior: smooth;
+            height: 120px;
+            padding: 8px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+            margin-bottom: 8px;
+            color: var(--text-muted);
         }
 
-        .chat-bubble {
-            max-width: 82%;
-            padding: 8px 12px;
-            border-radius: 10px;
-            font-size: 12px;
-            line-height: 1.4;
-            position: relative;
-            word-break: break-word;
-        }
-
-        .chat-bubble.user {
-            background: var(--chat-bg-user);
-            border: 1px solid rgba(137, 87, 229, 0.25);
-            align-self: flex-end;
-            border-bottom-right-radius: 2px;
-            color: var(--text-color);
-        }
-
-        .chat-bubble.admin {
-            background: var(--chat-bg-admin);
-            border: 1px solid var(--border-color);
-            align-self: flex-start;
-            border-bottom-left-radius: 2px;
-            color: var(--text-color);
-        }
-
-        .chat-sender-name {
-            font-size: 10px;
-            font-weight: bold;
-            margin-bottom: 2px;
-            display: block;
-            color: var(--chat-primary);
-        }
-
-        .chat-bubble.user .chat-sender-name {
-            color: var(--chat-primary);
-            text-align: right;
-        }
-
-        .chat-time {
-            font-size: 9px;
-            color: var(--subtext);
-            margin-top: 3px;
-            display: block;
-            text-align: right;
-        }
-
-        .chat-input-wrapper {
+        .chat-input-area {
             display: flex;
             gap: 6px;
         }
 
-        .chat-input-wrapper input {
-            margin-bottom: 0 !important;
-            border-color: var(--border-color);
+        .chat-input {
+            flex: 1;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px 10px;
+            color: var(--text-color);
+            font-size: 0.8rem;
         }
 
         .chat-send-btn {
-            background: var(--chat-primary) !important;
-            color: #ffffff;
-            padding: 0 14px;
+            background: #7c3aed;
+            color: white;
+            border: none;
+            padding: 6px 12px;
             border-radius: 6px;
-            font-weight: bold;
-            white-space: nowrap;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .section-view {
+            display: none;
+        }
+        .section-view.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 10px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .form-control {
+            width: 100%;
+            padding: 8px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-color);
+            font-size: 0.85rem;
+            box-sizing: border-box;
         }
     </style>
 </head>
-<body>
+<body data-theme="dark">
 
     <header>
-        <div class="logo">⚡ P2Ppredict</div>
+        <div class="logo-area">
+            <span>⚡ P2Ppredict</span>
+        </div>
         <div class="user-info">
-            <span id="pi-username">Invitado</span>
-            <span id="saldo-usuario" style="color: #3fb950; font-weight: bold;">-- Pi</span>
-            <button class="theme-toggle" onclick="toggleTemaVisual()">🌓 Tema</button>
+            <span id="user-handle">@jaimetetio</span>
+            <span id="user-balance" style="color: #38bdf8; font-weight: 600;">0.00 Pi</span>
+            <button class="theme-btn" onclick="toggleTheme()">🌗 Tema</button>
         </div>
     </header>
 
-    <div class="container">
-        <div id="lbl-estado-conexion" class="connection-status">Conectado a la Red P2P Descentralizada</div>
+    <!-- Pestañas de Navegación -->
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="switchTab('mercados', this)">Mercados</button>
+        <button class="nav-tab" onclick="switchTab('crear', this)">Crear</button>
+        <button class="nav-tab" onclick="switchTab('ranking', this)">Ranking</button>
+        <button class="nav-tab" onclick="switchTab('admin', this)">Admin</button>
+    </div>
 
-        <!-- Barra de Navegación por Pestañas -->
-        <div class="nav-tabs">
-            <button class="tab activo" id="tab-user" onclick="cambiarVista('usuario')">Mercados</button>
-            <button class="tab" id="tab-crear" onclick="cambiarVista('crear')">Crear</button>
-            <button class="tab" id="tab-rank" onclick="cambiarVista('ranking')">Ranking</button>
-            <button class="tab" id="tab-adm" onclick="cambiarVista('admin')">Admin</button>
+    <!-- VISTA: MERCADOS -->
+    <div id="view-mercados" class="section-view active">
+        <input type="text" class="search-box" id="search-input" placeholder="🔍 Buscar mercados o temas..." oninput="filtrarMercados()">
+        
+        <div class="filter-pills">
+            <button class="pill active" onclick="setCategory('Todos', this)">Todos</button>
+            <button class="pill" onclick="setCategory('Crypto', this)">Crypto</button>
+            <button class="pill" onclick="setCategory('Deportes', this)">Deportes</button>
+            <button class="pill" onclick="setCategory('Política', this)">Política</button>
         </div>
 
-        <!-- ================= VISTA USUARIO (MERCADOS) ================= -->
-        <div id="vista-usuario">
-            <input type="text" id="input-buscar" placeholder="🔍 Buscar mercados o temas..." oninput="renderizarMercados()">
-            
-            <div class="filter-container">
-                <div class="filter-badge activo" onclick="filtrarCategoria('todos', this)">Todos</div>
-                <div class="filter-badge" onclick="filtrarCategoria('Crypto', this)">Crypto</div>
-                <div class="filter-badge" onclick="filtrarCategoria('Deportes', this)">Deportes</div>
-                <div class="filter-badge" onclick="filtrarCategoria('Política', this)">Política</div>
-            </div>
-
-            <div id="mercados-container">
-                <div class="card"><p style="font-size: 12px; color: var(--subtext); text-align: center;">Cargando mercados activos...</p></div>
-            </div>
-
-            <!-- ================= MÓDULO DE SOPORTE DIRECTO ================= -->
-            <div class="card support-card">
-                <div class="support-header" onclick="toggleChatSoporte()">
-                    <div class="support-title-wrapper">
-                        <span class="support-icon">💬</span>
-                        <b style="color: var(--chat-primary);">Soporte Directo P2Ppredict</b>
-                    </div>
-                    <span id="support-chevron" style="color: var(--subtext); font-size: 12px;">▾</span>
-                </div>
-                <div id="contenedor-chat-soporte" class="support-body-container">
-                    <div id="caja-mensajes-soporte" class="chat-messages-box">
-                        <div class="chat-bubble admin">
-                            <span class="chat-sender-name">Soporte P2Ppredict</span>
-                            ¡Hola! Bienvenido al canal de asistencia directa. ¿En qué podemos ayudarte hoy?
-                            <span class="chat-time">11:30</span>
-                        </div>
-                    </div>
-                    <div class="chat-input-wrapper">
-                        <input type="text" id="input-mensaje-soporte" placeholder="Escribe tu consulta o reporte aquí...">
-                        <button class="chat-send-btn" onclick="enviarMensajeSoporte()">Enviar</button>
-                    </div>
-                </div>
+        <!-- Contenedor dinámico de mercados -->
+        <div id="markets-container">
+            <div class="market-card">
+                <div class="market-title">Cargando mercados descentralizados...</div>
             </div>
         </div>
 
-        <!-- ================= VISTA CREAR MERCADO ================= -->
-        <div id="vista-crear-mercado" style="display: none;">
-            <div class="card">
-                <h3 style="color: var(--accent); margin-bottom: 12px;">Crear Mercado de Predicción P2P</h3>
-                <label>Título del Mercado:</label>
-                <input type="text" id="crear-titulo" placeholder="Ej: ¿Bitcoin superará los 100k USD este mes?">
-                <label style="font-size: 11px; margin-top: 6px;">Categoría:</label>
-                <select id="crear-categoria">
-                    <option value="Crypto">Crypto</option>
-                    <option value="Deportes">Deportes</option>
-                    <option value="Política">Política</option>
-                </select>
-                <label style="font-size: 11px; margin-top: 6px;">Fecha de Cierre:</label>
-                <input type="text" id="crear-cierre" placeholder="Ej: 2026-12-31">
-                <button onclick="enviarCrearMercado()" style="width: 100%; margin-top: 10px;">Lanzar Mercado a la Red</button>
+        <!-- ACORDEÓN: Mis Apuestas Realizadas -->
+        <div class="accordion-card" id="acc-apuestas">
+            <button class="accordion-header" onclick="toggleAccordion('acc-apuestas')">
+                <span>📦 Mis Apuestas Realizadas</span>
+                <span>▾</span>
+            </button>
+            <div class="accordion-content">
+                <div id="my-bets-content">No tienes apuestas activas registradas en este momento.</div>
             </div>
         </div>
 
-        <!-- ================= VISTA RANKING ================= -->
-        <div id="vista-ranking" style="display: none;">
-            <div class="card">
-                <h3 style="margin-bottom: 12px;">🏆 Top Predictores de la Red</h3>
-                <div id="ranking-container">
-                    <p style="font-size: 12px; color: var(--subtext);">Cargando ranking...</p>
-                </div>
+        <!-- ACORDEÓN: Órdenes Limit Activas (CLOB) -->
+        <div class="accordion-card" id="acc-clob">
+            <button class="accordion-header" onclick="toggleAccordion('acc-clob')">
+                <span>⚡ Órdenes Limit Activas (CLOB)</span>
+                <span>▾</span>
+            </button>
+            <div class="accordion-content">
+                <div>Sin órdenes limit abiertas en el libro de órdenes descentralizado.</div>
             </div>
         </div>
 
-        <!-- ================= VISTA ADMIN (PROTEGIDA) ================= -->
-        <div id="vista-admin" style="display: none;">
-            <!-- Bloque de Login de Administrador -->
-            <div id="admin-login-box" class="card">
-                <h3 style="color: #da3633; margin-bottom: 8px;">🔐 Acceso Restringido</h3>
-                <p style="font-size: 11px; color: var(--subtext); margin-bottom: 12px;">Introduce la clave maestra de administrador para acceder al panel de control.</p>
-                <label style="font-size: 11px;">Contraseña de Admin:</label>
-                <input type="password" id="input-admin-pass" placeholder="••••••••">
-                <button onclick="verificarClaveAdmin()" style="width: 100%; margin-top: 6px; background: #da3633;">Entrar al Panel</button>
+        <!-- ACORDEÓN: Historial de Trades Ejecutados -->
+        <div class="accordion-card" id="acc-trades">
+            <button class="accordion-header" onclick="toggleAccordion('acc-trades')">
+                <span>🔄 Historial de Trades Ejecutados</span>
+                <span>▾</span>
+            </button>
+            <div class="accordion-content">
+                <div>No se registran transacciones previas en tu historial de trades.</div>
             </div>
+        </div>
 
-            <!-- Panel de Control Real (Oculto hasta ingresar la clave correcta) -->
-            <div id="admin-dashboard-box" class="card" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <h3 style="color: #da3633; margin-bottom: 0;">Panel de Control Administrativo</h3>
-                    <button onclick="cerrarSesionAdmin()" style="background: var(--border-color); color: var(--text-color); padding: 2px 6px; font-size: 10px;">Bloquear</button>
-                </div>
-                <p style="font-size: 12px; color: var(--subtext); margin-bottom: 12px;">Herramientas avanzadas de gestión de mercados, resolución y soporte directo.</p>
-                
-                <!-- Widget de Billetera de la Aplicación -->
-                <div class="card" style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 12px; margin-bottom: 14px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <h4 style="margin: 0; color: var(--text-color); font-size: 13px;">Billetera de la Aplicación (Treasury)</h4>
-                            <p style="margin: 3px 0 0 0; color: var(--subtext); font-size: 11px;">Saldo total del sistema</p>
-                        </div>
-                        <div style="text-align: right;">
-                            <span id="admin-app-balance" style="font-size: 16px; font-weight: bold; color: #3fb950;">-- Pi</span>
-                            <br>
-                            <button onclick="actualizarSaldoApp()" style="background: #238636; color: white; border: none; padding: 2px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; margin-top: 4px;">Actualizar</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                    <button onclick="cambiarSubpestanaAdmin('mercados')" id="btn-sub-mercados" style="flex: 1; background: var(--accent);">Mercados</button>
-                    <button onclick="cambiarSubpestanaAdmin('soporte')" id="btn-sub-soporte" style="flex: 1; background: var(--border-color); color: var(--text-color);">Soporte (Admin)</button>
-                </div>
-                
-                <div id="admin-subpanel-mercados">
-                    <div id="admin-mercados-container">
-                        <p style="font-size: 12px; color: var(--subtext);">Cargando mercados para gestión...</p>
-                    </div>
-                </div>
-
-                <div id="admin-subpanel-soporte" style="display: none;">
-                    <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px;">Bandeja de Entrada de Soporte (Usuarios)</div>
-                    <div id="admin-soporte-chats-container" style="display: flex; flex-direction: column; gap: 8px;">
-                        <div style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 10px; border-radius: 6px;">
-                            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
-                                <b>Usuario: PiUser_9921</b>
-                                <span style="color: var(--subtext); font-size: 10px;">Reciente</span>
-                            </div>
-                            <p style="font-size: 11px; color: var(--subtext); margin-bottom: 8px;">"Hola, tengo un problema al reclamar las ganancias de mi apuesta."</p>
-                            <div style="display: flex; gap: 6px;">
-                                <input type="text" id="admin-reply-9921" placeholder="Responder..." style="margin-bottom: 0 !important; font-size: 11px; padding: 4px 8px;">
-                                <button onclick="enviarRespuestaAdmin()" style="background: var(--chat-primary); font-size: 11px; padding: 4px 10px;">Enviar</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        <!-- ACORDEÓN: Historial de Depósitos / Retiros -->
+        <div class="accordion-card" id="acc-wallet">
+            <button class="accordion-header" onclick="toggleAccordion('acc-wallet')">
+                <span>💳 Historial de Depósitos / Retiros</span>
+                <span>▾</span>
+            </button>
+            <div class="accordion-content">
+                <div>Historial de saldo y movimientos en la red Pi vacía.</div>
             </div>
         </div>
     </div>
 
-    <!-- Contenedor Toast -->
-    <div id="toast-container" class="toast-container"></div>
+    <!-- VISTA: CREAR MERCADO -->
+    <div id="view-crear" class="section-view">
+        <div class="market-card">
+            <div class="market-title" style="margin-bottom: 12px;">Crear Nuevo Mercado Descentralizado</div>
+            <div class="form-group">
+                <label>Pregunta del Evento</label>
+                <input type="text" class="form-control" id="new-question" placeholder="Ej: ¿Lanzarán cohete exitoso mañana?">
+            </div>
+            <div class="form-group">
+                <label>Categoría</label>
+                <select class="form-control" id="new-category">
+                    <option value="Crypto">Crypto</option>
+                    <option value="Deportes">Deportes</option>
+                    <option value="Política">Política</option>
+                </select>
+            </div>
+            <button class="action-btn" onclick="crearMercado()" style="width: 100%; margin-top: 5px;">Publicar Mercado</button>
+        </div>
+    </div>
+
+    <!-- VISTA: RANKING -->
+    <div id="view-ranking" class="section-view">
+        <div class="market-card">
+            <div class="market-title">Ranking Global de Predictores</div>
+            <div id="ranking-content" style="font-size: 0.85rem; color: var(--text-muted);">
+                Cargando tabla de posiciones...
+            </div>
+        </div>
+    </div>
+
+    <!-- VISTA: ADMIN -->
+    <div id="view-admin" class="section-view">
+        <div class="market-card">
+            <div class="market-title">Panel de Administración</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Saldo Treasury App: <span id="admin-treasury" style="color: #38bdf8;">Cargando...</span></p>
+            <div id="admin-markets-list" style="margin-top: 10px; font-size: 0.85rem; color: var(--text-muted);">
+                Cargando mercados para moderación...
+            </div>
+        </div>
+    </div>
+
+    <!-- Soporte Directo Desplegable -->
+    <div class="support-card" id="support-box">
+        <button class="support-header" onclick="toggleSupport()">
+            <span>💬 Soporte Directo P2Ppredict</span>
+            <span>▾</span>
+        </button>
+        <div class="support-body">
+            <div class="chat-messages" id="chat-messages">
+                Cargando mensajes...
+            </div>
+            <div class="chat-input-area">
+                <input type="text" class="chat-input" id="chat-input" placeholder="Escribe tu duda...">
+                <button class="chat-send-btn" onclick="enviarMensajeSoporte()">Enviar</button>
+            </div>
+        </div>
+    </div>
 
     <script>
-        const PASSWORD_MAESTRA = "Anthony*2023";
-        let adminAutenticado = false;
-        let categoriaFiltroActual = 'todos';
-
-        // Inicialización al cargar la página
-        document.addEventListener('DOMContentLoaded', () => {
-            renderizarMercados();
-        });
-
-        /**
-         * Realiza llamadas fetch con reintentos automáticos y espera exponencial.
-         * Soluciona los bloqueos y errores de red cuando Render se encuentra en modo suspensión.
-         */
-        async function fetchConReintento(url, opciones = {}, reintentos = 3, demora = 2000) {
-            try {
-                const respuesta = await fetch(url, opciones);
-                
-                if ([502, 503, 504].includes(respuesta.status) && reintentos > 0) {
-                    actualizarEstadoUI(`Servidor despertando... Reintentando (${reintentos})`);
-                    await new Promise(res => setTimeout(res, demora));
-                    return fetchConReintento(url, opciones, reintentos - 1, demora * 1.5);
-                }
-                
-                actualizarEstadoUI("Conectado a la Red P2P Descentralizada");
-                return respuesta;
-            } catch (error) {
-                if (reintentos > 0) {
-                    actualizarEstadoUI(`Conectando con nodo P2P... (${reintentos} intentos restantes)`);
-                    await new Promise(res => setTimeout(res, demora));
-                    return fetchConReintento(url, opciones, reintentos - 1, demora * 1.5);
-                }
-                actualizarEstadoUI("Error de red: Servidor no disponible temporalmente.");
-                throw error;
-            }
+        // Funcionalidad de acordeones avanzados
+        function toggleAccordion(id) {
+            const card = document.getElementById(id);
+            card.classList.toggle('open');
         }
 
-        function actualizarEstadoUI(mensaje) {
-            const lbl = document.getElementById('lbl-estado-conexion');
-            if (lbl) {
-                lbl.textContent = mensaje;
-            }
+        function toggleSupport() {
+            const box = document.getElementById('support-box');
+            box.classList.toggle('open');
         }
 
-        function cambiarVista(vista) {
-            document.getElementById('vista-usuario').style.display = vista === 'usuario' ? 'block' : 'none';
-            document.getElementById('vista-crear-mercado').style.display = vista === 'crear' ? 'block' : 'none';
-            document.getElementById('vista-ranking').style.display = vista === 'ranking' ? 'block' : 'none';
-            document.getElementById('vista-admin').style.display = vista === 'admin' ? 'block' : 'none';
-
-            document.getElementById('tab-user').classList.toggle('activo', vista === 'usuario');
-            document.getElementById('tab-crear').classList.toggle('activo', vista === 'crear');
-            document.getElementById('tab-rank').classList.toggle('activo', vista === 'ranking');
-            document.getElementById('tab-adm').classList.toggle('activo', vista === 'admin');
-
-            if (vista === 'usuario') {
-                renderizarMercados();
-            } else if (vista === 'ranking') {
-                cargarRanking();
-            } else if (vista === 'admin') {
-                if (adminAutenticado) {
-                    document.getElementById('admin-login-box').style.display = 'none';
-                    document.getElementById('admin-dashboard-box').style.display = 'block';
-                    actualizarSaldoApp();
-                    cargarMercadosAdmin();
-                } else {
-                    document.getElementById('admin-login-box').style.display = 'block';
-                    document.getElementById('admin-dashboard-box').style.display = 'none';
-                }
-            }
-        }
-
-        function verificarClaveAdmin() {
-            const input = document.getElementById('input-admin-pass');
-            if (!input) return;
-
-            if (input.value === PASSWORD_MAESTRA) {
-                adminAutenticado = true;
-                input.value = '';
-                mostrarToast("Acceso concedido. Bienvenido al panel maestro.");
-                document.getElementById('admin-login-box').style.display = 'none';
-                document.getElementById('admin-dashboard-box').style.display = 'block';
-                actualizarSaldoApp();
-                cargarMercadosAdmin();
+        function toggleTheme() {
+            const body = document.body;
+            if (body.getAttribute('data-theme') === 'dark') {
+                body.setAttribute('data-theme', 'light');
             } else {
-                mostrarToast("Contraseña incorrecta. Acceso denegado.", true);
+                body.setAttribute('data-theme', 'dark');
             }
         }
 
-        function cerrarSesionAdmin() {
-            adminAutenticado = false;
-            document.getElementById('admin-dashboard-box').style.display = 'none';
-            document.getElementById('admin-login-box').style.display = 'block';
-            mostrarToast("Sesión de administrador cerrada.");
-        }
-
-        async function actualizarSaldoApp() {
-            const lblBalance = document.getElementById('admin-app-balance');
-            if (!lblBalance) return;
-            lblBalance.textContent = "Cargando...";
-
-            try {
-                const response = await fetchConReintento('/api/admin/app-wallet-balance', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': 'Bearer ' + (localStorage.getItem('admin_token') || '')
-                    }
-                });
-
-                if (!response.ok) throw new Error("Error en respuesta");
-
-                const data = await response.json();
-                if (data.success) {
-                    lblBalance.textContent = `${data.balance} Pi`;
-                } else {
-                    lblBalance.textContent = "Error al cargar";
-                }
-            } catch (error) {
-                console.error("No se pudo obtener el balance de la app:", error);
-                lblBalance.textContent = "Sin conexión";
-            }
-        }
-
-        function cambiarSubpestanaAdmin(sub) {
-            const btnMercados = document.getElementById('btn-sub-mercados');
-            const btnSoporte = document.getElementById('btn-sub-soporte');
-            const panelMercados = document.getElementById('admin-subpanel-mercados');
-            const panelSoporte = document.getElementById('admin-subpanel-soporte');
-
-            if (sub === 'mercados') {
-                btnMercados.style.background = 'var(--accent)';
-                btnMercados.style.color = '#fff';
-                btnSoporte.style.background = 'var(--border-color)';
-                btnSoporte.style.color = 'var(--text-color)';
-                panelMercados.style.display = 'block';
-                panelSoporte.style.display = 'none';
-            } else {
-                btnSoporte.style.background = 'var(--chat-primary)';
-                btnSoporte.style.color = '#fff';
-                btnMercados.style.background = 'var(--border-color)';
-                btnMercados.style.color = 'var(--text-color)';
-                panelSoporte.style.display = 'block';
-                panelMercados.style.display = 'none';
-            }
-        }
-
-        function toggleChatSoporte() {
-            const bodyContainer = document.getElementById('contenedor-chat-soporte');
-            const chevron = document.getElementById('support-chevron');
-            if (bodyContainer.style.display === 'block') {
-                bodyContainer.style.display = 'none';
-                chevron.textContent = '▾';
-            } else {
-                bodyContainer.style.display = 'block';
-                chevron.textContent = '▴';
-            }
-        }
-
-        function enviarMensajeSoporte() {
-            const input = document.getElementById('input-mensaje-soporte');
-            const caja = document.getElementById('caja-mensajes-soporte');
-            if (!input || !input.value.trim() || !caja) return;
-
-            const texto = input.value.trim();
-            const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-            caja.innerHTML += `
-                <div class="chat-bubble user">
-                    <span class="chat-sender-name">Tú</span>
-                    ${texto}
-                    <span class="chat-time">${horaActual}</span>
-                </div>
-            `;
-            input.value = '';
-            caja.scrollTop = caja.scrollHeight;
-
-            setTimeout(() => {
-                caja.innerHTML += `
-                    <div class="chat-bubble admin">
-                        <span class="chat-sender-name">Soporte P2Ppredict</span>
-                        Hemos recibido tu mensaje correctamente.
-                        <span class="chat-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                `;
-                caja.scrollTop = caja.scrollHeight;
-            }, 1000);
-        }
-
-        function enviarRespuestaAdmin() {
-            const input = document.getElementById('admin-reply-9921');
-            if (!input || !input.value.trim()) return;
-            mostrarToast("Respuesta enviada al usuario correctamente.");
-            input.value = '';
-        }
-
-        function mostrarToast(mensaje, esError = false) {
-            const container = document.getElementById('toast-container');
-            if (!container) return;
-            const toast = document.createElement('div');
-            toast.className = `toast ${esError ? 'error' : ''}`;
-            toast.textContent = mensaje;
-            container.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        }
-
-        function toggleTemaVisual() {
-            document.body.classList.toggle('light-mode');
-        }
-
-        function filtrarCategoria(cat, badge) {
-            document.querySelectorAll('.filter-badge').forEach(b => b.classList.remove('activo'));
-            badge.classList.add('activo');
-            categoriaFiltroActual = cat;
-            renderizarMercados();
-        }
-
-        // ================= INTEGRACIÓN DE ENDPOINTS BACKEND =================
-
-        async function renderizarMercados() {
-            const contenedor = document.getElementById('mercados-container');
-            const textoBusqueda = document.getElementById('input-buscar') ? document.getElementById('input-buscar').value.toLowerCase() : '';
-            if (!contenedor) return;
+        function switchTab(tabName, btn) {
+            document.querySelectorAll('.section-view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
             
-            try {
-                const response = await fetchConReintento('/api/eventos');
-                const eventos = await response.json();
-                
-                contenedor.innerHTML = '';
-                
-                // Filtrar por categoría y texto de búsqueda
-                const eventosFiltrados = eventos.filter(ev => {
-                    const coincideCat = (categoriaFiltroActual === 'todos' || ev.categoria === categoriaFiltroActual);
-                    const coincideTexto = ev.titulo.toLowerCase().includes(textoBusqueda);
-                    return coincideCat && coincideTexto;
-                });
+            document.getElementById('view-' + tabName).classList.add('active');
+            btn.classList.add('active');
 
-                if (eventosFiltrados.length === 0) {
-                    contenedor.innerHTML = '<div class="card"><p style="font-size: 12px; color: var(--subtext); text-align: center;">No hay mercados activos en este momento.</p></div>';
-                    return;
-                }
-
-                eventosFiltrados.forEach(ev => {
-                    let opcionesHtml = '';
-                    if (ev.opciones && ev.opciones.length > 0) {
-                        ev.opciones.forEach(opt => {
-                            opcionesHtml += `<button onclick="participarEnMercado(${ev.id}, ${opt.id})" style="flex: 1; background: var(--accent); margin-top: 6px;">${opt.nombre} (Pozo: ${opt.pozo || 0} Pi)</button>`;
-                        });
-                    } else {
-                        // Opciones por defecto si la estructura viene simplificada
-                        opcionesHtml = `
-                            <button onclick="participarEnMercado(${ev.id}, 1)" style="flex: 1; background: #238636; margin-top: 6px;">SÍ</button>
-                            <button onclick="participarEnMercado(${ev.id}, 2)" style="flex: 1; background: #8957e5; margin-top: 6px;">NO</button>
-                        `;
-                    }
-
-                    contenedor.innerHTML += `
-                        <div class="card">
-                            <h3>${ev.titulo}</h3>
-                            <div style="font-size: 11px; color: var(--subtext); margin-bottom: 8px;">Categoría: ${ev.categoria || 'General'} | Cierre: ${ev.fecha_cierre || 'Próximo'}</div>
-                            <div style="display: flex; gap: 6px;">
-                                ${opcionesHtml}
-                            </div>
-                        </div>
-                    `;
-                });
-            } catch (error) {
-                console.error("Error al cargar mercados:", error);
-                contenedor.innerHTML = '<div class="card"><p style="font-size: 12px; color: #da3633; text-align: center;">Error al conectar con la red de mercados.</p></div>';
-            }
+            if (tabName === 'ranking') cargarRanking();
+            if (tabName === 'admin') cargarAdminData();
         }
 
-        async function participarEnMercado(eventoId, opcionId) {
-            const usernameSpan = document.getElementById('pi-username');
-            const username = usernameSpan ? usernameSpan.textContent : "Invitado";
-            const montoStr = prompt("¿Cuántos Pi deseas apostar?", "1.0");
-            if (!montoStr) return;
-            const monto = parseFloat(montoStr);
+        // Conectividad Backend Flask
+        let currentCategory = 'Todos';
 
-            if (isNaN(monto) || monto <= 0) {
-                mostrarToast("Por favor ingresa un monto válido.", true);
-                return;
-            }
-
+        async function cargarMercados() {
             try {
-                const response = await fetchConReintento('/api/participar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, evento_id: eventoId, opcion_id: opcionId, monto })
-                });
-                const data = await response.json();
-                if (response.ok && (data.success !== false)) {
-                    mostrarToast(data.mensaje || "Apuesta registrada en la red P2P");
-                    renderizarMercados();
-                } else {
-                    mostrarToast(data.error || "No se pudo procesar la participación", true);
-                }
+                const res = await fetch('/api/eventos');
+                const mercados = await res.json();
+                renderizarMercados(mercados);
             } catch (e) {
-                mostrarToast("Error de conexión al participar", true);
+                document.getElementById('markets-container').innerHTML = `
+                    <div class="market-card">
+                        <div class="market-title" style="color: #ef4444;">Error al conectar con el servidor</div>
+                        <div class="market-meta">Asegúrate de que Render esté activo o recarga la página.</div>
+                    </div>`;
             }
         }
 
-        async function enviarCrearMercado() {
-            const tituloInput = document.getElementById('crear-titulo');
-            const categoriaSelect = document.getElementById('crear-categoria');
-            const cierreInput = document.getElementById('crear-cierre');
-            
-            if (!tituloInput || !tituloInput.value.trim()) {
-                mostrarToast("El título del mercado es obligatorio.", true);
+        function renderizarMercados(mercados) {
+            const container = document.getElementById('markets-container');
+            const busqueda = document.getElementById('search-input').value.toLowerCase();
+
+            let filtrados = mercados.filter(m => {
+                const matchCat = currentCategory === 'Todos' || m.categoria === currentCategory;
+                const matchSearch = m.pregunta.toLowerCase().includes(busqueda);
+                return matchCat && matchSearch;
+            });
+
+            if (filtrados.length === 0) {
+                container.innerHTML = `<div class="market-card"><div class="market-title">No hay mercados disponibles</div></div>`;
                 return;
             }
 
-            const titulo = tituloInput.value.trim();
-            const categoria = categoriaSelect ? categoriaSelect.value : 'Crypto';
-            const fecha_cierre = cierreInput && cierreInput.value.trim() ? cierreInput.value.trim() : '2026-12-31';
-            const creador = document.getElementById('pi-username') ? document.getElementById('pi-username').textContent : 'PiUser';
+            container.innerHTML = filtrados.map(m => `
+                <div class="market-card">
+                    <div class="market-title">${m.pregunta}</div>
+                    <div class="market-meta">Categoría: ${m.categoria} | Creador: ${m.creador || 'P2Puser'}</div>
+                    <button class="action-btn" onclick="participar(${m.id})">Participar con 1 Pi</button>
+                </div>
+            `).join('');
+        }
 
+        function setCategory(cat, btn) {
+            currentCategory = cat;
+            document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            cargarMercados();
+        }
+
+        function filtrarMercados() {
+            cargarMercados();
+        }
+
+        async function participar(idEvento) {
             try {
-                const response = await fetchConReintento('/api/crear-evento', {
+                const res = await fetch('/api/participar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ titulo, categoria, fecha_cierre, creador })
+                    body: JSON.stringify({ evento_id: idEvento, monto: 1 })
                 });
-                const data = await response.json();
-                if (response.ok && (data.success !== false)) {
-                    mostrarToast("Mercado lanzado a la red con éxito.");
-                    tituloInput.value = '';
-                    if (cierreInput) cierreInput.value = '';
-                    cambiarVista('usuario');
-                } else {
-                    mostrarToast(data.error || "Error al crear el mercado", true);
-                }
-            } catch (error) {
-                mostrarToast("Error de conexión al crear el mercado.", true);
+                const data = await res.json();
+                alert(data.mensaje || "¡Participación registrada con éxito!");
+            } catch (e) {
+                alert("Error al procesar la participación.");
+            }
+        }
+
+        async function crearMercado() {
+            const pregunta = document.getElementById('new-question').value;
+            const categoria = document.getElementById('new-category').value;
+            if (!pregunta) {
+                alert("Escribe una pregunta para el mercado.");
+                return;
+            }
+            try {
+                const res = await fetch('/api/crear-evento', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pregunta, categoria })
+                });
+                const data = await res.json();
+                alert(data.mensaje || "¡Mercado creado exitosamente!");
+                document.getElementById('new-question').value = '';
+                switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
+                cargarMercados();
+            } catch (e) {
+                alert("Error al crear el mercado.");
             }
         }
 
         async function cargarRanking() {
-            const contenedor = document.getElementById('ranking-container');
-            if (!contenedor) return;
-
             try {
-                const response = await fetchConReintento('/api/ranking');
-                const ranking = await response.json();
-
-                contenedor.innerHTML = '';
-                if (!ranking || ranking.length === 0) {
-                    contenedor.innerHTML = '<p style="font-size: 12px; color: var(--subtext);">Aún no hay registros en el ranking.</p>';
-                    return;
-                }
-
-                ranking.forEach((item, index) => {
-                    contenedor.innerHTML += `<p style="font-size: 12px; color: var(--subtext); margin-bottom: 4px;">${index + 1}. ${item.username || item.usuario} - ${item.ganancias || item.puntuacion || 0} Pi ganados</p>`;
-                });
+                const res = await fetch('/api/ranking');
+                const data = await res.json();
+                document.getElementById('ranking-content').innerHTML = JSON.stringify(data, null, 2);
             } catch (e) {
-                contenedor.innerHTML = '<p style="font-size: 12px; color: #da3633;">No se pudo cargar el ranking.</p>';
+                document.getElementById('ranking-content').innerHTML = "No se pudo cargar el ranking.";
             }
         }
 
-        async function cargarMercadosAdmin() {
-            const contenedor = document.getElementById('admin-mercados-container');
-            if (!contenedor) return;
-
+        async function cargarAdminData() {
             try {
-                const response = await fetchConReintento('/api/eventos');
-                const eventos = await response.json();
+                const resBal = await fetch('/api/admin/app-wallet-balance');
+                const balData = await resBal.json();
+                document.getElementById('admin-treasury').innerText = (balData.balance || '0.00') + ' Pi';
 
-                contenedor.innerHTML = '';
-                if (!eventos || eventos.length === 0) {
-                    contenedor.innerHTML = '<div class="card" style="background: var(--bg-color);"><p style="font-size: 12px; color: var(--subtext); text-align: center;">No hay mercados para administrar.</p></div>';
-                    return;
-                }
-
-                eventos.forEach(ev => {
-                    contenedor.innerHTML += `
-                        <div class="card" style="background: var(--bg-color); margin-bottom: 12px;">
-                            <div class="admin-alert-badge">⚠️ Mercado ID: ${ev.id}</div>
-                            <div style="font-size: 13px; font-weight: bold; margin-bottom: 4px;">${ev.titulo}</div>
-                            <div style="font-size: 11px; color: var(--subtext); margin-bottom: 10px;">Estado: ${ev.estado || 'Activo'} | Creador: ${ev.creador || 'Comunidad'}</div>
-                            
-                            <div style="display: flex; flex-direction: column; gap: 6px;">
-                                <div style="display: flex; gap: 6px;">
-                                    <span style="font-size: 11px; font-weight: bold; align-self: center; width: 75px;">Resolver:</span>
-                                    <button onclick="resolverResultadoAdmin(${ev.id}, 'SÍ')" style="background: #238636; flex: 1; padding: 4px; font-size: 11px;">Ganó SÍ</button>
-                                    <button onclick="resolverResultadoAdmin(${ev.id}, 'NO')" style="background: #8957e5; flex: 1; padding: 4px; font-size: 11px;">Ganó NO</button>
-                                </div>
-                                <div style="display: flex; gap: 6px; border-top: 1px solid var(--border-color); padding-top: 6px; margin-top: 4px;">
-                                    <button onclick="accionModeracionAdmin(${ev.id}, 'censurar')" style="background: #da3633; padding: 4px 8px; font-size: 10px;">Censurar</button>
-                                    <button onclick="accionModeracionAdmin(${ev.id}, 'reembolsar')" style="background: var(--border-color); color: var(--text-color); padding: 4px 8px; font-size: 10px;">Reembolso Masivo</button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
+                const resEv = await fetch('/api/eventos');
+                const evData = await resEv.json();
+                document.getElementById('admin-markets-list').innerHTML = evData.map(e => `
+                    <div style="border-bottom: 1px solid var(--border-color); padding: 6px 0;">
+                        <b>[#${e.id}]</b> ${e.pregunta}
+                    </div>
+                `).join('') || "No hay mercados activos.";
             } catch (e) {
-                contenedor.innerHTML = '<p style="font-size: 12px; color: #da3633;">Error al cargar mercados de administración.</p>';
+                document.getElementById('admin-treasury').innerText = "Error";
             }
         }
 
-        async function resolverResultadoAdmin(eventoId, ganador) {
-            try {
-                const response = await fetchConReintento(`/api/admin/resolver/${eventoId}`, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + (localStorage.getItem('admin_token') || '')
-                    },
-                    body: JSON.stringify({ ganador })
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    mostrarToast(`Mercado resuelto con éxito. Ganador: ${ganador}.`);
-                    cargarMercadosAdmin();
-                    renderizarMercados();
-                } else {
-                    mostrarToast(data.error || "Error al resolver el mercado", true);
-                }
-            } catch (e) {
-                mostrarToast("Error de conexión al resolver el mercado.", true);
-            }
+        function enviarMensajeSoporte() {
+            const input = document.getElementById('chat-input');
+            const chatMsgs = document.getElementById('chat-messages');
+            if (!input.value.trim()) return;
+            
+            chatMsgs.innerHTML += `<div style="margin-bottom: 4px;"><b>Tú:</b> ${input.value}</div>`;
+            input.value = '';
+            chatMsgs.scrollTop = chatMsgs.scrollHeight;
         }
 
-        async function accionModeracionAdmin(eventoId, tipo) {
-            const endpoint = tipo === 'censurar' ? `/api/admin/censurar/${eventoId}` : `/api/admin/reembolsar/${eventoId}`;
-            try {
-                const response = await fetchConReintento(endpoint, {
-                    method: 'POST',
-                    headers: { 
-                        'Authorization': 'Bearer ' + (localStorage.getItem('admin_token') || '')
-                    }
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    mostrarToast(tipo === 'censurar' ? "Mercado censurado con éxito." : "Reembolso masivo procesado.");
-                    cargarMercadosAdmin();
-                    renderizarMercados();
-                } else {
-                    mostrarToast(data.error || "Error en la acción de moderación", true);
-                }
-            } catch (e) {
-                mostrarToast("Error de conexión en moderación.", true);
-            }
-        }
+        // Carga inicial
+        window.onload = () => {
+            cargarMercados();
+            document.getElementById('chat-messages').innerHTML = "<div>Soporte P2Ppredict: Hola, ¿en qué podemos ayudarte hoy?</div>";
+        };
     </script>
 </body>
 </html>
