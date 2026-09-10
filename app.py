@@ -32,8 +32,10 @@ def obtener_conexion():
     else:
         # Respaldo local SQLite si la URL externa no estuviera configurada
         import sqlite3
-        conn = sqlite3.connect("p2ppredict.db")
+        conn = sqlite3.connect("p2ppredict.db", timeout=30.0)
         conn.row_factory = sqlite3.Row
+        # Activar modo WAL para mejorar concurrencia en SQLite
+        conn.execute("PRAGMA journal_mode=WAL;")
         return conn
 
 def inicializar_bd():
@@ -276,7 +278,7 @@ def obtener_eventos():
 
 @app.route("/api/participar", methods=["POST"])
 def participar():
-    data = request.json
+    data = request.json or {}
     username = data.get("username", "Invitado")
     evento_id = data.get("evento_id")
     opcion_id = data.get("opcion_id")
@@ -390,7 +392,6 @@ def reclamar_premio():
             conn.close()
             return jsonify({"success": False, "error": "Este evento no tiene un ganador registrado"})
 
-        # Verificar si el usuario ya reclamó premio para este evento en el historial
         titulo_evento = evento["titulo"]
         if DATABASE_URL:
             c.execute("SELECT * FROM historial_apuestas WHERE username = %s AND titulo_evento = %s AND estado = 'Reclamado'", (username, titulo_evento))
@@ -401,7 +402,6 @@ def reclamar_premio():
             conn.close()
             return jsonify({"success": False, "error": "Ya has reclamado el premio de este evento."})
 
-        # Buscar opciones y pozos
         if DATABASE_URL:
             c.execute("SELECT * FROM opciones_evento WHERE evento_id = %s", (evento_id,))
         else:
@@ -418,7 +418,6 @@ def reclamar_premio():
 
         pozo_ganador = opcion_ganadora["pozo"]
 
-        # Buscar las apuestas del usuario para este evento y la opción ganadora
         if DATABASE_URL:
             c.execute("SELECT * FROM historial_apuestas WHERE username = %s AND titulo_evento = %s AND opcion_elegida = %s AND estado = 'Activo'", 
                       (username, titulo_evento, opcion_ganadora["nombre"]))
@@ -433,11 +432,8 @@ def reclamar_premio():
             return jsonify({"success": False, "error": "No posees apuestas activas en la opción ganadora de este evento"})
 
         monto_apostado_usuario = sum(ap["monto"] for ap in apuestas_usuario)
-        
-        # Cálculo proporcional: (monto_apostado_usuario / pozo_ganador) * pozo_total
         premio = (monto_apostado_usuario / pozo_ganador) * pozo_total
 
-        # Actualizar saldo del usuario
         if DATABASE_URL:
             c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
         else:
@@ -478,7 +474,7 @@ def reclamar_premio():
 
 @app.route("/api/pi/aprobar-pago", methods=["POST"])
 def aprobar_pago():
-    data = request.json
+    data = request.json or {}
     payment_id = data.get("paymentId")
     if not PI_API_KEY:
         return jsonify({"success": False, "error": "PI_API_KEY no configurada en el servidor"}), 500
@@ -495,7 +491,7 @@ def aprobar_pago():
 
 @app.route("/api/pi/completar-pago", methods=["POST"])
 def completar_pago():
-    data = request.json
+    data = request.json or {}
     username = data.get("username")
     monto = float(data.get("monto", 0))
     payment_id = data.get("paymentId")
@@ -556,7 +552,7 @@ def completar_pago():
 
 @app.route("/api/retirar", methods=["POST"])
 def solicitar_retiro():
-    data = request.json
+    data = request.json or {}
     username = data.get("username")
     monto = float(data.get("monto", 0))
 
@@ -819,10 +815,9 @@ def admin_verificar_sesion():
         return jsonify({"success": True, "is_admin": True})
     return jsonify({"success": True, "is_admin": False}), 403
 
-# ================= NUEVO ENDPOINT: BALANCE DE LA BILLETERA DE LA APLICACIÓN =================
+# ================= ENDPOINT: BALANCE DE LA BILLETERA DE LA APLICACIÓN =================
 @app.route("/api/admin/app-wallet-balance", methods=["GET"])
 def admin_app_wallet_balance():
-    # Validación estricta de sesión de administrador o token Bearer opcional
     auth_header = request.headers.get("Authorization", "")
     es_admin_valido = session.get('is_admin') or (auth_header.startswith("Bearer ") and auth_header.split(" ")[1] == "AUTH_VALIDO")
     
@@ -832,7 +827,6 @@ def admin_app_wallet_balance():
     conn = obtener_conexion()
     c = conn.cursor()
     try:
-        # Sumamos todos los fondos apostados en los pozos activos más los saldos en usuarios o fee acumulado
         c.execute("SELECT SUM(pozo) as total_pozos FROM opciones_evento")
         row_pozos = c.fetchone()
         total_pozos = row_pozos["total_pozos"] if row_pozos and row_pozos["total_pozos"] else 0.0
@@ -841,7 +835,6 @@ def admin_app_wallet_balance():
         row_saldos = c.fetchone()
         total_saldos = row_saldos["total_saldos"] if row_saldos and row_saldos["total_saldos"] else 0.0
 
-        # Balance de treasury representativo (ej: suma de liquidez global administrada o un estimado estándar)
         balance_treasury = round(total_pozos + (total_saldos * 0.05), 2)
         
         return jsonify({
@@ -867,7 +860,7 @@ def resolver_evento():
     if not session.get('is_admin'):
         return jsonify({"success": False, "error": "No autorizado"}), 403
 
-    data = request.json
+    data = request.json or {}
     evento_id = data.get("evento_id")
     ganador_id = data.get("ganador_id")
 
@@ -1080,10 +1073,8 @@ def admin_finanzas():
     c.execute("SELECT SUM(saldo_disponible) as total_saldo, COUNT(*) as total_usuarios FROM usuarios")
     res_usuarios = c.fetchone()
     
-    if DATABASE_URL:
-        c.execute("SELECT tipo, SUM(monto) as suma_monto FROM transacciones GROUP BY tipo")
-    else:
-        c.execute("SELECT tipo, SUM(monto) as suma_monto FROM transacciones GROUP BY tipo")
+    # Agrupación segura universal
+    c.execute("SELECT tipo, SUM(monto) as suma_monto FROM transacciones GROUP BY tipo")
     res_transacciones = [dict(row) for row in c.fetchall()]
     
     c.execute("SELECT * FROM transacciones ORDER BY id DESC LIMIT 20")
