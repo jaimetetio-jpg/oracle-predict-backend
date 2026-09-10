@@ -142,73 +142,9 @@
             margin-bottom: 16px;
         }
 
-        .header-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .badge-categoria {
-            background-color: rgba(31, 111, 235, 0.15);
-            color: var(--accent);
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: bold;
-        }
-
-        .badge-activo {
-            color: #3fb950;
-            font-size: 11px;
-            font-weight: bold;
-        }
-
         h3 {
             font-size: 16px;
             margin-bottom: 8px;
-        }
-
-        .pozo-global {
-            font-size: 13px;
-            font-weight: bold;
-            color: #3fb950;
-            margin-bottom: 4px;
-        }
-
-        .opciones-container {
-            margin-top: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .opcion-row {
-            background: var(--bg-color);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 10px;
-        }
-
-        .opcion-row-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .info-opcion {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .nombre-opcion {
-            font-size: 13px;
-            font-weight: bold;
-        }
-
-        .stats-opcion {
-            font-size: 11px;
-            color: var(--subtext);
         }
 
         button {
@@ -226,42 +162,6 @@
             background-color: var(--accent-hover);
         }
 
-        .chart-container {
-            height: 40px;
-            margin-top: 6px;
-        }
-
-        .clob-panel {
-            display: none;
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px dashed var(--border-color);
-        }
-
-        .clob-tabs {
-            display: flex;
-            background: var(--bg-color);
-            border-radius: 4px;
-            border: 1px solid var(--border-color);
-            margin-bottom: 8px;
-            overflow: hidden;
-        }
-
-        .clob-tab {
-            flex: 1;
-            text-align: center;
-            font-size: 11px;
-            padding: 4px;
-            cursor: pointer;
-            color: var(--subtext);
-        }
-
-        .clob-tab.activo {
-            background: var(--accent);
-            color: #fff;
-            font-weight: bold;
-        }
-
         input[type="number"], input[type="text"], input[type="password"], select {
             width: 100%;
             background: var(--bg-color);
@@ -277,34 +177,6 @@
 
         input[type="text"]:focus, input[type="number"]:focus, input[type="password"]:focus, select:focus {
             border-color: var(--accent);
-        }
-
-        .zap-container {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 8px;
-        }
-
-        .btn-zap {
-            flex: 1;
-            background: var(--border-color);
-            color: var(--text-color);
-            padding: 4px;
-            font-size: 10px;
-        }
-
-        .preview-ganancia-box {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            padding: 6px;
-            border-radius: 4px;
-            font-size: 11px;
-            margin-bottom: 8px;
-        }
-
-        .preview-row {
-            display: flex;
-            justify-content: space-between;
         }
 
         .filter-container {
@@ -358,35 +230,17 @@
             background: #da3633;
         }
 
-        .historial-item {
-            background: var(--bg-color);
-            border: 1px solid var(--border-color);
-            padding: 8px;
-            border-radius: 6px;
+        /* Alerta de Cierre Admin */
+        .admin-alert-badge {
+            display: inline-block;
+            background: rgba(218, 54, 51, 0.15);
+            color: #f85149;
+            border: 1px solid rgba(218, 54, 51, 0.4);
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
             margin-bottom: 6px;
-            font-size: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 200;
-        }
-
-        .modal-content {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            padding: 16px;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 400px;
+            font-weight: bold;
         }
 
         /* ================= ESTILOS CHAT DE SOPORTE ================= */
@@ -416,10 +270,6 @@
             display: flex;
             align-items: center;
             gap: 8px;
-        }
-
-        .support-icon {
-            font-size: 15px;
         }
 
         .support-body-container {
@@ -512,10 +362,6 @@
             font-weight: bold;
             white-space: nowrap;
         }
-
-        .chat-send-btn:hover {
-            opacity: 0.9;
-        }
     </style>
 </head>
 <body>
@@ -523,14 +369,14 @@
     <header>
         <div class="logo">⚡ P2Ppredict</div>
         <div class="user-info">
-            <span id="pi-username">Cargando...</span>
-            <span id="saldo-usuario" style="color: #3fb950; font-weight: bold;">0.00 Pi</span>
+            <span id="pi-username">PiUser_Mock</span>
+            <span id="saldo-usuario" style="color: #3fb950; font-weight: bold;">10.00 Pi</span>
             <button class="theme-toggle" onclick="toggleTemaVisual()">🌓 Tema</button>
         </div>
     </header>
 
     <div class="container">
-        <div id="lbl-estado-conexion" class="connection-status">Conectando a la Red P2P Descentralizada...</div>
+        <div id="lbl-estado-conexion" class="connection-status">Conectado a la Red P2P Descentralizada</div>
 
         <!-- Barra de Navegación por Pestañas -->
         <div class="nav-tabs">
@@ -549,54 +395,14 @@
                 <div class="filter-badge" onclick="filtrarCategoria('Crypto', this)">Crypto</div>
                 <div class="filter-badge" onclick="filtrarCategoria('Deportes', this)">Deportes</div>
                 <div class="filter-badge" onclick="filtrarCategoria('Política', this)">Política</div>
-                <div class="filter-badge" onclick="filtrarCategoria('Finalizados', this)">Finalizados</div>
             </div>
 
-            <!-- Panel de Billetera Rápida -->
-            <div class="card" style="padding: 12px; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <span style="font-size: 11px; color: var(--subtext);">Gestión de Fondos</span>
-                    <div style="font-weight: bold; font-size: 13px;">Billetera Pi Network</div>
-                </div>
-                <div style="display: flex; gap: 6px;">
-                    <button onclick="retirarPi()" style="background: #da3633; padding: 4px 8px; font-size: 11px;">Retirar</button>
-                    <button onclick="recargarConPi()" style="background: #238636; padding: 4px 8px; font-size: 11px;">Recargar</button>
-                </div>
-            </div>
-            <input type="number" id="input-recarga" value="5.0" step="1" style="display:none;">
-
-            <!-- Listado de Mercados -->
             <div id="mercados-container">
-                <div class="card"><span style="color: var(--subtext);">Cargando mercados descentralizados...</span></div>
-            </div>
-
-            <!-- Historiales Desplegables -->
-            <div class="card">
-                <div style="display: flex; justify-content: space-between; cursor: pointer;" onclick="toggleHistorial()">
-                    <b>📜 Mis Apuestas Realizadas</b> <span>▾</span>
+                <div class="card">
+                    <h3>¿Llegará ETH a 4k USD este mes?</h3>
+                    <div style="font-size: 11px; color: var(--subtext); margin-bottom: 8px;">Categoría: Crypto | Creador: PiUser_12</div>
+                    <button onclick="mostrarToast('Apuesta registrada en la red P2P')">Participar con 1 Pi</button>
                 </div>
-                <div id="contenedor-historial" style="display: none; margin-top: 10px;"></div>
-            </div>
-
-            <div class="card">
-                <div style="display: flex; justify-content: space-between; cursor: pointer;" onclick="toggleOrdenesAbiertas()">
-                    <b>⚡ Órdenes Limit Activas (CLOB)</b> <span>▾</span>
-                </div>
-                <div id="contenedor-ordenes-abiertas" style="display: none; margin-top: 10px;"></div>
-            </div>
-
-            <div class="card">
-                <div style="display: flex; justify-content: space-between; cursor: pointer;" onclick="toggleTradeHistory()">
-                    <b>🔄 Historial de Trades Ejecutados</b> <span>▾</span>
-                </div>
-                <div id="contenedor-trade-history" style="display: none; margin-top: 10px;"></div>
-            </div>
-
-            <div class="card">
-                <div style="display: flex; justify-content: space-between; cursor: pointer;" onclick="toggleTransacciones()">
-                    <b>💳 Historial de Depósitos / Retiros</b> <span>▾</span>
-                </div>
-                <div id="contenedor-transacciones" style="display: none; margin-top: 10px;"></div>
             </div>
 
             <!-- ================= MÓDULO DE SOPORTE DIRECTO ================= -->
@@ -610,7 +416,11 @@
                 </div>
                 <div id="contenedor-chat-soporte" class="support-body-container">
                     <div id="caja-mensajes-soporte" class="chat-messages-box">
-                        <span style="color: var(--subtext); font-size: 11px; text-align: center; margin: auto;">Cargando mensajes...</span>
+                        <div class="chat-bubble admin">
+                            <span class="chat-sender-name">Soporte P2Ppredict</span>
+                            ¡Hola! Bienvenido al canal de asistencia directa. ¿En qué podemos ayudarte hoy?
+                            <span class="chat-time">11:30</span>
+                        </div>
                     </div>
                     <div class="chat-input-wrapper">
                         <input type="text" id="input-mensaje-soporte" placeholder="Escribe tu consulta o reporte aquí...">
@@ -626,24 +436,6 @@
                 <h3 style="color: var(--accent); margin-bottom: 12px;">Crear Mercado de Predicción P2P</h3>
                 <label>Título del Mercado:</label>
                 <input type="text" id="crear-titulo" placeholder="Ej: ¿Bitcoin superará los 100k USD este mes?">
-                
-                <label>Categoría:</label>
-                <select id="crear-categoria">
-                    <option value="Crypto">Crypto</option>
-                    <option value="Deportes">Deportes</option>
-                    <option value="Política">Política</option>
-                    <option value="Tecnología">Tecnología</option>
-                </select>
-
-                <label>Opción A (Ej: Sí):</label>
-                <input type="text" id="crear-opcion-a" placeholder="Nombre de la opción 1">
-
-                <label>Opción B (Ej: No):</label>
-                <input type="text" id="crear-opcion-b" placeholder="Nombre de la opción 2">
-
-                <label>Fecha de Cierre:</label>
-                <input type="date" id="crear-cierre">
-
                 <button onclick="enviarCrearMercado()" style="width: 100%; margin-top: 10px;">Lanzar Mercado a la Red</button>
             </div>
         </div>
@@ -652,9 +444,7 @@
         <div id="vista-ranking" style="display: none;">
             <div class="card">
                 <h3 style="margin-bottom: 12px;">🏆 Top Predictores de la Red</h3>
-                <div id="ranking-container">
-                    <span style="color: var(--subtext);">Cargando ranking de la red...</span>
-                </div>
+                <p style="font-size: 12px; color: var(--subtext);">1. PiUser_77 - 45.2 Pi ganados</p>
             </div>
         </div>
 
@@ -669,13 +459,13 @@
                 <button onclick="verificarClaveAdmin()" style="width: 100%; margin-top: 6px; background: #da3633;">Entrar al Panel</button>
             </div>
 
-            <!-- Panel de Control Real (Oculto hasta que ingresen la clave) -->
+            <!-- Panel de Control Real (Oculto hasta ingresar la clave correcta) -->
             <div id="admin-dashboard-box" class="card" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <h3 style="color: #da3633; margin-bottom: 0;">Panel de Control Administrativo</h3>
                     <button onclick="cerrarSesionAdmin()" style="background: var(--border-color); color: var(--text-color); padding: 2px 6px; font-size: 10px;">Bloquear</button>
                 </div>
-                <p style="font-size: 12px; color: var(--subtext); margin-bottom: 12px;">Herramientas avanzadas de gestión de mercados, reembolsos y soporte directo.</p>
+                <p style="font-size: 12px; color: var(--subtext); margin-bottom: 12px;">Herramientas avanzadas de gestión de mercados, resolución y soporte directo.</p>
                 
                 <div style="display: flex; gap: 8px; margin-bottom: 16px;">
                     <button onclick="cambiarSubpestanaAdmin('mercados')" id="btn-sub-mercados" style="flex: 1; background: var(--accent);">Mercados</button>
@@ -684,14 +474,42 @@
                 
                 <div id="admin-subpanel-mercados">
                     <div id="admin-mercados-container">
-                        <span style="color: var(--subtext);">Cargando listado para administración...</span>
+                        <div class="card" style="background: var(--bg-color); margin-bottom: 0;">
+                            <!-- Alerta de Cierre / Estado -->
+                            <div class="admin-alert-badge">⚠️ Alerta: Mercado listo para Cierre / Resolución</div>
+                            <div style="font-size: 13px; font-weight: bold; margin-bottom: 4px;">¿Llegará ETH a 4k USD?</div>
+                            <div style="font-size: 11px; color: var(--subtext); margin-bottom: 10px;">Estado: Activo | Creador: PiUser_12</div>
+                            
+                            <!-- Botones de Resolución y Moderación -->
+                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                <div style="display: flex; gap: 6px;">
+                                    <span style="font-size: 11px; font-weight: bold; align-self: center; width: 75px;">Resolver:</span>
+                                    <button onclick="resolverResultado('SÍ')" style="background: #238636; flex: 1; padding: 4px; font-size: 11px;">Ganó SÍ</button>
+                                    <button onclick="resolverResultado('NO')" style="background: #8957e5; flex: 1; padding: 4px; font-size: 11px;">Ganó NO</button>
+                                </div>
+                                <div style="display: flex; gap: 6px; border-top: 1px solid var(--border-color); padding-top: 6px; margin-top: 4px;">
+                                    <button onclick="accionModeracion('censurar')" style="background: #da3633; padding: 4px 8px; font-size: 10px;">Censurar</button>
+                                    <button onclick="accionModeracion('reembolsar')" style="background: var(--border-color); color: var(--text-color); padding: 4px 8px; font-size: 10px;">Reembolso Masivo</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div id="admin-subpanel-soporte" style="display: none;">
                     <div style="font-size: 13px; font-weight: bold; margin-bottom: 8px;">Bandeja de Entrada de Soporte (Usuarios)</div>
                     <div id="admin-soporte-chats-container" style="display: flex; flex-direction: column; gap: 8px;">
-                        <span style="color: var(--subtext); font-size: 12px;">Cargando chats de usuarios...</span>
+                        <div style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 10px; border-radius: 6px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+                                <b>Usuario: PiUser_9921</b>
+                                <span style="color: var(--subtext); font-size: 10px;">Reciente</span>
+                            </div>
+                            <p style="font-size: 11px; color: var(--subtext); margin-bottom: 8px;">"Hola, tengo un problema al reclamar las ganancias de mi apuesta."</p>
+                            <div style="display: flex; gap: 6px;">
+                                <input type="text" id="admin-reply-9921" placeholder="Responder..." style="margin-bottom: 0 !important; font-size: 11px; padding: 4px 8px;">
+                                <button onclick="enviarRespuestaAdmin()" style="background: var(--chat-primary); font-size: 11px; padding: 4px 10px;">Enviar</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -701,14 +519,7 @@
     <!-- Contenedor Toast -->
     <div id="toast-container" class="toast-container"></div>
 
-    <!-- Modal Auxiliar -->
-    <div id="modal-aux" class="modal">
-        <div class="modal-content" id="modal-body"></div>
-    </div>
-
-    <!-- Lógica de Scripts e Integración de Seguridad -->
     <script>
-        // Contraseña configurada a petición del usuario
         const PASSWORD_MAESTRA = "Anthony*2023";
         let adminAutenticado = false;
 
@@ -727,7 +538,6 @@
                 if (adminAutenticado) {
                     document.getElementById('admin-login-box').style.display = 'none';
                     document.getElementById('admin-dashboard-box').style.display = 'block';
-                    cargarPanelAdminMercados();
                 } else {
                     document.getElementById('admin-login-box').style.display = 'block';
                     document.getElementById('admin-dashboard-box').style.display = 'none';
@@ -745,7 +555,6 @@
                 mostrarToast("Acceso concedido. Bienvenido al panel maestro.");
                 document.getElementById('admin-login-box').style.display = 'none';
                 document.getElementById('admin-dashboard-box').style.display = 'block';
-                cargarPanelAdminMercados();
             } else {
                 mostrarToast("Contraseña incorrecta. Acceso denegado.", true);
             }
@@ -778,35 +587,7 @@
                 btnMercados.style.color = 'var(--text-color)';
                 panelSoporte.style.display = 'block';
                 panelMercados.style.display = 'none';
-                cargarPanelSoporteAdmin();
             }
-        }
-
-        function cargarPanelSoporteAdmin() {
-            const contenedor = document.getElementById('admin-soporte-chats-container');
-            if (!contenedor) return;
-            
-            contenedor.innerHTML = `
-                <div style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 10px; border-radius: 6px;">
-                    <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
-                        <b>Usuario: PiUser_9921</b>
-                        <span style="color: var(--subtext); font-size: 10px;">Hace 3 mins</span>
-                    </div>
-                    <p style="font-size: 11px; color: var(--subtext); margin-bottom: 8px;">"Hola, tengo un problema al reclamar las ganancias de mi apuesta en el mercado crypto."</p>
-                    <div style="display: flex; gap: 6px;">
-                        <input type="text" id="admin-reply-9921" placeholder="Responder al usuario..." style="margin-bottom: 0 !important; font-size: 11px; padding: 4px 8px;">
-                        <button onclick="enviarRespuestaAdmin('PiUser_9921')" style="background: var(--chat-primary); font-size: 11px; padding: 4px 10px;">Responder</button>
-                    </div>
-                </div>
-            `;
-        }
-
-        function enviarRespuestaAdmin(usuarioId) {
-            const input = document.getElementById(`admin-reply-${usuarioId}`);
-            if (!input || !input.value.trim()) return;
-            
-            mostrarToast("Respuesta enviada correctamente al usuario");
-            input.value = '';
         }
 
         function toggleChatSoporte() {
@@ -818,21 +599,7 @@
             } else {
                 bodyContainer.style.display = 'block';
                 chevron.textContent = '▴';
-                inicializarMensajesSoporte();
             }
-        }
-
-        function inicializarMensajesSoporte() {
-            const caja = document.getElementById('caja-mensajes-soporte');
-            if (!caja) return;
-            
-            caja.innerHTML = `
-                <div class="chat-bubble admin">
-                    <span class="chat-sender-name">Soporte P2Ppredict</span>
-                    ¡Hola! Bienvenido al canal de asistencia directa. ¿En qué podemos ayudarte hoy con tus predicciones o fondos?
-                    <span class="chat-time">11:30</span>
-                </div>
-            `;
         }
 
         function enviarMensajeSoporte() {
@@ -843,28 +610,33 @@
             const texto = input.value.trim();
             const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            const userBubble = document.createElement('div');
-            userBubble.className = 'chat-bubble user';
-            userBubble.innerHTML = `
-                <span class="chat-sender-name">Tú</span>
-                ${texto}
-                <span class="chat-time">${horaActual}</span>
+            caja.innerHTML += `
+                <div class="chat-bubble user">
+                    <span class="chat-sender-name">Tú</span>
+                    ${texto}
+                    <span class="chat-time">${horaActual}</span>
+                </div>
             `;
-            caja.appendChild(userBubble);
             input.value = '';
             caja.scrollTop = caja.scrollHeight;
 
             setTimeout(() => {
-                const adminBubble = document.createElement('div');
-                adminBubble.className = 'chat-bubble admin';
-                adminBubble.innerHTML = `
-                    <span class="chat-sender-name">Soporte P2Ppredict</span>
-                    Hemos recibido tu mensaje. Un operador o moderador validará tu caso en breve.
-                    <span class="chat-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                caja.innerHTML += `
+                    <div class="chat-bubble admin">
+                        <span class="chat-sender-name">Soporte P2Ppredict</span>
+                        Hemos recibido tu mensaje correctamente.
+                        <span class="chat-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
                 `;
-                caja.appendChild(adminBubble);
                 caja.scrollTop = caja.scrollHeight;
             }, 1000);
+        }
+
+        function enviarRespuestaAdmin() {
+            const input = document.getElementById('admin-reply-9921');
+            if (!input || !input.value.trim()) return;
+            mostrarToast("Respuesta enviada al usuario correctamente.");
+            input.value = '';
         }
 
         function mostrarToast(mensaje, esError = false) {
@@ -881,57 +653,17 @@
             document.body.classList.toggle('light-mode');
         }
 
-        function cargarPanelAdminMercados() {
-            const container = document.getElementById('admin-mercados-container');
-            if (!container) return;
-            
-            container.innerHTML = `
-                <div class="opcion-row" style="margin-bottom: 8px;">
-                    <div class="opcion-row-top">
-                        <div class="info-opcion">
-                            <span class="nombre-opcion">¿Llegará ETH a 4k USD?</span>
-                            <span class="stats-opcion">Estado: Activo | Creador: PiUser_12</span>
-                        </div>
-                        <div style="display: flex; gap: 4px;">
-                            <button onclick="accionModeracion('censurar', 1)" style="background: #da3633; padding: 3px 6px; font-size: 10px;">Censurar</button>
-                            <button onclick="accionModeracion('reembolsar', 1)" style="background: #238636; padding: 3px 6px; font-size: 10px;">Reembolso</button>
-                        </div>
-                    </div>
-                </div>
-            `;
+        function resolverResultado(ganador) {
+            mostrarToast(`Mercado resuelto con éxito. Ganador oficial: ${ganador}. Fondos distribuidos.`);
         }
 
-        function accionModeracion(tipo, idMercado) {
-            if (tipo === 'censurar') {
-                mostrarToast("Mercado censurado y ocultado de la red exitosamente.");
-            } else if (tipo === 'reembolsar') {
-                mostrarToast("Reembolso automático procesado: fondos devueltos a los participantes.");
-            }
-            cargarPanelAdminMercados();
+        function accionModeracion(tipo) {
+            mostrarToast(tipo === 'censurar' ? "Mercado censurado con éxito." : "Reembolso masivo procesado.");
         }
 
-        // Mock functions de navegación general de usuario por compatibilidad
         function renderizarMercados() {}
-        function retirarPi() { mostrarToast("Solicitud de retiro enviada a la red."); }
-        function recargarConPi() { mostrarToast("Recarga de prueba procesada con éxito."); }
-        function toggleHistorial() {
-            const el = document.getElementById('contenedor-historial');
-            el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        }
-        function toggleOrdenesAbiertas() {
-            const el = document.getElementById('contenedor-ordenes-abiertas');
-            el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        }
-        function toggleTradeHistory() {
-            const el = document.getElementById('contenedor-trade-history');
-            el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        }
-        function toggleTransacciones() {
-            const el = document.getElementById('contenedor-transacciones');
-            el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        }
         function enviarCrearMercado() {
-            mostrarToast("Mercado creado y transmitido a la red P2P.");
+            mostrarToast("Mercado creado.");
             cambiarVista('usuario');
         }
         function filtrarCategoria(cat, badge) {
