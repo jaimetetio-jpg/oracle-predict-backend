@@ -3,6 +3,7 @@ from datetime import datetime
 from flask import Flask, jsonify, render_template, request, session
 from flask_cors import CORS
 import psycopg2
+from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -18,8 +19,52 @@ ADMIN_PASSWORD_HASH = generate_password_hash(RAW_ADMIN_PASSWORD)
 PI_API_KEY = os.environ.get("PI_API_KEY", "")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-# ================= CONFIGURACIÓN DE BASE DE DATOS =================
+# ================= CONFIGURACIÓN DE POOL DE CONEXIONES Y BASE DE DATOS =================
+db_pool = None
+if DATABASE_URL:
+    try:
+        db_pool = pool.ThreadedConnectionPool(1, 25, DATABASE_URL)
+    except Exception:
+        db_pool = None
+
+class PooledConnectionWrapper:
+    def __init__(self, conn, p):
+        self.conn = conn
+        self.pool = p
+
+    def cursor(self, *args, **kwargs):
+        if 'cursor_factory' not in kwargs and not args:
+            kwargs['cursor_factory'] = RealDictCursor
+        return self.conn.cursor(*args, **kwargs)
+
+    def commit(self):
+        return self.conn.commit()
+
+    def rollback(self):
+        return self.conn.rollback()
+
+    def close(self):
+        if self.pool:
+            try:
+                self.pool.putconn(self.conn)
+            except Exception:
+                try:
+                    self.conn.close()
+                except:
+                    pass
+        else:
+            try:
+                self.conn.close()
+            except:
+                pass
+
 def obtener_conexion():
+    if DATABASE_URL and db_pool:
+        try:
+            conn = db_pool.getconn()
+            return PooledConnectionWrapper(conn, db_pool)
+        except Exception:
+            pass
     if DATABASE_URL:
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor, connect_timeout=10)
         return conn
