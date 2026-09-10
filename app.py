@@ -1,5 +1,7 @@
 import os
+import time
 from datetime import datetime
+from collections import defaultdict
 from flask import Flask, jsonify, render_template, request, session
 from flask_cors import CORS
 import psycopg2
@@ -18,6 +20,23 @@ ADMIN_PASSWORD_HASH = generate_password_hash(RAW_ADMIN_PASSWORD)
 
 PI_API_KEY = os.environ.get("PI_API_KEY", "")
 DATABASE_URL = os.environ.get("DATABASE_URL")
+
+# ================= SISTEMA DE RATE LIMITING EN MEMORIA =================
+request_records = defaultdict(list)
+
+def check_rate_limit(limit=15, window=60):
+    """
+    Limita las peticiones por IP para evitar ataques de fuerza bruta o abuso en la API.
+    Por defecto permite hasta 15 peticiones en un ventana de 60 segundos por IP.
+    """
+    ip = request.remote_addr or "127.0.0.1"
+    now = time.time()
+    # Limpiar registros antiguos fuera de la ventana de tiempo
+    request_records[ip] = [t for t in request_records[ip] if now - t < window]
+    if len(request_records[ip]) >= limit:
+        return False
+    request_records[ip].append(now)
+    return True
 
 # ================= CONFIGURACIÓN DE POOL DE CONEXIONES Y BASE DE DATOS =================
 db_pool = None
@@ -225,6 +244,15 @@ def obtener_eventos_completos():
     conn.close()
     return lista_final
 
+# ================= MIDDLEWARE DE CABECERAS DE SEGURIDAD =================
+@app.after_request
+def agregar_cabeceras_seguridad(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
+
 # ================= RUTAS DE LA APP =================
 
 @app.route("/")
@@ -312,11 +340,19 @@ def obtener_eventos():
 
 @app.route("/api/participar", methods=["POST"])
 def participar():
+    # Rate limit estricto para prevenir abusos en apuestas
+    if not check_rate_limit(limit=25, window=60):
+        return jsonify({"success": False, "error": "Demasiadas peticiones. Por favor, espera un momento."}), 429
+
     data = request.json or {}
     username = data.get("username", "Invitado")
     evento_id = data.get("evento_id")
     opcion_id = data.get("opcion_id")
-    monto = float(data.get("monto", 0))
+    
+    try:
+        monto = float(data.get("monto", 0))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "Monto inválido"}), 400
 
     if monto <= 0:
         return jsonify({"success": False, "error": "El monto debe ser mayor a 0"}), 400
@@ -419,7 +455,11 @@ def aprobar_pago():
 def completar_pago():
     data = request.json or {}
     username = data.get("username")
-    monto = float(data.get("monto", 0))
+    try:
+        monto = float(data.get("monto", 0))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "Monto inválido"}), 400
+
     payment_id = data.get("paymentId")
     txid = data.get("txid")
 
@@ -480,15 +520,23 @@ def completar_pago():
 
 @app.route("/api/pi/retirar", methods=["POST"])
 def solicitar_retiro():
+    # Rate limit estricto para solicitudes de retiro
+    if not check_rate_limit(limit=10, window=60):
+        return jsonify({"success": False, "error": "Demasiadas peticiones de retiro. Intente más tarde."}), 429
+
     data = request.json or {}
     username = data.get("username")
-    monto = float(data.get("monto", 0))
-    wallet_destino = data.get("wallet_address", "")
+    try:
+        monto = float(data.get("monto", 0))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "Monto inválido"}), 400
+
+    wallet_destino = str(data.get("wallet_address", "")).strip()
 
     if monto < 1.0:
         return jsonify({"success": False, "error": "El monto mínimo de retiro es de 1.0 Pi"}), 400
 
-    if not wallet_destino or len(wallet_destino.strip()) < 10:
+    if not wallet_destino or len(wallet_destino) < 10:
         return jsonify({"success": False, "error": "La dirección de la billetera de destino no es válida"}), 400
 
     if not PI_API_KEY:
@@ -619,11 +667,20 @@ def webhook_payout_pi():
 
 @app.route("/api/admin/login", methods=["POST"])
 def admin_login():
+    # Rate limit muy estricto para evitar ataques de fuerza bruta al panel de admin
+    if not check_rate_limit(limit=5, window=60):
+        registrar_log_admin("LOGIN_FALLIDO_RATE_LIMIT", "Demasiados intentos de acceso bloqueados por seguridad.")
+        return jsonify({"success": False, "error": "Demasiados intentos fallidos. Inténtelo más tarde."}), 429
+
     data = request.json or {}
     password = data.get("password", "")
+    
     if check_password_hash(ADMIN_PASSWORD_HASH, password):
         session['is_admin'] = True
+        registrar_log_admin("LOGIN_EXITOSO", "Administrador inició sesión correctamente.")
         return jsonify({"success": True, "message": "Acceso autorizado"})
+    
+    registrar_log_admin("LOGIN_FALLIDO", "Intento de acceso con contraseña incorrecta.")
     return jsonify({"success": False, "error": "Credenciales inválidas"}), 401
 
 @app.route("/api/admin/verificar-sesion", methods=["GET"])
