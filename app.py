@@ -273,7 +273,7 @@ def obtener_saldo(username):
     row = c.fetchone()
     
     if not row:
-        saldo_inicial = 0.1 if username.lower() in ["@jaimetetio", "jaimetetio"] else 0.0
+        saldo_inicial = 0.01 if username.lower() in ["@jaimetetio", "jaimetetio"] else 0.0
         if DATABASE_URL:
             c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (%s, %s)", (username, saldo_inicial))
             if saldo_inicial > 0:
@@ -293,7 +293,7 @@ def obtener_saldo(username):
     else:
         saldo = row["saldo_disponible"]
         if username.lower() in ["@jaimetetio", "jaimetetio"] and saldo == 0.0:
-            saldo = 0.1
+            saldo = 0.01
             if DATABASE_URL:
                 c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (saldo, username))
                 txid = f"RESTAURACION_{datetime.now().strftime('%Y%m%d%H%M%S')}"
