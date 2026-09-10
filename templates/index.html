@@ -106,6 +106,8 @@
             color: var(--subtext);
             text-align: center;
             margin-bottom: 12px;
+            padding: 4px;
+            border-radius: 4px;
         }
 
         .nav-tabs {
@@ -538,6 +540,41 @@
         const PASSWORD_MAESTRA = "Anthony*2023";
         let adminAutenticado = false;
 
+        /**
+         * Realiza llamadas fetch con reintentos automáticos y espera exponencial.
+         * Soluciona los bloqueos y errores de red cuando Render se encuentra en modo suspensión.
+         */
+        async function fetchConReintento(url, opciones = {}, reintentos = 3, demora = 2000) {
+            try {
+                const respuesta = await fetch(url, opciones);
+                
+                // Si el servidor de Render está despertando (502, 503, 504), reintentamos automáticamente
+                if ([502, 503, 504].includes(respuesta.status) && reintentos > 0) {
+                    actualizarEstadoUI(`Servidor despertando... Reintentando (${reintentos})`);
+                    await new Promise(res => setTimeout(res, demora));
+                    return fetchConReintento(url, opciones, reintentos - 1, demora * 1.5);
+                }
+                
+                actualizarEstadoUI("Conectado a la Red P2P Descentralizada");
+                return respuesta;
+            } catch (error) {
+                if (reintentos > 0) {
+                    actualizarEstadoUI(`Conectando con nodo P2P... (${reintentos} intentos restantes)`);
+                    await new Promise(res => setTimeout(res, demora));
+                    return fetchConReintento(url, opciones, reintentos - 1, demora * 1.5);
+                }
+                actualizarEstadoUI("Error de red: Servidor no disponible temporalmente.");
+                throw error;
+            }
+        }
+
+        function actualizarEstadoUI(mensaje) {
+            const lbl = document.getElementById('lbl-estado-conexion');
+            if (lbl) {
+                lbl.textContent = mensaje;
+            }
+        }
+
         function cambiarVista(vista) {
             document.getElementById('vista-usuario').style.display = vista === 'usuario' ? 'block' : 'none';
             document.getElementById('vista-crear-mercado').style.display = vista === 'crear' ? 'block' : 'none';
@@ -553,7 +590,7 @@
                 if (adminAutenticado) {
                     document.getElementById('admin-login-box').style.display = 'none';
                     document.getElementById('admin-dashboard-box').style.display = 'block';
-                    actualizarSaldoApp(); // Carga automática al entrar al panel admin
+                    actualizarSaldoApp();
                 } else {
                     document.getElementById('admin-login-box').style.display = 'block';
                     document.getElementById('admin-dashboard-box').style.display = 'none';
@@ -571,7 +608,7 @@
                 mostrarToast("Acceso concedido. Bienvenido al panel maestro.");
                 document.getElementById('admin-login-box').style.display = 'none';
                 document.getElementById('admin-dashboard-box').style.display = 'block';
-                actualizarSaldoApp(); // Consulta saldo al autenticarse
+                actualizarSaldoApp();
             } else {
                 mostrarToast("Contraseña incorrecta. Acceso denegado.", true);
             }
@@ -590,12 +627,15 @@
             lblBalance.textContent = "Cargando...";
 
             try {
-                const response = await fetch('/api/admin/app-wallet-balance', {
+                // Reemplazado fetch común por fetchConReintento
+                const response = await fetchConReintento('/api/admin/app-wallet-balance', {
                     method: 'GET',
                     headers: {
                         'Authorization': 'Bearer ' + (localStorage.getItem('admin_token') || '')
                     }
                 });
+
+                if (!response.ok) throw new Error("Error en respuesta");
 
                 const data = await response.json();
                 if (data.success) {
