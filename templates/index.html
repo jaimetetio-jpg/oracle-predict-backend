@@ -68,20 +68,11 @@
         .nombre-opcion { font-weight: bold; color: #58a6ff; font-size: 15px; }
         .stats-opcion { font-size: 12px; color: #8b949e; }
         
-        /* Contenedor de gráficos */
         .chart-container {
-            position: relative;
-            width: 100%;
-            height: 120px;
-            background: #0d1117;
-            border-radius: 6px;
-            padding: 4px;
-            margin-top: 6px;
-            border: 1px solid #30363d;
-            box-sizing: border-box;
+            position: relative; width: 100%; height: 120px; background: #0d1117;
+            border-radius: 6px; padding: 4px; margin-top: 6px; border: 1px solid #30363d; box-sizing: border-box;
         }
 
-        /* Controles CLOB expandibles */
         .clob-panel {
             background: #0d1117; border: 1px dashed #30363d; border-radius: 6px; padding: 10px;
             display: none; margin-top: 5px; box-sizing: border-box;
@@ -106,11 +97,10 @@
         }
         button:disabled { background-color: #30363d; color: #8b949e; cursor: not-allowed; }
         button.btn-crear { background-color: #8957e5; width: 100%; padding: 10px; margin-top: 5px; }
-        button.btn-resolver { background-color: #d29922; color: #000; width: 100%; margin-top: 8px; }
         button.btn-reclamar { background-color: #0e8a16; color: #ffffff; padding: 6px 10px; font-size: 12px; font-weight: bold; border: 1px solid #2ea043; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         button.btn-retirar { background-color: #d29922; color: #000; padding: 8px 12px; font-size: 13px; }
         button.btn-depositar { background-color: #f59e0b; color: #000; width: 100%; margin-top: 5px; }
-        button.btn-admin { background-color: #30363d; color: #fff; border: 1px solid #444; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        button.btn-admin { background-color: #30363d; color: #fff; border: 1px solid #444; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold; }
         button:hover:not(:disabled) { opacity: 0.85; }
         
         .header-meta { display: flex; justify-content: space-between; font-size: 11px; color: #8b949e; margin-bottom: 6px; }
@@ -120,6 +110,12 @@
         
         .historial-box { font-size: 12px; background: #0d1117; padding: 10px; border-radius: 6px; border: 1px solid #30363d; margin-top: 10px; max-height: 180px; overflow-y: auto; }
         .historial-item { border-bottom: 1px solid #21262d; padding: 8px 0; display: flex; justify-content: space-between; align-items: center; }
+
+        /* Estilos específicos para las tarjetas de finanzas del admin */
+        .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        .kpi-box { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 10px; text-align: center; }
+        .kpi-box span { font-size: 10px; color: #8b949e; display: block; text-transform: uppercase; }
+        .kpi-box h4 { font-size: 14px; margin: 4px 0 0 0; color: #f0f6fc; }
 
         #vista-admin, #vista-ranking { display: none; width: 100%; max-width: 400px; flex-direction: column; align-items: center; box-sizing: border-box; }
         #vista-usuario { display: flex; width: 100%; max-width: 400px; flex-direction: column; align-items: center; box-sizing: border-box; }
@@ -211,18 +207,12 @@
         </div>
 
         <div id="admin-panel-content" style="display: none; width: 100%; flex-direction: column; align-items: center;">
-            <div class="card" style="border-color: #d29922;">
-                <h3 style="color: #d29922;">🚨 Mercados Finalizados (Pendientes de Veredicto)</h3>
-                <div id="admin-pendientes-container">
-                    <span style="color: #8b949e; font-size: 12px;">No hay mercados pendientes.</span>
-                </div>
-            </div>
-
             <div id="admin-panel" style="display: block; padding: 15px; color: #fff; background: #161b22; border: 1px solid #30363d; border-radius: 12px; margin-bottom: 15px; width: 100%; box-sizing: border-box;">
                 <h3>Panel de Superusuario 🛡️</h3>
-                <div style="margin: 12px 0; display: flex; gap: 8px;">
-                    <button onclick="cargarPanelAdmin()" class="btn-admin">🎯 Mercados Activos</button>
-                    <button onclick="cargarListaUsuarios()" class="btn-admin" style="background: #6200ee;">👥 Auditoría Usuarios</button>
+                <div style="margin: 12px 0; display: flex; gap: 4px; flex-wrap: wrap;">
+                    <button onclick="cargarPanelAdmin()" class="btn-admin">🎯 Mercados</button>
+                    <button onclick="cargarFinanzasAdmin()" class="btn-admin" style="background: #1f6feb;">📊 Finanzas</button>
+                    <button onclick="cargarListaUsuarios()" class="btn-admin" style="background: #6200ee;">👥 Usuarios</button>
                 </div>
                 <div id="admin-content-area" style="margin-top: 15px;"></div>
             </div>
@@ -414,12 +404,10 @@
                                 </div>
                             </div>
 
-                            <!-- Contenedor del Gráfico de Probabilidad / Precio -->
                             <div class="chart-container">
                                 <canvas id="chart-${ev.id}-${op.id}"></canvas>
                             </div>
                             
-                            <!-- Panel CLOB expandible -->
                             <div id="clob-panel-${ev.id}-${op.id}" class="clob-panel" data-evento-id="${ev.id}" data-opcion-id="${op.id}">
                                 <div class="clob-tabs">
                                     <div id="tab-limit-${ev.id}-${op.id}" class="clob-tab activo" onclick="cambiarTipoClob(${ev.id}, ${op.id}, 'limit')">LIMIT ORDER</div>
@@ -776,32 +764,23 @@
 
         async function cargarPanelAdmin() {
             const container = document.getElementById('admin-content-area');
-            container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Cargando gestión de mercados...</span>';
+            container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Cargando mercados...</span>';
             
             try {
                 const res = await fetch('/api/eventos');
                 const mercados = await res.json();
                 
-                let html = `
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                        <h4 style="margin:0; color:#f0f6fc;">Moderación y Control de Mercados</h4>
-                    </div>
-                    <p style="font-size:11px; color:#8b949e; margin-bottom:10px;">Selecciona el mercado específico que desees retirar por violar las normas de moderación:</p>
-                `;
-
+                let html = `<h4 style="margin:0 0 10px 0; color:#f0f6fc;">Moderación y Control de Mercados</h4>`;
                 if (mercados.length === 0) {
-                    html += '<p style="color:#8b949e; font-size:12px;">No hay mercados activos en este momento.</p>';
+                    html += '<p style="color:#8b949e; font-size:12px;">No hay mercados activos.</p>';
                 } else {
                     mercados.forEach(ev => {
                         let pozoTotal = ev.opciones.reduce((acc, o) => acc + o.pozo, 0);
                         html += `
-                            <div style="background:#0d1117; border:1px solid #30363d; padding:12px; border-radius:8px; margin-bottom:10px; font-size:12px;">
-                                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                                    <div>
-                                        <b style="color:#f0f6fc; font-size:13px;">#${ev.id} - ${ev.titulo}</b><br>
-                                        <span style="color:#8b949e; display:block; margin-top:4px;">Categoría: <b>${ev.categoria}</b> • Pozo: <b>${pozoTotal.toFixed(2)} Pi</b></span>
-                                    </div>
-                                    <button onclick="eliminarMercadoSeleccionado(${ev.id}, '${ev.titulo.replace(/'/g, "")}')" style="background:#d9534f; color:#fff; border:none; padding:6px 10px; font-size:11px; border-radius:6px; cursor:pointer; font-weight:bold; white-space:nowrap;">🗑️ Borrar</button>
+                            <div style="background:#0d1117; border:1px solid #30363d; padding:10px; border-radius:8px; margin-bottom:8px; font-size:12px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div><b>#${ev.id} - ${ev.titulo}</b><br><span style="color:#8b949e;">Pozo: ${pozoTotal.toFixed(2)} Pi</span></div>
+                                    <button onclick="eliminarMercadoSeleccionado(${ev.id}, '${ev.titulo.replace(/'/g, "")}')" style="background:#d9534f; color:#fff; border:none; padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer;">Borrar</button>
                                 </div>
                             </div>
                         `;
@@ -809,100 +788,136 @@
                 }
                 container.innerHTML = html;
             } catch (e) {
-                container.innerHTML = '<span style="color:#f85149; font-size:12px;">Error al cargar los mercados administrativos.</span>';
+                container.innerHTML = '<span style="color:#f85149; font-size:12px;">Error al cargar mercados.</span>';
+            }
+        }
+
+        // ================= NUEVO: VISOR DE FINANZAS Y TESORERÍA =================
+        async function cargarFinanzasAdmin(periodo = 'diario') {
+            const container = document.getElementById('admin-content-area');
+            container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Cifrando datos financieros y de tesorería...</span>';
+
+            try {
+                const res = await fetch(`/api/admin/finanzas?periodo=${periodo}`);
+                const data = await res.json();
+
+                if (!data.success) {
+                    container.innerHTML = '<span style="color: #f85149; font-size: 12px;">Error al obtener la tesorería.</span>';
+                    return;
+                }
+
+                let html = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="color:#f0f6fc; margin:0;">📈 Tesorería y Flujos</h4>
+                        <div style="display:flex; gap:3px;">
+                            <button onclick="cargarFinanzasAdmin('diario')" class="btn-admin" style="padding:3px 6px; font-size:10px; ${periodo==='diario'?'background:#1f6feb;':''}">Hoy</button>
+                            <button onclick="cargarFinanzasAdmin('semanal')" class="btn-admin" style="padding:3px 6px; font-size:10px; ${periodo==='semanal'?'background:#1f6feb;':''}">Semanal</button>
+                            <button onclick="cargarFinanzasAdmin('mensual')" class="btn-admin" style="padding:3px 6px; font-size:10px; ${periodo==='mensual'?'background:#1f6feb;':''}">Mensual</button>
+                        </div>
+                    </div>
+
+                    <div class="kpi-grid">
+                        <div class="kpi-box">
+                            <span>📥 Total Entradas</span>
+                            <h4 style="color: #3fb950;">+${data.total_entradas.toFixed(2)} Pi</h4>
+                        </div>
+                        <div class="kpi-box">
+                            <span>📤 Total Salidas</span>
+                            <h4 style="color: #f85149;">-${data.total_salidas.toFixed(2)} Pi</h4>
+                        </div>
+                        <div class="kpi-box">
+                            <span>💰 Ganancias Comisiones</span>
+                            <h4 style="color: #f59e0b;">+${data.comisiones_netas.toFixed(2)} Pi</h4>
+                        </div>
+                        <div class="kpi-box">
+                            <span>💼 Balance Neto</span>
+                            <h4 style="color: #58a6ff;">${data.balance_neto.toFixed(2)} Pi</h4>
+                        </div>
+                    </div>
+
+                    <h5 style="color: #8b949e; margin: 12px 0 6px 0;">Últimas Transacciones de Tesorería</h5>
+                    <div class="historial-box" style="max-height: 140px;">
+                `;
+
+                if (!data.movimientos || data.movimientos.length === 0) {
+                    html += '<span style="color: #8b949e; font-size: 11px;">Sin movimientos en este periodo.</span>';
+                } else {
+                    data.movimientos.forEach(m => {
+                        let colorM = m.monto > 0 ? '#3fb950' : '#f85149';
+                        let signoM = m.monto > 0 ? '+' : '';
+                        html += `
+                            <div class="historial-item">
+                                <div>
+                                    <b style="color:${colorM};">${signoM}${m.monto} Pi</b><br>
+                                    <span style="font-size:10px; color:#8b949e;">@${m.username} • ${m.fecha}</span>
+                                </div>
+                                <div style="font-size:11px; color:#c9d1d9;">${m.tipo}</div>
+                            </div>
+                        `;
+                    });
+                }
+                html += `</div>`;
+                container.innerHTML = html;
+
+            } catch (e) {
+                container.innerHTML = '<span style="color: #f85149; font-size: 12px;">Error al conectar con la pasarela de finanzas.</span>';
             }
         }
 
         async function eliminarMercadoSeleccionado(eventoId, titulo) {
-            if (!confirm(`¿Estás seguro de eliminar permanentemente el mercado #${eventoId} ("${titulo}") por atentar contra la moral o las normas?`)) return;
-            
-            try {
-                const res = await fetch(`/api/admin/eliminar-mercado/${eventoId}`, {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const data = await res.json();
-                if (data.success) {
-                    alert(data.mensaje);
-                    cargarPanelAdmin();
-                    cargarMercados();
-                } else {
-                    alert("Error: " + (data.error || "No se pudo eliminar"));
-                }
-            } catch (e) {
-                alert("Error de conexión al intentar eliminar el mercado.");
-            }
+            if (!confirm(`¿Eliminar mercado #${eventoId}?`)) return;
+            const res = await fetch(`/api/admin/eliminar-mercado/${eventoId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) { alert(data.mensaje); cargarPanelAdmin(); cargarMercados(); }
         }
 
         async function cargarListaUsuarios() {
             const container = document.getElementById('admin-content-area');
-            container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Cargando auditoría de usuarios...</span>';
+            container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Cargando usuarios...</span>';
             try {
                 const res = await fetch('/api/admin/usuarios');
                 const data = await res.json();
                 if (data.success && data.usuarios.length > 0) {
-                    let html = '<h4 style="color:#f0f6fc; margin-bottom:10px;">Auditoría de Usuarios</h4><table style="width:100%; font-size:12px; text-align:left; border-collapse:collapse;">';
+                    let html = '<h4 style="color:#f0f6fc; margin-bottom:8px;">Usuarios</h4><table style="width:100%; font-size:11px; text-align:left; border-collapse:collapse;">';
                     html += '<tr style="border-bottom:1px solid #30363d; color:#8b949e;"><th>Usuario</th><th style="text-align:right;">Saldo</th><th style="text-align:center;">Acción</th></tr>';
                     data.usuarios.forEach(u => {
-                        html += `<tr style="border-bottom:1px solid #21262d;"><td style="padding:6px 0;"><b>@${u.username}</b></td><td style="text-align:right; color:#3fb950;">${u.saldo_disponible.toFixed(4)} Pi</td><td style="text-align:center;"><button onclick="abrirModalUsuario('${u.username}')" style="background:#1f6feb; padding:4px 8px; font-size:11px;">Gestionar</button></td></tr>`;
+                        html += `<tr style="border-bottom:1px solid #21262d;"><td style="padding:5px 0;"><b>@${u.username}</b></td><td style="text-align:right; color:#3fb950;">${u.saldo_disponible.toFixed(2)} Pi</td><td style="text-align:center;"><button onclick="abrirModalUsuario('${u.username}')" style="background:#1f6feb; padding:3px 6px; font-size:10px;">Ver</button></td></tr>`;
                     });
                     html += '</table>';
                     container.innerHTML = html;
                 } else {
-                    container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">No hay usuarios registrados.</span>';
+                    container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Sin usuarios.</span>';
                 }
             } catch (e) {
-                container.innerHTML = '<span style="color: #f85149; font-size: 12px;">Error al cargar la lista de usuarios.</span>';
+                container.innerHTML = '<span style="color: #f85149; font-size: 12px;">Error.</span>';
             }
         }
 
         async function abrirModalUsuario(username) {
             usuarioSeleccionadoActual = username;
-            document.getElementById('modal-username-title').innerText = `Gestión de @${username}`;
+            document.getElementById('modal-username-title').innerText = `Gestión @${username}`;
             document.getElementById('ajuste-monto').value = '';
             document.getElementById('ajuste-motivo').value = '';
-
-            try {
-                const res = await fetch(`/api/admin/usuario/${username}`);
-                const data = await res.json();
-                if (data.success) {
-                    let detHtml = `<p><b>Saldo Actual:</b> <span style="color:#3fb950;">${data.usuario.saldo_disponible.toFixed(4)} Pi</span></p>`;
-                    detHtml += `<p><b>Apuestas Totales:</b> ${data.apuestas.length} | <b>Transacciones:</b> ${data.transacciones.length}</p>`;
-                    document.getElementById('modal-user-details').innerHTML = detHtml;
-                    document.getElementById('modal-usuario').style.display = 'flex';
-                }
-            } catch (e) {
-                alert("Error al obtener detalles del usuario.");
+            const res = await fetch(`/api/admin/usuario/${username}`);
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('modal-user-details').innerHTML = `<p>Saldo: <b style="color:#3fb950">${data.usuario.saldo_disponible.toFixed(2)} Pi</b></p>`;
+                document.getElementById('modal-usuario').style.display = 'flex';
             }
         }
 
-        function cerrarModalUsuario() {
-            document.getElementById('modal-usuario').style.display = 'none';
-        }
+        function cerrarModalUsuario() { document.getElementById('modal-usuario').style.display = 'none'; }
 
         async function ejecutarAjusteSaldo() {
             let monto = parseFloat(document.getElementById('ajuste-monto').value);
-            let motivo = document.getElementById('ajuste-motivo').value || "Ajuste Administrativo";
-
-            if (isNaN(monto)) {
-                alert("Ingresa un monto de ajuste válido.");
-                return;
-            }
-
+            let motivo = document.getElementById('ajuste-motivo').value || "Ajuste Admin";
             const res = await fetch('/api/admin/ajustar-saldo', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: usuarioSeleccionadoActual, monto: monto, motivo: motivo })
+                body: JSON.stringify({ username: usuarioSeleccionadoActual, monto, motivo })
             });
-
             const data = await res.json();
-            if (data.success) {
-                alert(data.mensaje);
-                cerrarModalUsuario();
-                cargarListaUsuarios();
-            } else {
-                alert("Error: " + data.error);
-            }
+            if (data.success) { alert(data.mensaje); cerrarModalUsuario(); cargarListaUsuarios(); }
         }
 
         window.onload = autenticarPiNetwork;
