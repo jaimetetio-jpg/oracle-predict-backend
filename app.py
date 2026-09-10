@@ -311,7 +311,6 @@ def obtener_saldo(username):
         c.execute("SELECT * FROM historial_apuestas WHERE username = ? ORDER BY id DESC LIMIT ? OFFSET ?", (username, limite, offset))
     historial = [dict(row) for row in c.fetchall()]
 
-    # NUEVA MEJORA BACKEND: Soporte opcional para filtrar transacciones por categoría/tipo para el historial avanzado
     if filtro_tipo:
         if DATABASE_URL:
             c.execute("SELECT * FROM transacciones WHERE username = %s AND tipo ILIKE %s ORDER BY id DESC LIMIT %s OFFSET %s", (username, f"%{filtro_tipo}%", limite, offset))
