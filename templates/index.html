@@ -1,200 +1,9 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2Ppredict - Predicciones Pi Network</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <style>
-        :root {
-            --bg-color: #0d1117;
-            --card-bg: #161b22;
-            --border-color: #30363d;
-            --text-color: #c9d1d9;
-            --subtext: #8b949e;
-        }
-        body.light-mode {
-            --bg-color: #f0f2f5;
-            --card-bg: #ffffff;
-            --border-color: #d0d7de;
-            --text-color: #24292f;
-            --subtext: #57606a;
-        }
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: sans-serif;
-            margin: 0;
-            padding: 0;
-        }
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 12px;
-        }
-        .clob-panel {
-            display: none;
-            margin-top: 8px;
-            background: var(--bg-color);
-            border: 1px solid var(--border-color);
-            padding: 8px;
-            border-radius: 6px;
-        }
-        .clob-tabs {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 6px;
-        }
-        .clob-tab {
-            flex: 1;
-            text-align: center;
-            font-size: 11px;
-            padding: 4px;
-            background: var(--card-bg);
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        .clob-tab.activo {
-            background: #1f6feb;
-            color: white;
-        }
-        .preview-ganancia-box {
-            font-size: 11px;
-            margin-bottom: 6px;
-        }
-        .preview-row {
-            display: flex;
-            justify-content: space-between;
-        }
-        .zap-container {
-            display: flex;
-            gap: 4px;
-            margin-top: 4px;
-        }
-        .btn-zap {
-            flex: 1;
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            color: var(--text-color);
-            font-size: 10px;
-            padding: 2px;
-            cursor: pointer;
-        }
-        .btn-crear {
-            width: 100%;
-            background: #238636;
-            color: white;
-            border: none;
-            padding: 8px;
-            border-radius: 6px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .badge-activo {
-            color: #3fb950;
-            font-weight: bold;
-        }
-        .badge-categoria {
-            background: #1f6feb22;
-            color: #1f6feb;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 10px;
-        }
-        .header-meta {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 6px;
-        }
-        .opciones-container {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .opcion-row {
-            border: 1px solid var(--border-color);
-            padding: 8px;
-            border-radius: 6px;
-        }
-        .opcion-row-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .info-opcion {
-            display: flex;
-            flex-direction: column;
-        }
-        .nombre-opcion {
-            font-weight: bold;
-            font-size: 12px;
-        }
-        .stats-opcion {
-            font-size: 10px;
-            color: var(--subtext);
-        }
-        .chart-container {
-            height: 40px;
-            margin-top: 4px;
-        }
-        #toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .toast {
-            padding: 8px 12px;
-            border-radius: 6px;
-            color: white;
-            font-size: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
-        .toast.success { background: #238636; }
-        .toast.error { background: #da3633; }
-        .toast.info { background: #1f6feb; }
-    </style>
-</head>
-<body>
-
-    <!-- Contenedor de Notificaciones Toast -->
-    <div id="toast-container"></div>
-
-    <!-- Vistas principales -->
-    <div id="vista-usuario" style="display: flex; flex-direction: column; padding: 12px;">
-        <div id="lbl-estado-conexion" style="font-size: 11px; color: var(--subtext); margin-bottom: 6px;">Conectando...</div>
-        <div id="pi-username" style="font-weight: bold;">PioneroInvitado</div>
-        <div id="saldo-usuario">0.00 Pi</div>
-        <input type="text" id="input-buscar" placeholder="Buscar mercados..." oninput="renderizarMercados()" style="margin: 8px 0; padding: 6px; background: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px;">
-        <div id="mercados-container"></div>
-    </div>
-
-    <!-- ================= ELEMENTOS VISUALES DEL CHAT DE SOPORTE ================= -->
-    <div id="contenedor-chat-soporte" style="display: none; position: fixed; bottom: 80px; right: 20px; width: 320px; max-width: 90vw; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); z-index: 1000; overflow: hidden;">
-        <div style="background: #1f6feb; color: white; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 13px;">
-            <span>💬 Soporte P2Ppredict</span>
-            <button onclick="toggleChatSoporte()" style="background: transparent; border: none; color: white; font-size: 16px; cursor: pointer;">✕</button>
-        </div>
-        <div id="caja-mensajes-soporte" style="height: 220px; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; background: var(--bg-color);">
-            <!-- Los mensajes se renderizan dinámicamente aquí -->
-        </div>
-        <div style="padding: 8px; display: flex; gap: 6px; background: var(--card-bg); border-top: 1px solid var(--border-color);">
-            <input type="text" id="input-mensaje-soporte" placeholder="Escribe tu duda..." style="flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 12px;" onkeypress="if(event.key === 'Enter') enviarMensajeSoporte()">
-            <button onclick="enviarMensajeSoporte()" style="background: #238636; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px;">Enviar</button>
+        <div id="modal-content-body"></div>
+        <div style="text-align: right; margin-top: 15px;">
+            <button onclick="document.getElementById('modal-usuario').style.display='none'" style="background: #da3633;">Cerrar</button>
         </div>
     </div>
-
-    <!-- Botón flotante para abrir el chat -->
-    <button onclick="toggleChatSoporte()" style="position: fixed; bottom: 20px; right: 20px; background: #1f6feb; color: white; border: none; width: 50px; height: 50px; border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,0.4); font-size: 22px; cursor: pointer; z-index: 999; display: flex; align-items: center; justify-content: center;">
-        💬
-    </button>
-    <!-- ================= FIN DE ELEMENTOS VISUALES DE SOPORTE ================= -->
+</div>
 
 <!-- ================= SCRIPT COMPLETO DE LA APLICACIÓN ================= -->
 <script>
@@ -211,7 +20,9 @@
         inicializarWebSockets();
         await autenticarConPiNetwork();
         cargarMercados();
+        cargarLeaderboard();
         
+        // Intervalos de actualización automática
         setInterval(cargarMercados, 10000);
         setInterval(actualizarSaldoUsuario, 8000);
     });
@@ -273,6 +84,7 @@
                 document.getElementById('lbl-estado-conexion').innerText = `Sesión iniciada como @${usuarioActual}`;
                 await registrarUsuarioBackend(usuarioActual);
                 await actualizarSaldoUsuario();
+                cargarHistorialUsuario();
             }
         } catch (err) {
             console.warn("Autenticación Pi SDK omitida o en modo navegador web común:", err);
@@ -312,6 +124,34 @@
         }
     }
 
+    function cambiarVista(vista) {
+        document.getElementById('vista-usuario').style.display = 'none';
+        document.getElementById('vista-crear-mercado').style.display = 'none';
+        document.getElementById('vista-ranking').style.display = 'none';
+        document.getElementById('vista-admin').style.display = 'none';
+
+        document.getElementById('tab-user').classList.remove('activo');
+        document.getElementById('tab-crear').classList.remove('activo');
+        document.getElementById('tab-rank').classList.remove('activo');
+        document.getElementById('tab-adm').classList.remove('activo');
+
+        if (vista === 'usuario') {
+            document.getElementById('vista-usuario').style.display = 'flex';
+            document.getElementById('tab-user').classList.add('activo');
+            cargarMercados();
+        } else if (vista === 'crear') {
+            document.getElementById('vista-crear-mercado').style.display = 'flex';
+            document.getElementById('tab-crear').classList.add('activo');
+        } else if (vista === 'ranking') {
+            document.getElementById('vista-ranking').style.display = 'flex';
+            document.getElementById('tab-rank').classList.add('activo');
+            cargarLeaderboard();
+        } else if (vista === 'admin') {
+            document.getElementById('vista-admin').style.display = 'flex';
+            document.getElementById('tab-adm').classList.add('activo');
+        }
+    }
+
     function mostrarToast(mensaje, tipo = 'success') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
@@ -332,6 +172,13 @@
         } catch (e) {
             console.error("Error cargando mercados:", e);
         }
+    }
+
+    function filtrarCategoria(cat, elemento) {
+        categoriaSeleccionada = cat;
+        document.querySelectorAll('.filter-badge').forEach(el => el.classList.remove('activo'));
+        elemento.classList.add('activo');
+        renderizarMercados();
     }
 
     function renderizarMercados() {
@@ -364,6 +211,7 @@
                     <h3>${m.titulo}</h3>
                     <div class="pozo-global">Pozo Global: ${pozoTotal} Pi</div>
                     <div style="font-size: 11px; color: var(--subtext); margin-bottom: 8px;">Creador: @${m.creador || 'sistema'} | Expira: ${m.expiracion || 'N/A'}</div>
+                    
                     <div class="opciones-container">
             `;
 
@@ -378,7 +226,7 @@
                                 <span class="nombre-opcion">${opt.nombre}</span>
                                 <span class="stats-opcion">Cuota: <b>${cuota.toFixed(2)}x</b> | Implícito: ${probabilidad}% | Apuestas: ${opt.volumen || 0} Pi</span>
                             </div>
-                            ${m.estado === 'activo' ? `<button onclick="apostarMercado('${m.id}', ${idx})" style="background: #238636; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">Apostar</button>` : ''}
+                            ${m.estado === 'activo' ? `<button onclick="apostarMercado('${m.id}', ${idx})">Apostar</button>` : ''}
                         </div>
                         <div class="chart-container">
                             <canvas id="chart-${m.id}-${idx}"></canvas>
@@ -387,89 +235,752 @@
                             <span style="font-size: 10px; color: #58a6ff; cursor: pointer;" onclick="toggleClobPanel('${m.id}', ${idx})">⚡ Orden Limit (CLOB) ▾</span>
                             <span style="font-size: 10px; color: var(--subtext);">Creador Maker: @${opt.maker || m.creador}</span>
                         </div>
-                        <div id="clob-panel-${m.id}-${idx}" class="clob-panel">
+                        <div id="clob-${m.id}-${idx}" class="clob-panel">
                             <div class="clob-tabs">
-                                <div class="clob-tab activo" onclick="cambiarTabClob('${m.id}', ${idx}, 'comprar', this)">Comprar Límite</div>
-                                <div class="clob-tab" onclick="cambiarTabClob('${m.id}', ${idx}, 'vender', this)">Vender Límite</div>
+                                <div class="clob-tab activo" id="tab-comprar-${m.id}-${idx}" onclick="setTipoClob('${m.id}', ${idx}, 'comprar')">Comprar (Maker)</div>
+                                <div class="clob-tab" id="tab-vender-${m.id}-${idx}" onclick="setTipoClob('${m.id}', ${idx}, 'vender')">Vender (Taker)</div>
                             </div>
                             <div class="preview-ganancia-box">
-                                <div class="preview-row"><span>Precio límite (Cuota):</span> <input type="number" id="clob-precio-${m.id}-${idx}" value="${cuota.toFixed(2)}" step="0.05" style="width: 60px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); font-size: 11px; padding: 2px;"></div>
-                                <div class="preview-row" style="margin-top: 2px;"><span>Monto Pi:</span> <input type="number" id="clob-monto-${m.id}-${idx}" value="1.0" step="0.5" style="width: 60px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); font-size: 11px; padding: 2px;"></div>
+                                <div class="preview-row"><span>Inversión:</span> <b id="lbl-inv-${m.id}-${idx}">1.0 Pi</b></div>
+                                <div class="preview-row"><span>Retorno Potencial:</span> <b id="lbl-ret-${m.id}-${idx}" style="color: #3fb950;">${cuota.toFixed(2)} Pi</b></div>
                             </div>
-                            <button class="btn-crear" style="margin-top: 6px; font-size: 11px; padding: 4px;" onclick="enviarOrdenLimitClob('${m.id}', ${idx})">Colocar Orden CLOB</button>
+                            <label>Monto a Apostar (Pi):</label>
+                            <input type="number" id="clob-monto-${m.id}-${idx}" value="1.0" min="0.1" step="0.5" oninput="calcularPreviewGanancia('${m.id}', ${idx}, ${cuota})">
+                            <div class="zap-container">
+                                <button class="btn-zap" onclick="fijarZap('${m.id}', ${idx}, 1, ${cuota})">+1 Pi</button>
+                                <button class="btn-zap" onclick="fijarZap('${m.id}', ${idx}, 5, ${cuota})">+5 Pi</button>
+                                <button class="btn-zap" onclick="fijarZap('${m.id}', ${idx}, 10, ${cuota})">+10 Pi</button>
+                            </div>
+                            <button class="btn-crear" style="margin-top: 8px; padding: 6px;" onclick="ejecutarOrdenLimit('${m.id}', ${idx})">Confirmar Orden</button>
                         </div>
                     </div>
                 `;
             });
 
-            html += `
-                    </div>
-                </div>
-            `;
+            html += `</div></div>`;
         });
 
         container.innerHTML = html;
         
+        // Renderizar gráficos de Chart.js para cada opción
         mercadosFiltrados.forEach(m => {
             m.opciones.forEach((opt, idx) => {
-                const ctx = document.getElementById(`chart-${m.id}-${idx}`);
-                if (ctx) {
-                    try {
-                        new Chart(ctx, {
-                            type: 'line',
-                            data: {
-                                labels: ['Inicio', 'Ahora'],
-                                datasets: [{
-                                    data: [2.0, opt.cuota || 2.0],
-                                    borderColor: '#1f6feb',
-                                    borderWidth: 1.5,
-                                    pointRadius: 0,
-                                    tension: 0.2
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: { legend: { display: false } },
-                                scales: { x: { display: false }, y: { display: false } }
-                            }
-                        });
-                    } catch (err) {}
-                }
+                renderizarGraficoOpcion(m.id, idx, opt.historicoPrecios || [0.5, 0.52, 0.49, cuotaToProb(opt.cuota)]);
             });
         });
     }
 
-    function toggleClobPanel(mercadoId, idx) {
-        const panel = document.getElementById(`clob-panel-${mercadoId}-${idx}`);
-        if (panel) {
-            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
-        }
+    function cuotaToProb(cuota) {
+        return Math.max(0.1, Math.min(0.9, 1 / cuota));
     }
 
-    function toggleChatSoporte() {
-        const chatBox = document.getElementById('contenedor-chat-soporte');
-        if (chatBox) {
-            chatBox.style.display = chatBox.style.display === 'block' ? 'none' : 'block';
-            if (chatBox.style.display === 'block' && typeof cargarHistorialSoporte === 'function') {
-                cargarHistorialSoporte();
+    function renderizarGraficoOpcion(mercadoId, opcionIdx, datosHistorial) {
+        const canvasId = `chart-${mercadoId}-${opcionIdx}`;
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: datosHistorial.map((_, i) => i + 1),
+                datasets: [{
+                    data: datosHistorial,
+                    borderColor: '#1f6feb',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.3,
+                    fill: true,
+                    backgroundColor: 'rgba(31, 111, 235, 0.05)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false, min: 0, max: 1 }
+                }
             }
+        });
+    }
+
+    function toggleClobPanel(mercadoId, opcionIdx) {
+        const panel = document.getElementById(`clob-${mercadoId}-${opcionIdx}`);
+        panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function setTipoClob(mercadoId, opcionIdx, tipo) {
+        const tabComprar = document.getElementById(`tab-comprar-${mercadoId}-${opcionIdx}`);
+        const tabVender = document.getElementById(`tab-vender-${mercadoId}-${opcionIdx}`);
+        if (tipo === 'comprar') {
+            tabComprar.classList.add('activo');
+            tabVender.classList.remove('activo');
+        } else {
+            tabVender.classList.add('activo');
+            tabComprar.classList.remove('activo');
         }
     }
 
-    function enviarMensajeSoporte() {
-        const input = document.getElementById('input-mensaje-soporte');
-        const mensaje = input.value.trim();
-        if (!mensaje) return;
+    function calcularPreviewGanancia(mercadoId, opcionIdx, cuota) {
+        const input = document.getElementById(`clob-monto-${mercadoId}-${opcionIdx}`);
+        const monto = parseFloat(input.value) || 0;
+        document.getElementById(`lbl-inv-${mercadoId}-${opcionIdx}`).innerText = monto.toFixed(1) + " Pi";
+        document.getElementById(`lbl-ret-${mercadoId}-${opcionIdx}`).innerText = (monto * cuota).toFixed(2) + " Pi";
+    }
 
-        if (socket && socket.connected) {
-            socket.emit('enviar_mensaje_soporte', { username: usuarioActual, mensaje: mensaje });
+    function fijarZap(mercadoId, opcionIdx, valorAdicional, cuota) {
+        const input = document.getElementById(`clob-monto-${mercadoId}-${opcionIdx}`);
+        const actual = parseFloat(input.value) || 0;
+        input.value = (actual + valorAdicional).toFixed(1);
+        calcularPreviewGanancia(mercadoId, opcionIdx, cuota);
+    }
+
+    async function apostarMercado(mercadoId, opcionIdx) {
+        const montoStr = prompt("Ingresa la cantidad de Pi a apostar en esta opción:", "1.0");
+        if (!montoStr) return;
+        const monto = parseFloat(montoStr);
+        if (isNaN(monto) || monto <= 0) {
+            mostrarToast("Monto inválido", "error");
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/apostar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usuarioActual, mercadoId, opcionIdx, monto })
+            });
+            const data = await res.json();
+            if (data.success) {
+                mostrarToast("¡Apuesta realizada con éxito!", "success");
+                actualizarSaldoUsuario();
+                cargarMercados();
+                cargarHistorialUsuario();
+            } else {
+                mostrarToast(data.error || "Error al realizar apuesta", "error");
+            }
+        } catch (e) {
+            mostrarToast("Error de red al apostar", "error");
+        }
+    }
+
+    async function ejecutarOrdenLimit(mercadoId, opcionIdx) {
+        const input = document.getElementById(`clob-monto-${mercadoId}-${opcionIdx}`);
+        const monto = parseFloat(input.value) || 0;
+        if (monto <= 0) {
+            mostrarToast("Monto inválido para orden Limit", "error");
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/orden/limit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usuarioActual, mercadoId, opcionIdx, monto })
+            });
+            const data = await res.json();
+            if (data.success) {
+                mostrarToast("Orden Limit colocada correctamente ⚡", "success");
+                actualizarSaldoUsuario();
+                cargarMercados();
+                cargarHistorialUsuario();
+            } else {
+                mostrarToast(data.error || "No se pudo colocar la orden", "error");
+            }
+        } catch (e) {
+            mostrarToast("Error de red", "error");
+        }
+    }
+
+    async function enviarCreacionMercadoP2P() {
+        const titulo = document.getElementById('crear-titulo').value.trim();
+        const categoria = document.getElementById('crear-categoria').value.trim();
+        const op1 = document.getElementById('crear-opcion1').value.trim();
+        const op2 = document.getElementById('crear-opcion2').value.trim();
+        const expiracion = document.getElementById('crear-expiracion').value.trim();
+        const colateral = parseFloat(document.getElementById('crear-colateral').value) || 2.0;
+
+        if (!titulo || !categoria || !op1 || !op2) {
+            mostrarToast("Por favor completa los campos principales", "error");
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/mercados/crear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usuarioActual, titulo, categoria, op1, op2, expiracion, colateral })
+            });
+            const data = await res.json();
+            if (data.success) {
+                mostrarToast("¡Mercado P2P publicado con éxito!", "success");
+                document.getElementById('crear-titulo').value = '';
+                document.getElementById('crear-categoria').value = '';
+                document.getElementById('crear-opcion1').value = '';
+                document.getElementById('crear-opcion2').value = '';
+                cambiarVista('usuario');
+                cargarMercados();
+            } else {
+                mostrarToast(data.error || "Error al crear mercado", "error");
+            }
+        } catch (e) {
+            mostrarToast("Error de conexión al crear mercado", "error");
+        }
+    }
+
+    async function recargarConPi() {
+        const monto = parseFloat(document.getElementById('input-recarga').value) || 5.0;
+        if (monto <= 0) return;
+
+        try {
+            // Flujo oficial de pagos Pi SDK
+            if (typeof Pi !== 'undefined' && Pi.createPayment) {
+                Pi.createPayment({
+                    amount: monto,
+                    memo: `Recarga de saldo P2Ppredict para @${usuarioActual}`,
+                    metadata: { username: usuarioActual, tipo: 'recarga' },
+                }, {
+                    onReadyForServerApproval: async (paymentId) => {
+                        await fetch('/api/pi/aprobar-pago', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ paymentId, username: usuarioActual, monto })
+                        });
+                    },
+                    onReadyForServerCompletion: async (paymentId, txid) => {
+                        await fetch('/api/pi/completar-pago', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ paymentId, txid, username: usuarioActual, monto })
+                        });
+                        mostrarToast(`¡Recarga de ${monto} Pi exitosa!`, "success");
+                        actualizarSaldoUsuario();
+                    },
+                    onCancel: (paymentId) => {
+                        mostrarToast("Pago cancelado por el usuario", "error");
+                    },
+                    onError: (error, payment) => {
+                        mostrarToast("Error en pasarela Pi Network: " + error.message, "error");
+                    }
+                });
+            } else {
+                // Simulación para navegador web normal fuera de Pi Browser
+                const res = await fetch('/api/recargar/simular', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: usuarioActual, monto })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    mostrarToast(`¡Recarga simulada de ${monto} Pi exitosa!`, "success");
+                    actualizarSaldoUsuario();
+                }
+            }
+        } catch (e) {
+            mostrarToast("Error procesando recarga", "error");
+        }
+    }
+
+    async function retirarPi() {
+        const montoStr = prompt(`Saldo disponible: ${saldoActual.toFixed(4)} Pi.\n¿Cuántos Pi deseas retirar a tu billetera?`, saldoActual.toFixed(2));
+        if (!montoStr) return;
+        const monto = parseFloat(montoStr);
+        if (isNaN(monto) || monto <= 0 || monto > saldoActual) {
+            mostrarToast("Monto de retiro inválido", "error");
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/retirar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usuarioActual, monto })
+            });
+            const data = await res.json();
+            if (data.success) {
+                mostrarToast("Solicitud de retiro procesada correctamente", "success");
+                actualizarSaldoUsuario();
+                cargarHistorialTransacciones();
+            } else {
+                mostrarToast(data.error || "Error al procesar retiro", "error");
+            }
+        } catch (e) {
+            mostrarToast("Error de red", "error");
+        }
+    }
+
+    function toggleHistorial() {
+        const el = document.getElementById('contenedor-historial');
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        if (el.style.display === 'block') cargarHistorialUsuario();
+    }
+
+    async function cargarHistorialUsuario() {
+        try {
+            const res = await fetch(`/api/usuario/historial/${usuarioActual}`);
+            const data = await res.json();
+            const container = document.getElementById('contenedor-historial');
+            if (data && data.apuestas && data.apuestas.length > 0) {
+                let html = '';
+                data.apuestas.forEach(a => {
+                    html += `
+                        <div class="historial-item">
+                            <div>
+                                <b>${a.mercadoTitulo}</b><br>
+                                <span style="color: var(--subtext);">Opción: ${a.opcionNombre} | Monto: ${a.monto} Pi</span>
+                            </div>
+                            <div>
+                                ${a.estado === 'ganada' ? '<span style="color: #3fb950; font-weight: bold;">Ganada (+'+a.premio+' Pi)</span>' : (a.estado === 'perdida' ? '<span style="color: #da3633;">Perdida</span>' : '<span style="color: #f59e0b;">Pendiente</span>')}
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<span style="color: var(--subtext);">No tienes apuestas registradas.</span>';
+            }
+        } catch (e) {
+            console.error("Error cargando historial:", e);
+        }
+    }
+
+    function toggleOrdenesAbiertas() {
+        const el = document.getElementById('contenedor-ordenes-abiertas');
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        if (el.style.display === 'block') cargarOrdenesAbiertas();
+    }
+
+    async function cargarOrdenesAbiertas() {
+        try {
+            const res = await fetch(`/api/usuario/ordenes/${usuarioActual}`);
+            const data = await res.json();
+            const container = document.getElementById('contenedor-ordenes-abiertas');
+            if (data && data.ordenes && data.ordenes.length > 0) {
+                let html = '';
+                data.ordenes.forEach(o => {
+                    html += `
+                        <div class="historial-item">
+                            <div>
+                                <b>${o.mercadoTitulo}</b><br>
+                                <span style="color: var(--subtext);">Tipo Limit | Monto: ${o.monto} Pi</span>
+                            </div>
+                            <button onclick="cancelarOrdenLimit('${o.id}')" style="background: #da3633; padding: 4px 8px; font-size: 10px;">Cancelar</button>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<span style="color: var(--subtext);">No tienes órdenes Limit pendientes.</span>';
+            }
+        } catch (e) {
+            console.error("Error cargando órdenes:", e);
+        }
+    }
+
+    async function cancelarOrdenLimit(ordenId) {
+        try {
+            const res = await fetch('/api/orden/cancelar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usuarioActual, ordenId })
+            });
+            const data = await res.json();
+            if (data.success) {
+                mostrarToast("Orden cancelada y fondos devueltos", "success");
+                actualizarSaldoUsuario();
+                cargarOrdenesAbiertas();
+            } else {
+                mostrarToast("No se pudo cancelar la orden", "error");
+            }
+        } catch (e) {
+            mostrarToast("Error de red", "error");
+        }
+    }
+
+    function toggleTradeHistory() {
+        const el = document.getElementById('contenedor-trade-history');
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        if (el.style.display === 'block') cargarTradeHistory();
+    }
+
+    async function cargarTradeHistory() {
+        try {
+            const res = await fetch(`/api/usuario/trades/${usuarioActual}`);
+            const data = await res.json();
+            const container = document.getElementById('contenedor-trade-history');
+            if (data && data.trades && data.trades.length > 0) {
+                let html = '';
+                data.trades.forEach(t => {
+                    html += `
+                        <div class="historial-item">
+                            <div>
+                                <b>${t.mercadoTitulo}</b><br>
+                                <span style="color: var(--subtext);">Ejecutado: ${t.opcionNombre} | ${t.monto} Pi</span>
+                            </div>
+                            <span style="color: #3fb950; font-weight: bold;">Completado</span>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<span style="color: var(--subtext);">Sin órdenes ejecutadas completadas aún.</span>';
+            }
+        } catch (e) {
+            console.error("Error cargando trades:", e);
+        }
+    }
+
+    function toggleTransacciones() {
+        const el = document.getElementById('contenedor-transacciones');
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        if (el.style.display === 'block') cargarHistorialTransacciones();
+    }
+
+    async function cargarHistorialTransacciones() {
+        try {
+            const res = await fetch(`/api/usuario/transacciones/${usuarioActual}`);
+            const data = await res.json();
+            const container = document.getElementById('contenedor-transacciones');
+            if (data && data.transacciones && data.transacciones.length > 0) {
+                let html = '';
+                data.transacciones.forEach(tx => {
+                    html += `
+                        <div class="historial-item">
+                            <div>
+                                <b>${tx.tipo.toUpperCase()}</b><br>
+                                <span style="color: var(--subtext);">${tx.fecha}</span>
+                            </div>
+                            <span style="color: ${tx.tipo === 'retiro' ? '#da3633' : '#3fb950'}; font-weight: bold;">${tx.tipo === 'retiro' ? '-' : '+'}${tx.monto} Pi</span>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<span style="color: var(--subtext);">Sin transacciones registradas.</span>';
+            }
+        } catch (e) {
+            console.error("Error transacciones:", e);
+        }
+    }
+
+    async function cargarLeaderboard() {
+        try {
+            const res = await fetch('/api/ranking');
+            const data = await res.json();
+            const container = document.getElementById('contenedor-leaderboard');
+            if (data && data.ranking && data.ranking.length > 0) {
+                let html = '';
+                data.ranking.forEach((u, index) => {
+                    let medalla = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : `#${index+1}`));
+                    html += `
+                        <div class="historial-item">
+                            <div>
+                                <b>${medalla} @${u.username}</b><br>
+                                <span style="color: var(--subtext);">Aciertos: ${u.aciertos || 0} | Ganancia neta</span>
+                            </div>
+                            <span style="color: #3fb950; font-weight: bold;">${(u.gananciaNeta || 0).toFixed(2)} Pi</span>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<span style="color: var(--subtext);">Sin datos en el ranking todavía.</span>';
+            }
+        } catch (e) {
+            console.error("Error leaderboard:", e);
+        }
+    }
+
+    async function verificarAdminPassword() {
+        const pass = document.getElementById('admin-pass-input').value;
+        try {
+            const res = await fetch('/api/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pass })
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('admin-login-box').style.display = 'none';
+                document.getElementById('admin-panel-content').style.display = 'flex';
+                cargarPanelAdmin();
+                mostrarToast("Acceso de Administrador Concedido 🛡️", "success");
+            } else {
+                mostrarToast("Contraseña maestra incorrecta", "error");
+            }
+        } catch (e) {
+            mostrarToast("Error de verificación", "error");
+        }
+    }
+
+    async function cargarPanelAdmin() {
+        try {
+            const res = await fetch('/api/admin/mercados');
+            const data = await res.json();
+            const container = document.getElementById('admin-content-area');
+            if (data && data.mercados) {
+                let html = '<h4 style="color:#58a6ff; margin-bottom:8px;">Gestión de Mercados P2P</h4>';
+                data.mercados.forEach(m => {
+                    html += `
+                        <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:10px; border-radius:6px; margin-bottom:8px;">
+                            <b>${m.titulo}</b> (${m.estado})<br>
+                            <span style="font-size:11px; color:var(--subtext);">ID: ${m.id}</span>
+                            <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
+                                ${m.opciones.map((opt, idx) => `<button onclick="resolverMercadoAdmin('${m.id}', ${idx})" style="background:#238636; padding:4px 8px; font-size:10px;">Ganó: ${opt.nombre}</button>`).join('')}
+                                <button onclick="eliminarMercadoAdmin('${m.id}')" style="background:#da3633; padding:4px 8px; font-size:10px;">Eliminar</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            }
+        } catch (e) {
+            console.error("Error admin mercados:", e);
+        }
+    }
+
+    async function resolverMercadoAdmin(mercadoId, opcionGanadoraIdx) {
+        if (!confirm("¿Estás seguro de declarar esta opción como ganadora? Se repartirán los premios automáticamente.")) return;
+        try {
+            const res = await fetch('/api/admin/resolver', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mercadoId, opcionGanadoraIdx })
+            });
+            const data = await res.json();
+            if (data.success) {
+                mostrarToast("Mercado resuelto y premios repartidos 🏆", "success");
+                cargarPanelAdmin();
+                cargarMercados();
+            } else {
+                mostrarToast("Error al resolver mercado", "error");
+            }
+        } catch (e) {
+            mostrarToast("Error de red", "error");
+        }
+    }
+
+    async function eliminarMercadoAdmin(mercadoId) {
+        if (!confirm("¿Eliminar este mercado y reembolsar fondos?")) return;
+        try {
+            const res = await fetch('/api/admin/eliminar-mercado', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mercadoId })
+            });
+            const data = await res.json();
+            if (data.success) {
+                mostrarToast("Mercado eliminado y reembolsado", "success");
+                cargarPanelAdmin();
+                cargarMercados();
+            }
+        } catch (e) {
+            mostrarToast("Error", "error");
+        }
+    }
+
+    async function cargarFinanzasAdmin() {
+        try {
+            const res = await fetch('/api/admin/finanzas-detallado');
+            const data = await res.json();
+            const container = document.getElementById('admin-content-area');
+            
+            if (data && data.success) {
+                const { diario, semanal, mensual, totalComisiones, historialCompleto } = data.resumen;
+                
+                container.innerHTML = `
+                    <h4 style="color:#1f6feb; margin-bottom:8px;">Control de Billetera y Flujo de Caja (Pi)</h4>
+                    
+                    <!-- Selector de Período -->
+                    <div class="clob-tabs" style="margin-bottom: 12px;">
+                        <div class="clob-tab activo" id="tab-fin-diario" onclick="cambiarFiltroFinanzas('diario')">Diario</div>
+                        <div class="clob-tab" id="tab-fin-semanal" onclick="cambiarFiltroFinanzas('semanal')">Semanal</div>
+                        <div class="clob-tab" id="tab-fin-mensual" onclick="cambiarFiltroFinanzas('mensual')">Mensual</div>
+                    </div>
+
+                    <!-- Panel de Métricas Dinámicas -->
+                    <div id="panel-metricas-tiempo" class="kpi-grid">
+                        <div class="kpi-box">
+                            <span>Entradas (Depósitos)</span>
+                            <h4 id="fin-entradas" style="color: #3fb950;">${diario.entradas.toFixed(2)} Pi</h4>
+                        </div>
+                        <div class="kpi-box">
+                            <span>Salidas (Retiros)</span>
+                            <h4 id="fin-salidas" style="color: #da3633;">${diario.salidas.toFixed(2)} Pi</h4>
+                        </div>
+                        <div class="kpi-box">
+                            <span>Comisiones (Ganancias)</span>
+                            <h4 id="fin-comisiones" style="color: #8957e5;">${diario.comisiones.toFixed(2)} Pi</h4>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 15px; background: var(--card-bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border-color);">
+                        <span style="font-size: 11px; color: var(--subtext);">Acumulado Histórico de Comisiones Netas:</span>
+                        <h3 style="color: #3fb950; margin-top: 4px;">${totalComisiones.toFixed(2)} Pi</h3>
+                    </div>
+
+                    <h4 style="color:#58a6ff; margin: 15px 0 8px 0;">Registro de Movimientos en la Billetera</h4>
+                    <div style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+                        ${historialCompleto.map(tx => `
+                            <div class="historial-item" style="font-size: 11px; padding: 6px;">
+                                <span><b>@${tx.username || 'sistema'}</b> - ${tx.tipo.toUpperCase()}</span>
+                                <span style="color: ${tx.tipo === 'retiro' ? '#da3633' : '#3fb950'};">${tx.monto} Pi</span>
+                            </div>
+                        `).join('') || '<span style="color:var(--subtext); font-size:11px;">Sin movimientos registrados.</span>'}
+                    </div>
+                `;
+                
+                window._cacheFinanzas = { diario, semanal, mensual };
+            }
+        } catch (e) {
+            console.error("Error cargando finanzas detalladas:", e);
+        }
+    }
+
+    function cambiarFiltroFinanzas(periodo) {
+        document.getElementById('tab-fin-diario').classList.remove('activo');
+        document.getElementById('tab-fin-semanal').classList.remove('activo');
+        document.getElementById('tab-fin-mensual').classList.remove('activo');
+        
+        document.getElementById(`tab-fin-${periodo}`).classList.add('activo');
+        
+        const datos = window._cacheFinanzas && window._cacheFinanzas[periodo];
+        if (datos) {
+            document.getElementById('fin-entradas').innerText = datos.entradas.toFixed(2) + " Pi";
+            document.getElementById('fin-salidas').innerText = datos.salidas.toFixed(2) + " Pi";
+            document.getElementById('fin-comisiones').innerText = datos.comisiones.toFixed(2) + " Pi";
+        }
+    }
+
+    async function cargarListaUsuarios() {
+        try {
+            const res = await fetch('/api/admin/usuarios');
+            const data = await res.json();
+            const container = document.getElementById('admin-content-area');
+            if (data && data.usuarios) {
+                let html = '<h4 style="color:#6200ee; margin-bottom:8px;">Gestión de Usuarios P2P</h4>';
+                data.usuarios.forEach(u => {
+                    html += `
+                        <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:10px; border-radius:6px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <b>@${u.username}</b><br>
+                                <span style="font-size:11px; color:var(--subtext);">Saldo: ${(u.saldo || 0).toFixed(4)} Pi</span>
+                            </div>
+                            <button onclick="abrirModalUsuario('${u.username}', ${u.saldo})" style="background:#8957e5; padding:4px 8px; font-size:10px;">Ajustar Saldo</button>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            }
+        } catch (e) {
+            console.error("Error usuarios:", e);
+        }
+    }
+
+    function abrirModalUsuario(username, saldoActualUser) {
+        document.getElementById('modal-username-title').innerText = `Ajustar Saldo: @${username}`;
+        document.getElementById('modal-content-body').innerHTML = `
+            <label>Saldo Actual: <b>${saldoActualUser.toFixed(4)} Pi</b></label>
+            <label>Nuevo Saldo o Ajuste (+/-):</label>
+            <input type="number" id="admin-nuevo-saldo" value="${saldoActualUser}" step="0.5">
+            <button class="btn-crear" onclick="guardarAjusteSaldo('${username}')">Guardar Cambios</button>
+        `;
+        document.getElementById('modal-usuario').style.display = 'flex';
+    }
+
+    async function guardarAjusteSaldo(username) {
+        const nuevoSaldo = parseFloat(document.getElementById('admin-nuevo-saldo').value);
+        if (isNaN(nuevoSaldo)) return;
+        try {
+            const res = await fetch('/api/admin/ajustar-saldo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, nuevoSaldo })
+            });
+            const data = await res.json();
+            if (data.success) {
+                mostrarToast("Saldo actualizado correctamente", "success");
+                document.getElementById('modal-usuario').style.display = 'none';
+                cargarListaUsuarios();
+            } else {
+                mostrarToast("Error al actualizar saldo", "error");
+            }
+        } catch (e) {
+            mostrarToast("Error de red", "error");
+        }
+    }
+
+    // ================= MÓDULO DE CHAT DE SOPORTE INTEGRADO =================
+    function toggleChatSoporte() {
+        const el = document.getElementById('contenedor-chat-soporte');
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        if (el.style.display === 'block') {
+            cargarHistorialSoporte();
+        }
+    }
+
+    async function cargarHistorialSoporte() {
+        try {
+            const res = await fetch(`/api/soporte/mensajes/${usuarioActual}`);
+            const data = await res.json();
+            if (data.success) {
+                renderizarMensajesSoporte(data.mensajes);
+            }
+        } catch (e) {
+            console.error("Error al cargar chat de soporte:", e);
+        }
+    }
+
+    function renderizarMensajesSoporte(mensajes) {
+        const caja = document.getElementById('caja-mensajes-soporte');
+        if (!caja) return;
+        if (!mensajes || mensajes.length === 0) {
+            caja.innerHTML = '<span style="color: var(--subtext); font-size: 11px; text-align: center;">No hay mensajes previos.</span>';
+            return;
         }
         
-        const caja = document.getElementById('caja-mensajes-soporte');
-        caja.innerHTML += `<div style="text-align: right; margin-bottom: 4px;"><span style="background: #1f6feb; color: white; padding: 4px 8px; border-radius: 6px; font-size: 11px; display: inline-block;">${mensaje}</span></div>`;
-        input.value = '';
+        let html = '';
+        mensajes.forEach(m => {
+            let esAdmin = m.remitente === 'admin';
+            let alineacion = esAdmin ? 'text-align: left; background: var(--card-bg); border-left: 3px solid #8957e5;' : 'text-align: right; background: #1f6feb22; border-right: 3px solid #1f6feb;';
+            let remitenteLabel = esAdmin ? '<b>Soporte P2Ppredict</b>' : '<b>Tú</b>';
+            
+            html += `
+                <div style="padding: 6px 8px; border-radius: 6px; font-size: 11px; ${alineacion}">
+                    ${remitenteLabel}<br>
+                    <span>${m.texto}</span>
+                    <div style="font-size: 9px; color: var(--subtext); margin-top: 2px;">${m.fecha}</div>
+                </div>
+            `;
+        });
+        caja.innerHTML = html;
         caja.scrollTop = caja.scrollHeight;
+    }
+
+    async function enviarMensajeSoporte() {
+        const input = document.getElementById('input-mensaje-soporte');
+        if (!input) return;
+        const texto = input.value.trim();
+        if (!texto) return;
+
+        try {
+            const res = await fetch('/api/soporte/enviar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usuarioActual, remitente: usuarioActual, texto })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                input.value = '';
+                cargarHistorialSoporte();
+            } else {
+                mostrarToast("No se pudo enviar el mensaje", "error");
+            }
+        } catch (e) {
+            mostrarToast("Error de red al enviar mensaje", "error");
+        }
     }
 </script>
 </body>
