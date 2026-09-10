@@ -158,6 +158,10 @@ def obtener_saldo(username):
                           (username, "Restauración Saldo Pi", saldo, txid, fecha))
             else:
                 c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (saldo, username))
+                txid = f"RESTAURACION_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+                c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
+                          (username, "Restauración Saldo Pi", saldo, txid, fecha))
             conn.commit()
 
     if DATABASE_URL:
@@ -286,7 +290,6 @@ def completar_pago():
     payment_id = data.get("paymentId")
     txid = data.get("txid")
 
-    # Soporte dual: Si no hay API Key configurada pero se usa para pruebas locales / simulación
     if PI_API_KEY:
         headers = {"Authorization": f"Key {PI_API_KEY}"}
         try:
@@ -465,7 +468,7 @@ def procesar_orden_clob():
                           (username, evento_id, opcion_id, "market", accion, 0.0, cantidad, "completada", fecha))
                 c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (?, ?, ?, ?, ?)",
                           (username, titulo_evento, f"Opción {opcion_id} [Market]", monto_efectivo, "Ejecutada"))
-                c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
+                c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
                           (username, "Comisión CLOB Market (1.5%)", -comision_taker, txid, fecha))
 
             conn.commit()
@@ -676,7 +679,6 @@ def admin_ajustar_saldo():
             c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
                       (username, motivo, monto_ajuste, txid, fecha))
         else:
-            # CORRECCIÓN APLICADA: Se ajustó de 6 a 5 comodines (?) para coincidir con las 5 columnas de la tabla transacciones en SQLite.
             c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
                       (username, motivo, monto_ajuste, txid, fecha))
 
