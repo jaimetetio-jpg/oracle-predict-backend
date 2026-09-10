@@ -239,13 +239,16 @@ def obtener_eventos_completos():
     conn.close()
     return lista_final
 
-# ================= MIDDLEWARE DE SEGURIDAD =================
+# ================= MIDDLEWARE DE SEGURIDAD Y COMPATIBILIDAD CON PI BROWSER =================
 @app.after_request
 def agregar_cabeceras_seguridad(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Cross-Origin-Embedder-Policy'] = 'unsafe-none'
+    response.headers['Cross-Origin-Opener-Policy'] = 'unsafe-none'
     return response
 
 # ================= RUTAS DE LA APLICACIÓN =================
