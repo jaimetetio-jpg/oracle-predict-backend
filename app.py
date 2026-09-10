@@ -1,12 +1,16 @@
 import os
 from datetime import datetime
-from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
+from flask import Flask, jsonify, render_template, request, session
+from flask_cors import CORS
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
+
+# Configuración de CORS para permitir solicitudes del frontend de forma segura
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Configuración de clave secreta para firmar las sesiones de forma segura
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "p2ppredict_secret_key_ultra_segura_2026")
@@ -104,23 +108,20 @@ def inicializar_bd():
     conn.commit()
 
     # Poblar eventos iniciales si la tabla está vacía
-    if DATABASE_URL:
-        c.execute("SELECT COUNT(*) as total FROM eventos")
-    else:
-        c.execute("SELECT COUNT(*) as total FROM eventos")
+    c.execute("SELECT COUNT(*) as total FROM eventos")
     row = c.fetchone()
     total_evs = row["total"] if row else 0
     
     if total_evs == 0:
         eventos_iniciales = [
             {
-                "titulo": "BTC alcanzará los $120,000 antes de finalizar el mes?",
+                "titulo": "¿BTC alcanzará los $120,000 antes de finalizar el mes?",
                 "categoria": "Crypto",
                 "fecha_cierre": "2026-12-31",
                 "opciones": [("Sí", 15.0), ("No", 10.0)]
             },
             {
-                "titulo": "Pi Network lanzará su Mainnet abierta global este año?",
+                "titulo": "¿Pi Network lanzará su Mainnet abierta global este año?",
                 "categoria": "Pi Ecosystem",
                 "fecha_cierre": "2026-11-30",
                 "opciones": [("Sí", 35.0), ("No", 5.0)]
@@ -165,10 +166,7 @@ def registrar_log_admin(accion, detalles):
 def obtener_eventos_completos():
     conn = obtener_conexion()
     c = conn.cursor()
-    if DATABASE_URL:
-        c.execute("SELECT * FROM eventos ORDER BY id ASC")
-    else:
-        c.execute("SELECT * FROM eventos ORDER BY id ASC")
+    c.execute("SELECT * FROM eventos ORDER BY id ASC")
     eventos_db = c.fetchall()
     
     lista_final = []
@@ -192,6 +190,9 @@ def home():
 
 @app.route("/api/saldo/<username>", methods=["GET"])
 def obtener_saldo(username):
+    limite = int(request.args.get("limit", 20))
+    offset = int(request.args.get("offset", 0))
+
     conn = obtener_conexion()
     c = conn.cursor()
     
@@ -240,15 +241,15 @@ def obtener_saldo(username):
             conn.commit()
 
     if DATABASE_URL:
-        c.execute("SELECT * FROM historial_apuestas WHERE username = %s ORDER BY id DESC", (username,))
+        c.execute("SELECT * FROM historial_apuestas WHERE username = %s ORDER BY id DESC LIMIT %s OFFSET %s", (username, limite, offset))
     else:
-        c.execute("SELECT * FROM historial_apuestas WHERE username = ? ORDER BY id DESC", (username,))
+        c.execute("SELECT * FROM historial_apuestas WHERE username = ? ORDER BY id DESC LIMIT ? OFFSET ?", (username, limite, offset))
     historial = [dict(row) for row in c.fetchall()]
 
     if DATABASE_URL:
-        c.execute("SELECT * FROM transacciones WHERE username = %s ORDER BY id DESC", (username,))
+        c.execute("SELECT * FROM transacciones WHERE username = %s ORDER BY id DESC LIMIT %s OFFSET %s", (username, limite, offset))
     else:
-        c.execute("SELECT * FROM transacciones WHERE username = ? ORDER BY id DESC", (username,))
+        c.execute("SELECT * FROM transacciones WHERE username = ? ORDER BY id DESC LIMIT ? OFFSET ?", (username, limite, offset))
     transacciones = [dict(row) for row in c.fetchall()]
     
     conn.close()
