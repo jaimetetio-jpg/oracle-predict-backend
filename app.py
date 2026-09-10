@@ -25,13 +25,8 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 request_records = defaultdict(list)
 
 def check_rate_limit(limit=15, window=60):
-    """
-    Limita las peticiones por IP para evitar ataques de fuerza bruta o abuso en la API.
-    Por defecto permite hasta 15 peticiones en un ventana de 60 segundos por IP.
-    """
     ip = request.remote_addr or "127.0.0.1"
     now = time.time()
-    # Limpiar registros antiguos fuera de la ventana de tiempo
     request_records[ip] = [t for t in request_records[ip] if now - t < window]
     if len(request_records[ip]) >= limit:
         return False
@@ -244,7 +239,7 @@ def obtener_eventos_completos():
     conn.close()
     return lista_final
 
-# ================= MIDDLEWARE DE CABECERAS DE SEGURIDAD =================
+# ================= MIDDLEWARE DE SEGURIDAD =================
 @app.after_request
 def agregar_cabeceras_seguridad(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -253,7 +248,7 @@ def agregar_cabeceras_seguridad(response):
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     return response
 
-# ================= RUTAS DE LA APP =================
+# ================= RUTAS DE LA APLICACIÓN =================
 
 @app.route("/")
 def home():
@@ -263,6 +258,7 @@ def home():
 def obtener_saldo(username):
     limite = int(request.args.get("limit", 20))
     offset = int(request.args.get("offset", 0))
+    filtro_tipo = request.args.get("tipo", "").strip()
 
     conn = obtener_conexion()
     c = conn.cursor()
@@ -273,10 +269,8 @@ def obtener_saldo(username):
         c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
     row = c.fetchone()
     
-    # RESTAURADO: Asignación automática de los 0.1 Pi para @jaimetetio
     if not row:
         saldo_inicial = 0.1 if username.lower() in ["@jaimetetio", "jaimetetio"] else 0.0
-        
         if DATABASE_URL:
             c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (%s, %s)", (username, saldo_inicial))
             if saldo_inicial > 0:
@@ -291,7 +285,6 @@ def obtener_saldo(username):
                 fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
                 c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
                           (username, "Crédito Inicial", saldo_inicial, txid, fecha))
-        
         conn.commit()
         saldo = saldo_inicial
     else:
@@ -318,12 +311,19 @@ def obtener_saldo(username):
         c.execute("SELECT * FROM historial_apuestas WHERE username = ? ORDER BY id DESC LIMIT ? OFFSET ?", (username, limite, offset))
     historial = [dict(row) for row in c.fetchall()]
 
-    if DATABASE_URL:
-        c.execute("SELECT * FROM transacciones WHERE username = %s ORDER BY id DESC LIMIT %s OFFSET %s", (username, limite, offset))
+    # NUEVA MEJORA BACKEND: Soporte opcional para filtrar transacciones por categoría/tipo para el historial avanzado
+    if filtro_tipo:
+        if DATABASE_URL:
+            c.execute("SELECT * FROM transacciones WHERE username = %s AND tipo ILIKE %s ORDER BY id DESC LIMIT %s OFFSET %s", (username, f"%{filtro_tipo}%", limite, offset))
+        else:
+            c.execute("SELECT * FROM transacciones WHERE username = ? AND tipo LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?", (username, f"%{filtro_tipo}%", limite, offset))
     else:
-        c.execute("SELECT * FROM transacciones WHERE username = ? ORDER BY id DESC LIMIT ? OFFSET ?", (username, limite, offset))
+        if DATABASE_URL:
+            c.execute("SELECT * FROM transacciones WHERE username = %s ORDER BY id DESC LIMIT %s OFFSET %s", (username, limite, offset))
+        else:
+            c.execute("SELECT * FROM transacciones WHERE username = ? ORDER BY id DESC LIMIT ? OFFSET ?", (username, limite, offset))
+            
     transacciones = [dict(row) for row in c.fetchall()]
-    
     conn.close()
     
     return jsonify({
@@ -335,12 +335,10 @@ def obtener_saldo(username):
 
 @app.route("/api/eventos", methods=["GET"])
 def obtener_eventos():
-    eventos = obtener_eventos_completos()
-    return jsonify(eventos)
+    return jsonify(obtener_eventos_completos())
 
 @app.route("/api/participar", methods=["POST"])
 def participar():
-    # Rate limit estricto para prevenir abusos en apuestas
     if not check_rate_limit(limit=25, window=60):
         return jsonify({"success": False, "error": "Demasiadas peticiones. Por favor, espera un momento."}), 429
 
@@ -400,39 +398,25 @@ def participar():
         if DATABASE_URL:
             c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
             c.execute("UPDATE opciones_evento SET pozo = pozo + %s WHERE id = %s", (monto, opcion_id))
+            c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (%s, %s, %s, %s, %s)",
+                      (username, evento["titulo"], opcion["nombre"], monto, "Activo"))
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                      (username, "Apuesta", -monto, f"BET_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
         else:
             c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
             c.execute("UPDATE opciones_evento SET pozo = pozo + ? WHERE id = ?", (monto, opcion_id))
-
-        if DATABASE_URL:
-            c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (%s, %s, %s, %s, %s)",
-                      (username, evento["titulo"], opcion["nombre"], monto, "Activo"))
-        else:
             c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (?, ?, ?, ?, ?)",
                       (username, evento["titulo"], opcion["nombre"], monto, "Activo"))
-        
-        txid = f"BET_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-        fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
-        if DATABASE_URL:
-            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
-                      (username, "Apuesta", -monto, txid, fecha))
-        else:
             c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
-                      (username, "Apuesta", -monto, txid, fecha))
+                      (username, "Apuesta", -monto, f"BET_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
         
         conn.commit()
-        return jsonify({
-            "success": True, 
-            "nuevo_saldo": nuevo_saldo,
-            "mensaje": "¡Apuesta registrada con éxito!"
-        })
+        return jsonify({"success": True, "nuevo_saldo": nuevo_saldo, "mensaje": "¡Apuesta registrada con éxito!"})
     except Exception as e:
         conn.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
         conn.close()
-
-# ================= PASARELA DE PAGO OFICIAL PI NETWORK =================
 
 @app.route("/api/pi/aprobar-pago", methods=["POST"])
 def aprobar_pago():
@@ -489,12 +473,11 @@ def completar_pago():
             else:
                 c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (?, ?)", (username, nuevo_saldo))
         else:
-            saldo_actual = row["saldo_disponible"]
-            nuevo_saldo = saldo_actual + monto
+            nuevo_saldo = row["saldo_disponible"] + monto
             if DATABASE_URL:
                 c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
             else:
-                c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (username, nuevo_saldo))
+                c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
         
         fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
         if DATABASE_URL:
@@ -505,22 +488,15 @@ def completar_pago():
                       (username, "Recarga Pi Real", monto, txid or payment_id, fecha))
         
         conn.commit()
-        return jsonify({
-            "success": True, 
-            "nuevo_saldo": nuevo_saldo,
-            "mensaje": f"Recarga de {monto} Pi acreditada con éxito."
-        })
+        return jsonify({"success": True, "nuevo_saldo": nuevo_saldo, "mensaje": f"Recarga de {monto} Pi acreditada con éxito."})
     except Exception as e:
         conn.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
         conn.close()
 
-# ================= ENDPOINT DE RETIRO AUTOMATIZADO (A2U PAYOUTS) =================
-
 @app.route("/api/pi/retirar", methods=["POST"])
 def solicitar_retiro():
-    # Rate limit estricto para solicitudes de retiro
     if not check_rate_limit(limit=10, window=60):
         return jsonify({"success": False, "error": "Demasiadas peticiones de retiro. Intente más tarde."}), 429
 
@@ -563,7 +539,7 @@ def solicitar_retiro():
         if DATABASE_URL:
             c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
         else:
-            c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (username, nuevo_saldo))
+            c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
 
         headers = {"Authorization": f"Key {PI_API_KEY}", "Content-Type": "application/json"}
         payload = {
@@ -592,19 +568,12 @@ def solicitar_retiro():
                       (username, "Retiro Pi Blockchain", -monto, txid, fecha))
 
         conn.commit()
-        return jsonify({
-            "success": True,
-            "nuevo_saldo": nuevo_saldo,
-            "txid": txid,
-            "mensaje": f"Retiro de {monto} Pi procesado y enviado a la red con éxito."
-        })
+        return jsonify({"success": True, "nuevo_saldo": nuevo_saldo, "txid": txid, "mensaje": f"Retiro de {monto} Pi procesado con éxito."})
     except Exception as e:
         conn.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
         conn.close()
-
-# ================= ENDPOINT DE WEBHOOK PARA CALLBACKS DE PI NETWORK =================
 
 @app.route("/api/pi/webhook/payout", methods=["POST"])
 def webhook_payout_pi():
@@ -653,7 +622,6 @@ def webhook_payout_pi():
                     c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
                     c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
                               (username, "Reverso Retiro Fallido", monto_absoluto, f"REVERSO_{payment_id}", datetime.now().strftime("%Y-%m-%d %H:%M")))
-                
                 conn.commit()
 
         return jsonify({"success": True, "mensaje": "Webhook procesado correctamente"})
@@ -663,11 +631,8 @@ def webhook_payout_pi():
     finally:
         conn.close()
 
-# ================= RUTAS DE ADMINISTRADOR =================
-
 @app.route("/api/admin/login", methods=["POST"])
 def admin_login():
-    # Rate limit muy estricto para evitar ataques de fuerza bruta al panel de admin
     if not check_rate_limit(limit=5, window=60):
         registrar_log_admin("LOGIN_FALLIDO_RATE_LIMIT", "Demasiados intentos de acceso bloqueados por seguridad.")
         return jsonify({"success": False, "error": "Demasiados intentos fallidos. Inténtelo más tarde."}), 429
