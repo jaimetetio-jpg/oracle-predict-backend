@@ -8,16 +8,42 @@
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
     <!-- Chart.js para gráficos de mercado -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Socket.io para WebSockets en tiempo real -->
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.2/dist/socket.io.min.js"></script>
     <script>
         Pi.init({ version: "2.0", sandbox: false });
     </script>
     <style>
+        :root {
+            --bg-color: #0d1117;
+            --text-color: #c9d1d9;
+            --card-bg: #161b22;
+            --border-color: #30363d;
+            --header-title: #ffffff;
+            --subtext: #8b949e;
+            --row-bg: #21262d;
+            --modal-bg: #1e1e24;
+        }
+
+        .light-mode {
+            --bg-color: #f0f2f5;
+            --text-color: #24292e;
+            --card-bg: #ffffff;
+            --border-color: #e1e4e8;
+            --header-title: #111111;
+            --subtext: #586069;
+            --row-bg: #f6f8fa;
+            --modal-bg: #ffffff;
+        }
+
         body {
-            background-color: #0d1117; color: #c9d1d9;
+            background-color: var(--bg-color); color: var(--text-color);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
-        .brand-header { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+        .brand-header { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; width: 100%; max-width: 400px; justify-content: space-between; box-sizing: border-box; }
+        .brand-left { display: flex; align-items: center; gap: 12px; }
         .brand-logo {
             width: 48px; height: 48px; border-radius: 14px;
             background: linear-gradient(135deg, #2b1055, #7597de);
@@ -25,16 +51,23 @@
             box-shadow: 0 4px 15px rgba(137, 87, 229, 0.4); border: 1px solid rgba(245, 158, 11, 0.3);
             padding: 8px; box-sizing: border-box;
         }
-        .brand-titles h1 { font-size: 24px; color: #ffffff; margin: 0; text-align: left; }
-        .brand-titles span { font-size: 11px; color: #8b949e; letter-spacing: 0.5px; }
-        p.subtitulo { color: #8b949e; font-size: 13px; margin-bottom: 15px; text-align: center; }
+        .brand-titles h1 { font-size: 24px; color: var(--header-title); margin: 0; text-align: left; }
+        .brand-titles span { font-size: 11px; color: var(--subtext); letter-spacing: 0.5px; }
+        p.subtitulo { color: var(--subtext); font-size: 13px; margin-bottom: 15px; text-align: center; }
         
         .nav-admin-bar { width: 100%; max-width: 400px; display: flex; gap: 6px; margin-bottom: 15px; }
         .btn-vista {
-            flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid #30363d;
-            background-color: #161b22; color: #c9d1d9; font-weight: bold; font-size: 12px; cursor: pointer; text-align: center;
+            flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border-color);
+            background-color: var(--card-bg); color: var(--text-color); font-weight: bold; font-size: 12px; cursor: pointer; text-align: center;
         }
         .btn-vista.activo { background-color: #8957e5; border-color: #8957e5; color: #fff; }
+
+        .market-filters { width: 100%; max-width: 400px; display: flex; gap: 4px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 4px; }
+        .filter-badge {
+            background-color: var(--card-bg); border: 1px solid var(--border-color); color: var(--subtext);
+            padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; white-space: nowrap; font-weight: bold;
+        }
+        .filter-badge.activo { background-color: #1f6feb; border-color: #1f6feb; color: #fff; }
 
         .wallet-card {
             background: linear-gradient(135deg, #1f6feb, #8957e5);
@@ -46,102 +79,129 @@
         .wallet-info h2 { font-size: 20px; color: #ffffff; margin: 4px 0 0 0; }
         
         .card {
-            background-color: #161b22; border: 1px solid #30363d; border-radius: 12px;
+            background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px;
             padding: 20px; width: 100%; max-width: 400px; margin-bottom: 15px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5); box-sizing: border-box;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); box-sizing: border-box;
         }
-        .card h3 { font-size: 16px; color: #f0f6fc; margin-top: 0; margin-bottom: 10px; }
+        .card h3 { font-size: 16px; color: var(--header-title); margin-top: 0; margin-bottom: 10px; }
         
         input[type="text"], input[type="number"], input[type="password"] {
-            width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #30363d;
-            background-color: #0d1117; color: #fff; margin-bottom: 10px; font-size: 14px; box-sizing: border-box;
+            width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color);
+            background-color: var(--bg-color); color: var(--text-color); margin-bottom: 10px; font-size: 14px; box-sizing: border-box;
         }
-        label { font-size: 12px; color: #8b949e; display: block; margin-bottom: 4px; text-align: left; }
+        label { font-size: 12px; color: var(--subtext); display: block; margin-bottom: 4px; text-align: left; }
         
         .opciones-container { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
         .opcion-row {
-            background-color: #21262d; border: 1px solid #30363d; border-radius: 8px;
+            background-color: var(--row-bg); border: 1px solid var(--border-color); border-radius: 8px;
             padding: 12px; display: flex; flex-direction: column; gap: 8px;
         }
         .opcion-row-top { display: flex; justify-content: space-between; align-items: center; }
         .info-opcion { display: flex; flex-direction: column; gap: 4px; }
         .nombre-opcion { font-weight: bold; color: #58a6ff; font-size: 15px; }
-        .stats-opcion { font-size: 12px; color: #8b949e; }
+        .stats-opcion { font-size: 12px; color: var(--subtext); }
         
         .chart-container {
-            position: relative; width: 100%; height: 120px; background: #0d1117;
-            border-radius: 6px; padding: 4px; margin-top: 6px; border: 1px solid #30363d; box-sizing: border-box;
+            position: relative; width: 100%; height: 120px; background: var(--bg-color);
+            border-radius: 6px; padding: 4px; margin-top: 6px; border: 1px solid var(--border-color); box-sizing: border-box;
         }
 
         .clob-panel {
-            background: #0d1117; border: 1px dashed #30363d; border-radius: 6px; padding: 10px;
+            background: var(--bg-color); border: 1px dashed var(--border-color); border-radius: 6px; padding: 10px;
             display: none; margin-top: 5px; box-sizing: border-box;
         }
         .clob-tabs { display: flex; gap: 5px; margin-bottom: 8px; }
         .clob-tab {
-            flex: 1; font-size: 11px; padding: 4px; text-align: center; background: #161b22;
-            border: 1px solid #30363d; border-radius: 4px; cursor: pointer; color: #8b949e; font-weight: bold;
+            flex: 1; font-size: 11px; padding: 4px; text-align: center; background: var(--card-bg);
+            border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; color: var(--subtext); font-weight: bold;
         }
         .clob-tab.activo { background: #1f6feb; color: #fff; border-color: #1f6feb; }
         
         .preview-ganancia-box {
-            background: #161b22; border: 1px solid #30363d; border-radius: 6px;
+            background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 6px;
             padding: 8px 10px; margin-bottom: 8px; font-size: 11px;
         }
         .preview-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
-        .preview-row span { color: #8b949e; }
+        .preview-row span { color: var(--subtext); }
+
+        .zap-container { display: flex; gap: 4px; margin-top: 4px; }
+        .btn-zap { background: #1f6feb; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; cursor: pointer; }
+        .btn-zap:hover { background: #388bfd; }
 
         button {
             background-color: #238636; color: #fff; border: none; padding: 8px 14px;
             border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: bold;
         }
-        button:disabled { background-color: #30363d; color: #8b949e; cursor: not-allowed; }
+        button:disabled { background-color: var(--border-color); color: var(--subtext); cursor: not-allowed; }
         button.btn-crear { background-color: #8957e5; width: 100%; padding: 10px; margin-top: 5px; }
         button.btn-reclamar { background-color: #0e8a16; color: #ffffff; padding: 6px 10px; font-size: 12px; font-weight: bold; border: 1px solid #2ea043; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         button.btn-retirar { background-color: #d29922; color: #000; padding: 8px 12px; font-size: 13px; }
         button.btn-depositar { background-color: #f59e0b; color: #000; width: 100%; margin-top: 5px; }
-        button.btn-admin { background-color: #30363d; color: #fff; border: 1px solid #444; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold; }
+        button.btn-admin { background-color: var(--border-color); color: var(--text-color); border: 1px solid #444; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: bold; }
         button:hover:not(:disabled) { opacity: 0.85; }
         
-        .header-meta { display: flex; justify-content: space-between; font-size: 11px; color: #8b949e; margin-bottom: 6px; }
-        .badge-categoria { background-color: #30363d; padding: 2px 6px; border-radius: 4px; color: #f0f6fc; }
+        .header-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--subtext); margin-bottom: 6px; }
+        .badge-categoria { background-color: var(--border-color); padding: 2px 6px; border-radius: 4px; color: var(--header-title); }
         .badge-activo { color: #3fb950; font-weight: bold; }
         .pozo-global { font-size: 13px; color: #58a6ff; margin-bottom: 10px; font-weight: bold; }
         
-        .historial-box { font-size: 12px; background: #0d1117; padding: 10px; border-radius: 6px; border: 1px solid #30363d; margin-top: 10px; max-height: 180px; overflow-y: auto; }
-        .historial-item { border-bottom: 1px solid #21262d; padding: 8px 0; display: flex; justify-content: space-between; align-items: center; }
+        .historial-box { font-size: 12px; background: var(--bg-color); padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); margin-top: 10px; max-height: 180px; overflow-y: auto; }
+        .historial-item { border-bottom: 1px solid var(--row-bg); padding: 8px 0; display: flex; justify-content: space-between; align-items: center; }
 
-        /* Estilos específicos para las tarjetas de finanzas del admin */
         .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-        .kpi-box { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 10px; text-align: center; }
-        .kpi-box span { font-size: 10px; color: #8b949e; display: block; text-transform: uppercase; }
-        .kpi-box h4 { font-size: 14px; margin: 4px 0 0 0; color: #f0f6fc; }
+        .kpi-box { background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; text-align: center; }
+        .kpi-box span { font-size: 10px; color: var(--subtext); display: block; text-transform: uppercase; }
+        .kpi-box h4 { font-size: 14px; margin: 4px 0 0 0; color: var(--header-title); }
 
-        #vista-admin, #vista-ranking { display: none; width: 100%; max-width: 400px; flex-direction: column; align-items: center; box-sizing: border-box; }
+        /* Estilo para Toast Notifications */
+        #toast-container {
+            position: fixed; top: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; align-items: center; width: 100%; pointer-events: none;
+        }
+        .toast {
+            background: #1f6feb; color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); pointer-events: auto; animation: fadeInOut 3.5s forwards; max-width: 350px; text-align: center; border: 1px solid #388bfd;
+        }
+        .toast.success { background: #238636; border-color: #2ea043; }
+        .toast.error { background: #da3633; border-color: #f85149; }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-10px); }
+            10% { opacity: 1; transform: translateY(0); }
+            85% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+
+        #vista-admin, #vista-ranking, #vista-crear-mercado { display: none; width: 100%; max-width: 400px; flex-direction: column; align-items: center; box-sizing: border-box; }
         #vista-usuario { display: flex; width: 100%; max-width: 400px; flex-direction: column; align-items: center; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
+    <!-- Contenedor de Notificaciones Toast -->
+    <div id="toast-container"></div>
+
     <div class="brand-header">
-        <div class="brand-logo">
-            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-                <path d="M12 48L24 34L36 40L52 18" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M40 18H52V30" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="24" cy="34" r="4" fill="#3fb950"/>
-                <circle cx="52" cy="18" r="5" fill="#3fb950"/>
-                <path d="M16 52H48" stroke="#8957e5" stroke-width="3" stroke-linecap="round"/>
-            </svg>
+        <div class="brand-left">
+            <div class="brand-logo">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+                    <path d="M12 48L24 34L36 40L52 18" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M40 18H52V30" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="24" cy="34" r="4" fill="#3fb950"/>
+                    <circle cx="52" cy="18" r="5" fill="#3fb950"/>
+                    <path d="M16 52H48" stroke="#8957e5" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="brand-titles">
+                <h1>P2P<span style="color: #f59e0b;">predict</span></h1>
+                <span>Predicciones - PiNetwork</span>
+            </div>
         </div>
-        <div class="brand-titles">
-            <h1>P2P<span style="color: #f59e0b;">predict</span></h1>
-            <span>Predicciones -PiNetwork</span>
-        </div>
+        <button onclick="toggleTemaVisual()" class="btn-admin" style="padding: 6px 10px; font-size: 14px;" title="Cambiar Tema Visual">🌓</button>
     </div>
     <p class="subtitulo" id="lbl-estado-conexion">Conectando con Pi Browser...</p>
 
     <div class="nav-admin-bar">
         <div id="tab-user" class="btn-vista activo" onclick="cambiarVista('usuario')">🏠 Mercados</div>
+        <div id="tab-crear" class="btn-vista" onclick="cambiarVista('crear')">➕ Crear</div>
         <div id="tab-rank" class="btn-vista" onclick="cambiarVista('ranking')">🏆 Ranking</div>
         <div id="tab-adm" class="btn-vista" onclick="cambiarVista('admin')">⚙️ Admin</div>
     </div>
@@ -166,17 +226,33 @@
             </div>
         </div>
 
+        <!-- Órdenes Abiertas (Pending Limit Orders) -->
+        <div class="card" style="padding: 15px; border-color: #1f6feb;">
+            <h3 style="margin-bottom: 5px; cursor: pointer; color: #58a6ff;" onclick="toggleOrdenesAbiertas()">⏳ Mis Órdenes Abiertas (Limit) ▾</h3>
+            <div id="contenedor-ordenes-abiertas" class="historial-box" style="display: none;">
+                <span style="color: var(--subtext);">No tienes órdenes Limit pendientes.</span>
+            </div>
+        </div>
+
         <div class="card" style="padding: 15px;">
             <h3 style="margin-bottom: 5px; cursor: pointer;" onclick="toggleHistorial()">📋 Ver Mi Historial de Apostado ▾</h3>
             <div id="contenedor-historial" class="historial-box" style="display: none;">
-                <span style="color: #8b949e;">Cargando historial...</span>
+                <span style="color: var(--subtext);">Cargando historial...</span>
+            </div>
+        </div>
+
+        <!-- Historial de Órdenes Ejecutadas (Trade History) -->
+        <div class="card" style="padding: 15px; border-color: #238636;">
+            <h3 style="margin-bottom: 5px; cursor: pointer; color: #3fb950;" onclick="toggleTradeHistory()">✅ Historial de Trades Ejecutados ▾</h3>
+            <div id="contenedor-trade-history" class="historial-box" style="display: none;">
+                <span style="color: var(--subtext);">Sin órdenes ejecutadas completadas aún.</span>
             </div>
         </div>
 
         <div class="card" style="padding: 12px;">
             <h3 style="margin-bottom: 5px; cursor: pointer; color: #58a6ff;" onclick="toggleTransacciones()">📜 Historial de Transacciones & Retiros ▾</h3>
             <div id="contenedor-transacciones" class="historial-box" style="display: none;">
-                <span style="color: #8b949e;">Sin transacciones registradas.</span>
+                <span style="color: var(--subtext);">Sin transacciones registradas.</span>
             </div>
         </div>
 
@@ -184,8 +260,42 @@
             <input type="text" id="input-buscar" placeholder="🔍 Buscar mercados..." oninput="renderizarMercados()">
         </div>
 
+        <div class="market-filters" id="market-filters-bar">
+            <div class="filter-badge activo" onclick="filtrarCategoria('todos', this)">Todos</div>
+            <div class="filter-badge" onclick="filtrarCategoria('Finanzas', this)">Finanzas</div>
+            <div class="filter-badge" onclick="filtrarCategoria('Deportes', this)">Deportes</div>
+            <div class="filter-badge" onclick="filtrarCategoria('Cripto', this)">Cripto</div>
+            <div class="filter-badge" onclick="filtrarCategoria('Finalizados', this)">Finalizados</div>
+        </div>
+
         <div id="mercados-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
             <div class="card"><h3>Cargando mercados...</h3></div>
+        </div>
+    </div>
+
+    <!-- ================= VISTA CREAR MERCADO P2P ================= -->
+    <div id="vista-crear-mercado">
+        <div class="card" style="border-color: #8957e5;">
+            <h3 style="color: #8957e5; margin-bottom: 12px;">🛠️ Crear Mercado de Predicción P2P</h3>
+            <label>Título de la Predicción:</label>
+            <input type="text" id="crear-titulo" placeholder="Ej: ¿Bitcoin superará los $100k este mes?">
+            
+            <label>Categoría:</label>
+            <input type="text" id="crear-categoria" placeholder="Ej: Cripto, Finanzas, Deportes">
+
+            <label>Opción 1 (Ej: Sí / Alcista / Real Madrid):</label>
+            <input type="text" id="crear-opcion1" placeholder="Opción A">
+
+            <label>Opción 2 (Ej: No / Bajista / Barcelona):</label>
+            <input type="text" id="crear-opcion2" placeholder="Opción B">
+
+            <label>Fecha y Hora de Expiración:</label>
+            <input type="text" id="crear-expiracion" placeholder="Ej: 31 de Diciembre, 2026">
+
+            <label>Colateral del Creador (Maker Staking en Pi):</label>
+            <input type="number" id="crear-colateral" value="2.0" min="0.0" step="0.5" placeholder="Mínimo 2 Pi de colateral">
+
+            <button class="btn-crear" onclick="enviarCreacionMercadoP2P()">Publicar Mercado P2P</button>
         </div>
     </div>
 
@@ -193,7 +303,7 @@
     <div id="vista-ranking">
         <div class="card" style="border-color: #238636;">
             <h3 style="color: #3fb950; margin-bottom: 4px;">🏆 Salón de la Fama</h3>
-            <div id="contenedor-leaderboard"><span style="color: #8b949e; font-size: 12px;">Cargando...</span></div>
+            <div id="contenedor-leaderboard"><span style="color: var(--subtext); font-size: 12px;">Cargando...</span></div>
         </div>
     </div>
 
@@ -207,7 +317,7 @@
         </div>
 
         <div id="admin-panel-content" style="display: none; width: 100%; flex-direction: column; align-items: center;">
-            <div id="admin-panel" style="display: block; padding: 15px; color: #fff; background: #161b22; border: 1px solid #30363d; border-radius: 12px; margin-bottom: 15px; width: 100%; box-sizing: border-box;">
+            <div id="admin-panel" style="display: block; padding: 15px; color: var(--text-color); background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 15px; width: 100%; box-sizing: border-box;">
                 <h3>Panel de Superusuario 🛡️</h3>
                 <div style="margin: 12px 0; display: flex; gap: 4px; flex-wrap: wrap;">
                     <button onclick="cargarPanelAdmin()" class="btn-admin">🎯 Mercados</button>
@@ -221,15 +331,15 @@
 
     <!-- MODAL PARA AJUSTAR SALDO O VER DETALLE DE USUARIO -->
     <div id="modal-usuario" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
-        <div style="background: #1e1e24; padding: 25px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; border: 1px solid #30363d;">
-            <h3 id="modal-username-title" style="color: #f0f6fc;">Detalle de Usuario</h3>
-            <div id="modal-user-details" style="margin: 15px 0; color: #c9d1d9;"></div>
+        <div style="background: var(--modal-bg); padding: 25px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; border: 1px solid var(--border-color);">
+            <h3 id="modal-username-title" style="color: var(--header-title);">Detalle de Usuario</h3>
+            <div id="modal-user-details" style="margin: 15px 0; color: var(--text-color);"></div>
             
-            <hr style="border-color: #333; margin: 15px 0;">
+            <hr style="border-color: var(--border-color); margin: 15px 0;">
             
-            <h4 style="color: #f0f6fc;">Ajustar Saldo Manualmente</h4>
-            <input type="number" id="ajuste-monto" placeholder="Ej: 5 o -2" step="0.1" style="width: 100%; padding: 10px; margin-bottom: 10px; background: #0d1117; border: 1px solid #30363d; color: #fff; border-radius: 6px;">
-            <input type="text" id="ajuste-motivo" placeholder="Motivo (Ej: Bono de recarga)" style="width: 100%; padding: 10px; margin-bottom: 15px; background: #0d1117; border: 1px solid #30363d; color: #fff; border-radius: 6px;">
+            <h4 style="color: var(--header-title);">Ajustar Saldo Manualmente</h4>
+            <input type="number" id="ajuste-monto" placeholder="Ej: 5 o -2" step="0.1" style="width: 100%; padding: 10px; margin-bottom: 10px; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 6px;">
+            <input type="text" id="ajuste-motivo" placeholder="Motivo (Ej: Bono de recarga)" style="width: 100%; padding: 10px; margin-bottom: 15px; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 6px;">
             
             <div style="display: flex; gap: 8px;">
                 <button onclick="ejecutarAjusteSaldo()" style="background: #238636; color: #fff; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold;">Aplicar Ajuste</button>
@@ -238,39 +348,97 @@
         </div>
     </div>
 
+    <!-- MODAL DE TUTORIAL / GUÍA INTERACTIVA (ONBOARDING) -->
+    <div id="modal-tutorial" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; justify-content: center; align-items: center;">
+        <div style="background: var(--modal-bg); padding: 25px; border-radius: 14px; width: 90%; max-width: 420px; border: 1px solid #1f6feb; text-align: center; box-sizing: border-box;">
+            <h3 style="color: #58a6ff; margin-top: 0;">🚀 ¡Bienvenido a P2Ppredict!</h3>
+            <div id="tutorial-contenido" style="font-size: 13px; color: var(--text-color); margin: 15px 0; line-height: 1.5; text-align: left;">
+                <p><b>1. Mercados y Apuestas:</b> Explora mercados activos de Cripto, Finanzas y Deportes. Apuesta con Zap (1 clic) o usando órdenes Limit.</p>
+                <p><b>2. Cash-Out Anticipado:</b> ¿El mercado se mueve a tu favor? Cierra tu posición en vivo antes de que finalice el evento para asegurar beneficios.</p>
+                <p><b>3. Salón de la Fama & Ligas:</b> Gana aciertos consecutivos y destaca en las tablas de clasificación de la comunidad.</p>
+            </div>
+            <button onclick="cerrarTutorial()" style="background: #1f6feb; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;">¡Entendido, Empezar!</button>
+        </div>
+    </div>
+
     <script>
         let usuarioActual = "Invitado";
         let eventosGlobales = [];
         let usuarioSeleccionadoActual = "";
         let instanciasGraficos = {};
+        let categoriaFiltroActiva = "todos";
+        let socket = null;
+
+        // Sistema de Toasts flotantes
+        function mostrarToast(mensaje, tipo = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${tipo}`;
+            toast.innerText = mensaje;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 3500);
+        }
+
+        // Modo Oscuro / Claro Dinámico y Personalizable
+        function toggleTemaVisual() {
+            document.body.classList.toggle('light-mode');
+            const esClaro = document.body.classList.contains('light-mode');
+            localStorage.setItem('p2p_tema_claro', esClaro ? '1' : '0');
+            mostrarToast(esClaro ? "Modo Claro activado" : "Modo Oscuro (GitHub Dark) activado", "info");
+        }
+
+        if (localStorage.getItem('p2p_tema_claro') === '1') {
+            document.body.classList.add('light-mode');
+        }
 
         async function autenticarPiNetwork() {
             try {
                 const authResult = await Pi.authenticate(['username', 'payments'], () => {});
                 usuarioActual = authResult.user.username;
                 document.getElementById('pi-username').innerText = "@" + usuarioActual;
-                document.getElementById('lbl-estado-conexion').innerText = "Conectado a Pi Network";
+                document.getElementById('lbl-estado-conexion').innerText = "Conectado à Pi Network";
                 document.getElementById('lbl-estado-conexion').style.color = "#3fb950";
+                mostrarToast(`¡Bienvenido de nuevo, @${usuarioActual}!`, 'success');
                 inicializarApp();
             } catch (error) {
                 usuarioActual = "PioneroDemo";
                 document.getElementById('pi-username').innerText = "@" + usuarioActual;
-                document.getElementById('lbl-estado-conexion').innerText = "Modo de Prueba Local";
+                document.getElementById('lbl-estado-conexion').innerText = "Modo de Prueba Local (Sockets)";
+                mostrarToast("Modo Demo local activado", "info");
                 inicializarApp();
             }
+            verificarTutorialPrimeraVez();
+        }
+
+        function verificarTutorialPrimeraVez() {
+            if (!localStorage.getItem('p2p_tutorial_visto')) {
+                document.getElementById('modal-tutorial').style.display = 'flex';
+            }
+        }
+
+        function cerrarTutorial() {
+            localStorage.setItem('p2p_tutorial_visto', '1');
+            document.getElementById('modal-tutorial').style.display = 'none';
         }
 
         function cambiarVista(vista) {
             document.getElementById('vista-usuario').style.display = 'none';
             document.getElementById('vista-ranking').style.display = 'none';
             document.getElementById('vista-admin').style.display = 'none';
+            document.getElementById('vista-crear-mercado').style.display = 'none';
             document.getElementById('tab-user').classList.remove('activo');
             document.getElementById('tab-rank').classList.remove('activo');
             document.getElementById('tab-adm').classList.remove('activo');
+            document.getElementById('tab-crear').classList.remove('activo');
 
             if (vista === 'usuario') {
                 document.getElementById('vista-usuario').style.display = 'flex';
                 document.getElementById('tab-user').classList.add('activo');
+            } else if (vista === 'crear') {
+                document.getElementById('vista-crear-mercado').style.display = 'flex';
+                document.getElementById('tab-crear').classList.add('activo');
             } else if (vista === 'ranking') {
                 document.getElementById('vista-ranking').style.display = 'flex';
                 document.getElementById('tab-rank').classList.add('activo');
@@ -292,9 +460,10 @@
             if (data.success) {
                 document.getElementById('admin-login-box').style.display = 'none';
                 document.getElementById('admin-panel-content').style.display = 'flex';
+                mostrarToast("Acceso de Superusuario concedido", "success");
                 cargarPanelAdmin();
             } else {
-                alert("Contraseña incorrecta.");
+                mostrarToast("Contraseña incorrecta", "error");
             }
         }
 
@@ -303,14 +472,58 @@
             el.style.display = el.style.display === 'none' ? 'block' : 'none';
         }
 
+        function toggleTradeHistory() {
+            const el = document.getElementById('contenedor-trade-history');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
         function toggleTransacciones() {
             const el = document.getElementById('contenedor-transacciones');
             el.style.display = el.style.display === 'none' ? 'block' : 'none';
         }
 
+        function toggleOrdenesAbiertas() {
+            const el = document.getElementById('contenedor-ordenes-abiertas');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function filtrarCategoria(cat, elemento) {
+            categoriaFiltroActiva = cat;
+            const badges = document.querySelectorAll('.filter-badge');
+            badges.forEach(b => b.classList.remove('activo'));
+            elemento.classList.add('activo');
+            renderizarMercados();
+        }
+
         async function inicializarApp() {
             await cargarDatosUsuario();
             await cargarMercados();
+            inicializarWebSockets();
+        }
+
+        // Notificaciones Push por WebSockets (Socket.io)
+        function inicializarWebSockets() {
+            if (socket) return;
+            try {
+                socket = io();
+                socket.on('connect', () => {
+                    console.log("Conectado por WebSockets en tiempo real");
+                });
+                socket.on('actualizar_mercados', (data) => {
+                    if (data && data.eventos) {
+                        eventosGlobales = data.eventos;
+                        renderizarMercados(true);
+                    }
+                });
+                socket.on('notificacion_usuario', (data) => {
+                    if (data.username === usuarioActual) {
+                        mostrarToast(data.mensaje, data.tipo || 'info');
+                        cargarDatosUsuario();
+                    }
+                });
+            } catch (e) {
+                console.error("Error al iniciar WebSockets:", e);
+            }
         }
 
         async function cargarDatosUsuario() {
@@ -322,36 +535,84 @@
                     
                     const histCont = document.getElementById('contenedor-historial');
                     if (!data.historial || data.historial.length === 0) {
-                        histCont.innerHTML = '<span style="color: #8b949e;">Sin apuestas aún.</span>';
+                        histCont.innerHTML = '<span style="color: var(--subtext);">Sin apuestas aún.</span>';
                     } else {
                         let html = '';
                         data.historial.slice().reverse().forEach(h => {
-                            html += `<div class="historial-item"><div><b>${h.titulo_evento}</b><br><span style="color: #58a6ff;">${h.opcion_elegida} (${h.monto} Pi)</span></div><div style="color: #d29922;">${h.estado}</div></div>`;
+                            let botonCashOut = h.estado === 'activo' ? `<button onclick="cashOutAnticipado(${h.id})" style="background:#d29922; color:#000; padding:3px 6px; font-size:10px; margin-top:4px;">Cash-Out ⚡</button>` : '';
+                            html += `<div class="historial-item"><div><b>${h.titulo_evento}</b><br><span style="color: #58a6ff;">${h.opcion_elegida} (${h.monto} Pi)</span>${botonCashOut}</div><div style="color: #d29922;">${h.estado}</div></div>`;
                         });
                         histCont.innerHTML = html;
                     }
 
+                    // Historial de Órdenes Ejecutadas (Trade History)
+                    const tradeCont = document.getElementById('contenedor-trade-history');
+                    if (!data.trade_history || data.trade_history.length === 0) {
+                        tradeCont.innerHTML = '<span style="color: var(--subtext);">Sin trades completados aún.</span>';
+                    } else {
+                        let htmlTrades = '';
+                        data.trade_history.forEach(t => {
+                            htmlTrades += `
+                                <div class="historial-item">
+                                    <div>
+                                        <b>${t.titulo_evento}</b><br>
+                                        <span style="color: #58a6ff;">${t.opcion_nombre} • Ej: ${t.precio_ejecucion}</span><br>
+                                        <span style="font-size:10px; color:var(--subtext);">${t.fecha}</span>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <span style="color: #3fb950; font-weight:bold;">+${t.ganancia_neta.toFixed(2)} Pi</span><br>
+                                        <span style="font-size:10px; color:var(--subtext);">Completado</span>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        tradeCont.innerHTML = htmlTrades;
+                    }
+
                     const txCont = document.getElementById('contenedor-transacciones');
                     if (!data.transacciones || data.transacciones.length === 0) {
-                        txCont.innerHTML = '<span style="color: #8b949e;">Sin transacciones o retiros registrados.</span>';
+                        txCont.innerHTML = '<span style="color: var(--subtext);">Sin transacciones o retiros registrados.</span>';
                     } else {
                         let html = '';
                         data.transacciones.slice().reverse().forEach(tx => {
                             let colorMonto = tx.monto > 0 ? '#3fb950' : '#f85149';
                             let signo = tx.monto > 0 ? '+' : '';
-                            let badgeTipo = tx.tipo === 'Retiro Pi' ? 'style="color: #d29922; font-weight: bold;"' : 'style="color: #c9d1d9;"';
+                            let badgeTipo = tx.tipo === 'Retiro Pi' ? 'style="color: #d29922; font-weight: bold;"' : 'style="color: var(--text-color);"';
                             
                             html += `
                                 <div class="historial-item">
                                     <div>
                                         <b style="color:${colorMonto};">${signo}${tx.monto} Pi</b><br>
-                                        <span style="font-size:10px; color:#8b949e;">ID: ${tx.txid} • ${tx.fecha}</span>
+                                        <span style="font-size:10px; color:var(--subtext);">ID: ${tx.txid} • ${tx.fecha}</span>
                                     </div>
                                     <div style="font-size:11px; font-weight:bold;" ${badgeTipo}>${tx.tipo}</div>
                                 </div>
                             `;
                         });
                         txCont.innerHTML = html;
+                    }
+
+                    // Renderizar Órdenes Abiertas (Pending Limit Orders)
+                    const ordenesCont = document.getElementById('contenedor-ordenes-abiertas');
+                    if (!data.ordenes_abiertas || data.ordenes_abiertas.length === 0) {
+                        ordenesCont.innerHTML = '<span style="color: var(--subtext);">No tienes órdenes Limit pendientes.</span>';
+                    } else {
+                        let htmlOrd = '';
+                        data.ordenes_abiertas.forEach(ord => {
+                            htmlOrd += `
+                                <div class="historial-item">
+                                    <div>
+                                        <b>${ord.titulo_evento}</b><br>
+                                        <span style="color: #58a6ff;">${ord.opcion_nombre} • Precio Obj: ${ord.precio}</span><br>
+                                        <span style="font-size:10px; color:var(--subtext);">Monto bloqueado: ${ord.cantidad} Pi</span>
+                                    </div>
+                                    <div>
+                                        <button onclick="cancelarOrdenAbierta('${ord.id}')" style="background: #da3633; padding: 4px 8px; font-size: 10px;">Cancelar</button>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        ordenesCont.innerHTML = htmlOrd;
                     }
                 }
             } catch (e) {
@@ -369,22 +630,27 @@
             }
         }
 
-        function renderizarMercados() {
+        function renderizarMercados(silencioso = false) {
             const container = document.getElementById('mercados-container');
             const filtro = document.getElementById('input-buscar').value.toLowerCase();
-            container.innerHTML = '';
-
-            const filtrados = eventosGlobales.filter(ev => ev.titulo.toLowerCase().includes(filtro));
+            
+            let filtrados = eventosGlobales.filter(ev => {
+                let matchTexto = ev.titulo.toLowerCase().includes(filtro);
+                if (categoriaFiltroActiva === 'todos') return matchTexto;
+                if (categoriaFiltroActiva === 'Finalizados') return matchTexto && ev.estado === 'finalizado';
+                return matchTexto && ev.categoria && ev.categoria.toLowerCase() === categoriaFiltroActiva.toLowerCase();
+            });
             
             if (filtrados.length === 0) {
-                container.innerHTML = '<div class="card"><h3>No se encontraron mercados.</h3></div>';
+                if (!silencioso) container.innerHTML = '<div class="card"><h3>No se encontraron mercados.</h3></div>';
                 return;
             }
 
+            if (!silencioso) container.innerHTML = '';
+
             filtrados.forEach(ev => {
-                let card = document.createElement('div');
-                card.className = 'card';
-                
+                let cardId = `mercado-card-${ev.id}`;
+                let card = document.getElementById(cardId);
                 let pozoTotal = ev.opciones.reduce((acc, o) => acc + o.pozo, 0);
 
                 let htmlOpciones = '';
@@ -402,6 +668,14 @@
                                     <button class="btn-reclamar" id="btn-reclamar-${ev.id}" onclick="reclamarPremio(${ev.id})">Cobrar el acierto</button>
                                     <button onclick="toggleClobPanel(${ev.id}, ${op.id})" style="background-color: #1f6feb; padding: 6px 8px; font-size: 11px;">Mercado/Limit ⚙️</button>
                                 </div>
+                            </div>
+
+                            <!-- Apuesta Rápida Zap (1 click) -->
+                            <div class="zap-container">
+                                <span style="font-size: 10px; color: var(--subtext); align-self: center;">Zap ⚡:</span>
+                                <button class="btn-zap" onclick="apuestaZap(${ev.id}, ${op.id}, 1)">1 Pi</button>
+                                <button class="btn-zap" onclick="apuestaZap(${ev.id}, ${op.id}, 5)">5 Pi</button>
+                                <button class="btn-zap" onclick="apuestaZap(${ev.id}, ${op.id}, 10)">10 Pi</button>
                             </div>
 
                             <div class="chart-container">
@@ -433,6 +707,13 @@
                     `;
                 });
 
+                if (!card) {
+                    card = document.createElement('div');
+                    card.className = 'card';
+                    card.id = cardId;
+                    container.appendChild(card);
+                }
+
                 card.innerHTML = `
                     <div class="header-meta">
                         <span class="badge-categoria">${ev.categoria}</span>
@@ -444,10 +725,9 @@
                         ${htmlOpciones}
                     </div>
                 `;
-                container.appendChild(card);
 
                 ev.opciones.forEach(op => {
-                    renderizarGraficoOpcion(ev.id, op.id, porcentajeHistoricoSimulado(op.pozo, pozoTotal));
+                    renderizarGraficoOpcion(ev.id, op.id, op.historial_precios || porcentajeHistoricoSimulado(op.pozo, pozoTotal));
                 });
             });
         }
@@ -469,7 +749,9 @@
 
             const canvasId = `chart-${eventoId}-${opcionId}`;
             if (instanciasGraficos[canvasId]) {
-                instanciasGraficos[canvasId].destroy();
+                instanciasGraficos[canvasId].data.datasets[0].data = datosHistoricos;
+                instanciasGraficos[canvasId].update('none');
+                return;
             }
 
             instanciasGraficos[canvasId] = new Chart(ctx, {
@@ -495,8 +777,8 @@
                         y: { 
                             min: 0, 
                             max: 1, 
-                            ticks: { color: '#8b949e', font: { size: 9 }, stepSize: 0.5 }, 
-                            grid: { color: '#21262d' } 
+                            ticks: { color: 'var(--subtext)', font: { size: 9 }, stepSize: 0.5 }, 
+                            grid: { color: 'var(--border-color)' } 
                         }
                     }
                 }
@@ -580,13 +862,13 @@
             if (tipo === 'limit') {
                 precio = parseFloat(document.getElementById(`clob-precio-${eventoId}-${opcionId}`).value);
                 if (precio <= 0 || precio >= 1) {
-                    alert("El precio Limit debe estar estrictamente entre 0.01 y 0.99");
+                    mostrarToast("El precio Limit debe estar entre 0.01 y 0.99", "error");
                     return;
                 }
             }
 
             if (!monto || monto <= 0) {
-                alert("Ingresa un monto válido.");
+                mostrarToast("Ingresa un monto válido.", "error");
                 return;
             }
 
@@ -606,11 +888,100 @@
 
             const data = await res.json();
             if (data.success) {
-                alert(data.mensaje);
+                mostrarToast(data.mensaje, "success");
                 toggleClobPanel(eventoId, opcionId);
                 inicializarApp();
             } else {
-                alert("Error: " + data.error);
+                mostrarToast("Error: " + data.error, "error");
+            }
+        }
+
+        async function apuestaZap(eventoId, opcionId, monto) {
+            const res = await fetch('/api/participar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usuarioActual, evento_id: eventoId, opcion_id: opcionId, monto: monto })
+            });
+            const data = await res.json();
+            if (data.success) {
+                mostrarToast(`⚡ Apuesta rápida de ${monto} Pi exitosa`, "success");
+                inicializarApp();
+            } else {
+                mostrarToast(data.error, "error");
+            }
+        }
+
+        async function cashOutAnticipado(apuestaId) {
+            if (!confirm("¿Deseas cerrar tu posición actual anticipadamente (Cash-Out)?")) return;
+            const res = await fetch('/api/cashout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usuarioActual, apuesta_id: apuestaId })
+            });
+            const data = await res.json();
+            if (data.success) {
+                mostrarToast(data.mensaje || "Cash-Out realizado con éxito", "success");
+                inicializarApp();
+            } else {
+                mostrarToast(data.error || "No se pudo procesar el Cash-Out", "error");
+            }
+        }
+
+        async function cancelarOrdenAbierta(ordenId) {
+            if (!confirm("¿Deseas cancelar esta orden pendiente y recuperar tus fondos?")) return;
+            const res = await fetch('/api/clob/cancelar-orden', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usuarioActual, orden_id: ordenId })
+            });
+            const data = await res.json();
+            if (data.success) {
+                mostrarToast("Orden cancelada y fondos devueltos", "success");
+                inicializarApp();
+            } else {
+                mostrarToast(data.error || "No se pudo cancelar la orden", "error");
+            }
+        }
+
+        async function enviarCreacionMercadoP2P() {
+            const titulo = document.getElementById('crear-titulo').value.trim();
+            const categoria = document.getElementById('crear-categoria').value.trim() || 'General';
+            const opcion1 = document.getElementById('crear-opcion1').value.trim();
+            const opcion2 = document.getElementById('crear-opcion2').value.trim();
+            const expiracion = document.getElementById('crear-expiracion').value.trim();
+            const colateral = parseFloat(document.getElementById('crear-colateral').value) || 2.0;
+
+            if (!titulo || !opcion1 || !opcion2) {
+                mostrarToast("Por favor completa el título y al menos dos opciones.", "error");
+                return;
+            }
+
+            const res = await fetch('/api/mercados/crear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: usuarioActual,
+                    titulo,
+                    categoria,
+                    opciones: [opcion1, opcion2],
+                    expiracion,
+                    colateral
+                })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                mostrarToast("¡Mercado P2P creado exitosamente con colateral!", "success");
+                document.getElementById('crear-titulo').value = '';
+                document.getElementById('crear-categoria').value = '';
+                document.getElementById('crear-opcion1').value = '';
+                document.getElementById('crear-opcion2').value = '';
+                document.getElementById('crear-expiracion').value = '';
+                document.getElementById('crear-colateral').value = '2.0';
+                cambiarVista('usuario');
+                cargarMercados();
+            } else {
+                mostrarToast(data.error || "Error al crear el mercado", "error");
             }
         }
 
@@ -619,7 +990,7 @@
             if (!montoStr) return;
             let monto = parseFloat(montoStr);
             if (isNaN(monto) || monto <= 0) {
-                alert("Monto inválido.");
+                mostrarToast("Monto inválido.", "error");
                 return;
             }
 
@@ -630,10 +1001,10 @@
             });
             const data = await res.json();
             if (data.success) {
-                alert(data.mensaje);
+                mostrarToast(data.mensaje, "success");
                 inicializarApp();
             } else {
-                alert(data.error);
+                mostrarToast(data.error, "error");
             }
         }
 
@@ -646,20 +1017,20 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert(data.mensaje || "¡Premio reclamado con éxito!");
+                    mostrarToast(data.mensaje || "¡Premio reclamado con éxito!", "success");
                     inicializarApp();
                 } else {
-                    alert(data.error || "No hay premios disponibles para reclamar en este mercado.");
+                    mostrarToast(data.error || "No hay premios disponibles para reclamar.", "error");
                 }
             } catch (e) {
-                alert("Error de conexión al intentar reclamar el premio.");
+                mostrarToast("Error de conexión al reclamar premio.", "error");
             }
         }
 
         async function recargarConPi() {
             let monto = parseFloat(document.getElementById('input-recarga').value);
             if (isNaN(monto) || monto <= 0) {
-                alert("Ingresa un monto válido para recargar.");
+                mostrarToast("Ingresa un monto válido para recargar.", "error");
                 return;
             }
 
@@ -671,10 +1042,10 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert(data.mensaje);
+                    mostrarToast(data.mensaje, "success");
                     inicializarApp();
                 } else {
-                    alert(data.error);
+                    mostrarToast(data.error, "error");
                 }
                 return;
             }
@@ -701,18 +1072,18 @@
                     });
                     const data = await res.json();
                     if (data.success) {
-                        alert(data.mensaje);
+                        mostrarToast(data.mensaje, "success");
                         inicializarApp();
                     }
                 },
-                onCancel: (paymentId) => { alert("Pago cancelado."); },
-                onError: (error, payment) => { alert("Error en el pago Pi: " + error); }
+                onCancel: (paymentId) => { mostrarToast("Pago cancelado.", "error"); },
+                onError: (error, payment) => { mostrarToast("Error en el pago Pi: " + error, "error"); }
             };
 
             try {
                 Pi.createPayment(paymentData, callbacks);
             } catch (err) {
-                alert("Error al iniciar el pago con Pi: " + err);
+                mostrarToast("Error al iniciar el pago con Pi: " + err, "error");
             }
         }
 
@@ -721,7 +1092,7 @@
             if (!montoStr) return;
             let monto = parseFloat(montoStr);
             if (isNaN(monto) || monto <= 0) {
-                alert("Monto inválido.");
+                mostrarToast("Monto inválido.", "error");
                 return;
             }
 
@@ -732,30 +1103,31 @@
             });
             const data = await res.json();
             if (data.success) {
-                alert(data.mensaje);
+                mostrarToast(data.mensaje, "success");
                 inicializarApp();
             } else {
-                alert(data.error);
+                mostrarToast(data.error, "error");
             }
         }
 
         async function cargarLeaderboard() {
             const container = document.getElementById('contenedor-leaderboard');
-            container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Cargando ranking...</span>';
+            container.innerHTML = '<span style="color: var(--subtext); font-size: 12px;">Cargando ranking...</span>';
             try {
                 const res = await fetch('/api/leaderboard');
                 const data = await res.json();
                 if (data.success && data.leaderboard.length > 0) {
                     let html = '<table style="width:100%; font-size:12px; text-align:left; border-collapse:collapse;">';
-                    html += '<tr style="border-bottom:1px solid #30363d; color:#8b949e;"><th>#</th><th>Pionero</th><th style="text-align:right;">Balance</th></tr>';
+                    html += '<tr style="border-bottom:1px solid var(--border-color); color:var(--subtext);"><th>#</th><th>Pionero</th><th style="text-align:right;">Balance / Insignia</th></tr>';
                     data.leaderboard.forEach((item, index) => {
                         let medalla = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-                        html += `<tr style="border-bottom:1px solid #21262d;"><td style="padding:6px 0;">${medalla}</td><td><b>@${item.username}</b></td><td style="text-align:right; color:#3fb950;">${item.ganancias_netas.toFixed(4)} Pi</td></tr>`;
+                        let badgeInsignia = index === 0 ? ' ⭐ Legendario' : '';
+                        html += `<tr style="border-bottom:1px solid var(--row-bg);"><td style="padding:6px 0;">${medalla}</td><td><b>@${item.username}</b>${badgeInsignia}</td><td style="text-align:right; color:#3fb950;">${item.ganancias_netas.toFixed(4)} Pi</td></tr>`;
                     });
                     html += '</table>';
                     container.innerHTML = html;
                 } else {
-                    container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Sin registros en el ranking aún.</span>';
+                    container.innerHTML = '<span style="color: var(--subtext); font-size: 12px;">Sin registros en el ranking aún.</span>';
                 }
             } catch (e) {
                 container.innerHTML = '<span style="color: #f85149; font-size: 12px;">Error al cargar el ranking.</span>';
@@ -764,22 +1136,22 @@
 
         async function cargarPanelAdmin() {
             const container = document.getElementById('admin-content-area');
-            container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Cargando mercados...</span>';
+            container.innerHTML = '<span style="color: var(--subtext); font-size: 12px;">Cargando mercados...</span>';
             
             try {
                 const res = await fetch('/api/eventos');
                 const mercados = await res.json();
                 
-                let html = `<h4 style="margin:0 0 10px 0; color:#f0f6fc;">Moderación y Control de Mercados</h4>`;
+                let html = `<h4 style="margin:0 0 10px 0; color:var(--header-title);">Moderación y Control de Mercados</h4>`;
                 if (mercados.length === 0) {
-                    html += '<p style="color:#8b949e; font-size:12px;">No hay mercados activos.</p>';
+                    html += '<p style="color:var(--subtext); font-size:12px;">No hay mercados activos.</p>';
                 } else {
                     mercados.forEach(ev => {
                         let pozoTotal = ev.opciones.reduce((acc, o) => acc + o.pozo, 0);
                         html += `
-                            <div style="background:#0d1117; border:1px solid #30363d; padding:10px; border-radius:8px; margin-bottom:8px; font-size:12px;">
+                            <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:10px; border-radius:8px; margin-bottom:8px; font-size:12px;">
                                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                                    <div><b>#${ev.id} - ${ev.titulo}</b><br><span style="color:#8b949e;">Pozo: ${pozoTotal.toFixed(2)} Pi</span></div>
+                                    <div><b>#${ev.id} - ${ev.titulo}</b><br><span style="color:var(--subtext);">Pozo: ${pozoTotal.toFixed(2)} Pi</span></div>
                                     <button onclick="eliminarMercadoSeleccionado(${ev.id}, '${ev.titulo.replace(/'/g, "")}')" style="background:#d9534f; color:#fff; border:none; padding:4px 8px; font-size:11px; border-radius:4px; cursor:pointer;">Borrar</button>
                                 </div>
                             </div>
@@ -792,10 +1164,9 @@
             }
         }
 
-        // ================= NUEVO: VISOR DE FINANZAS Y TESORERÍA =================
         async function cargarFinanzasAdmin(periodo = 'diario') {
             const container = document.getElementById('admin-content-area');
-            container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Cifrando datos financieros y de tesorería...</span>';
+            container.innerHTML = '<span style="color: var(--subtext); font-size: 12px;">Cifrando datos financieros y de tesorería...</span>';
 
             try {
                 const res = await fetch(`/api/admin/finanzas?periodo=${periodo}`);
@@ -808,7 +1179,7 @@
 
                 let html = `
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h4 style="color:#f0f6fc; margin:0;">📈 Tesorería y Flujos</h4>
+                        <h4 style="color:var(--header-title); margin:0;">📈 Tesorería y Flujos</h4>
                         <div style="display:flex; gap:3px;">
                             <button onclick="cargarFinanzasAdmin('diario')" class="btn-admin" style="padding:3px 6px; font-size:10px; ${periodo==='diario'?'background:#1f6feb;':''}">Hoy</button>
                             <button onclick="cargarFinanzasAdmin('semanal')" class="btn-admin" style="padding:3px 6px; font-size:10px; ${periodo==='semanal'?'background:#1f6feb;':''}">Semanal</button>
@@ -835,12 +1206,12 @@
                         </div>
                     </div>
 
-                    <h5 style="color: #8b949e; margin: 12px 0 6px 0;">Últimas Transacciones de Tesorería</h5>
+                    <h5 style="color: var(--subtext); margin: 12px 0 6px 0;">Últimas Transacciones de Tesorería</h5>
                     <div class="historial-box" style="max-height: 140px;">
                 `;
 
                 if (!data.movimientos || data.movimientos.length === 0) {
-                    html += '<span style="color: #8b949e; font-size: 11px;">Sin movimientos en este periodo.</span>';
+                    html += '<span style="color: var(--subtext); font-size: 11px;">Sin movimientos en este periodo.</span>';
                 } else {
                     data.movimientos.forEach(m => {
                         let colorM = m.monto > 0 ? '#3fb950' : '#f85149';
@@ -849,9 +1220,9 @@
                             <div class="historial-item">
                                 <div>
                                     <b style="color:${colorM};">${signoM}${m.monto} Pi</b><br>
-                                    <span style="font-size:10px; color:#8b949e;">@${m.username} • ${m.fecha}</span>
+                                    <span style="font-size:10px; color:var(--subtext);">@${m.username} • ${m.fecha}</span>
                                 </div>
-                                <div style="font-size:11px; color:#c9d1d9;">${m.tipo}</div>
+                                <div style="font-size:11px; color:var(--text-color);">${m.tipo}</div>
                             </div>
                         `;
                     });
@@ -868,25 +1239,25 @@
             if (!confirm(`¿Eliminar mercado #${eventoId}?`)) return;
             const res = await fetch(`/api/admin/eliminar-mercado/${eventoId}`, { method: 'DELETE' });
             const data = await res.json();
-            if (data.success) { alert(data.mensaje); cargarPanelAdmin(); cargarMercados(); }
+            if (data.success) { mostrarToast(data.mensaje, "success"); cargarPanelAdmin(); cargarMercados(); }
         }
 
         async function cargarListaUsuarios() {
             const container = document.getElementById('admin-content-area');
-            container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Cargando usuarios...</span>';
+            container.innerHTML = '<span style="color: var(--subtext); font-size: 12px;">Cargando usuarios...</span>';
             try {
                 const res = await fetch('/api/admin/usuarios');
                 const data = await res.json();
                 if (data.success && data.usuarios.length > 0) {
-                    let html = '<h4 style="color:#f0f6fc; margin-bottom:8px;">Usuarios</h4><table style="width:100%; font-size:11px; text-align:left; border-collapse:collapse;">';
-                    html += '<tr style="border-bottom:1px solid #30363d; color:#8b949e;"><th>Usuario</th><th style="text-align:right;">Saldo</th><th style="text-align:center;">Acción</th></tr>';
+                    let html = '<h4 style="color:var(--header-title); margin-bottom:8px;">Usuarios</h4><table style="width:100%; font-size:11px; text-align:left; border-collapse:collapse;">';
+                    html += '<tr style="border-bottom:1px solid var(--border-color); color:var(--subtext);"><th>Usuario</th><th style="text-align:right;">Saldo</th><th style="text-align:center;">Acción</th></tr>';
                     data.usuarios.forEach(u => {
-                        html += `<tr style="border-bottom:1px solid #21262d;"><td style="padding:5px 0;"><b>@${u.username}</b></td><td style="text-align:right; color:#3fb950;">${u.saldo_disponible.toFixed(2)} Pi</td><td style="text-align:center;"><button onclick="abrirModalUsuario('${u.username}')" style="background:#1f6feb; padding:3px 6px; font-size:10px;">Ver</button></td></tr>`;
+                        html += `<tr style="border-bottom:1px solid var(--row-bg);"><td style="padding:5px 0;"><b>@${u.username}</b></td><td style="text-align:right; color:#3fb950;">${u.saldo_disponible.toFixed(2)} Pi</td><td style="text-align:center;"><button onclick="abrirModalUsuario('${u.username}')" style="background:#1f6feb; padding:3px 6px; font-size:10px;">Ver</button></td></tr>`;
                     });
                     html += '</table>';
                     container.innerHTML = html;
                 } else {
-                    container.innerHTML = '<span style="color: #8b949e; font-size: 12px;">Sin usuarios.</span>';
+                    container.innerHTML = '<span style="color: var(--subtext); font-size: 12px;">Sin usuarios.</span>';
                 }
             } catch (e) {
                 container.innerHTML = '<span style="color: #f85149; font-size: 12px;">Error.</span>';
@@ -917,7 +1288,7 @@
                 body: JSON.stringify({ username: usuarioSeleccionadoActual, monto, motivo })
             });
             const data = await res.json();
-            if (data.success) { alert(data.mensaje); cerrarModalUsuario(); cargarListaUsuarios(); }
+            if (data.success) { mostrarToast(data.mensaje, "success"); cerrarModalUsuario(); cargarListaUsuarios(); }
         }
 
         window.onload = autenticarPiNetwork;
