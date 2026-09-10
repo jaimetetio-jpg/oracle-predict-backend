@@ -384,7 +384,7 @@
             </div>
         </div>
 
-        <!-- SOPORTE DIRECTO (Único, dentro de la pestaña Mercados) -->
+        <!-- SOPORTE DIRECTO (Sincronizado y sin duplicar) -->
         <div class="support-card" id="support-box">
             <button class="support-header" onclick="toggleSupport()">
                 <span>💬 Soporte Directo P2Ppredict</span>
@@ -392,7 +392,7 @@
             </button>
             <div class="support-body">
                 <div class="chat-messages" id="chat-messages">
-                    <div>Soporte P2Ppredict: Hola, ¿en qué podemos ayudarte hoy?</div>
+                    <!-- Contenido renderizado dinámicamente -->
                 </div>
                 <div class="chat-input-area">
                     <input type="text" class="chat-input" id="chat-input" placeholder="Escribe tu duda...">
@@ -473,7 +473,7 @@
                 </div>
                 <div class="support-body" style="display: block; padding-top: 4px;">
                     <div class="chat-messages" id="admin-support-box" style="height: 140px;">
-                        <div>Usuario @jaimetetio: Hola, tengo una duda sobre mi apuesta.</div>
+                        <!-- Contenido sincronizado con historialChat -->
                     </div>
                     <div class="chat-input-area">
                         <input type="text" class="chat-input" id="admin-chat-reply" placeholder="Escribe respuesta como Admin...">
@@ -487,6 +487,11 @@
     <script>
         const CLAVE_ADMIN = "Anthony*2023";
         let isAdminLoggedIn = false;
+
+        // Historial centralizado para evitar duplicaciones y conectar usuario con admin
+        let historialChat = [
+            { remitente: 'soporte', texto: 'Hola, ¿en qué podemos ayudarte hoy?' }
+        ];
 
         function toggleAccordion(id) {
             const card = document.getElementById(id);
@@ -654,6 +659,8 @@
                         </div>
                     </div>
                 `).join('');
+
+                actualizarChats();
             } catch (e) {
                 document.getElementById('admin-treasury').innerText = "Error";
                 document.getElementById('admin-markets-list').innerHTML = "Error al conectar con los datos de administración.";
@@ -690,28 +697,53 @@
             }
         }
 
+        // Funciones de sincronización del chat de soporte
+        function actualizarChats() {
+            const chatUser = document.getElementById('chat-messages');
+            const chatAdmin = document.getElementById('admin-support-box');
+            
+            const htmlMensajes = historialChat.map(m => {
+                if (m.remitente === 'usuario') {
+                    return `<div style="margin-bottom: 4px;"><b>Tú (@jaimetetio):</b> ${m.texto}</div>`;
+                } else if (m.remitente === 'admin') {
+                    return `<div style="margin-bottom: 4px; color: #a78bfa;"><b>Admin:</b> ${m.texto}</div>`;
+                } else {
+                    return `<div style="margin-bottom: 4px; color: var(--text-muted);"><b>Soporte P2Ppredict:</b> ${m.texto}</div>`;
+                }
+            }).join('');
+
+            if (chatUser) {
+                chatUser.innerHTML = htmlMensajes;
+                chatUser.scrollTop = chatUser.scrollHeight;
+            }
+            
+            if (chatAdmin) {
+                chatAdmin.innerHTML = htmlMensajes;
+                chatAdmin.scrollTop = chatAdmin.scrollHeight;
+            }
+        }
+
         function enviarMensajeSoporte() {
             const input = document.getElementById('chat-input');
-            const chatMsgs = document.getElementById('chat-messages');
-            if (!input.value.json && !input.value.trim()) return;
+            if (!input || !input.value.trim()) return;
             
-            chatMsgs.innerHTML += `<div style="margin-bottom: 4px;"><b>Tú:</b> ${input.value}</div>`;
+            historialChat.push({ remitente: 'usuario', texto: input.value.trim() });
             input.value = '';
-            chatMsgs.scrollTop = chatMsgs.scrollHeight;
+            actualizarChats();
         }
 
         function enviarRespuestaAdmin() {
             const input = document.getElementById('admin-chat-reply');
-            const chatMsgs = document.getElementById('admin-support-box');
-            if (!input.value.trim()) return;
+            if (!input || !input.value.trim()) return;
 
-            chatMsgs.innerHTML += `<div style="margin-bottom: 4px; color: #a78bfa;"><b>Admin (Tú):</b> ${input.value}</div>`;
+            historialChat.push({ remitente: 'admin', texto: input.value.trim() });
             input.value = '';
-            chatMsgs.scrollTop = chatMsgs.scrollHeight;
+            actualizarChats();
         }
 
         window.onload = () => {
             cargarMercados();
+            actualizarChats();
         };
     </script>
 </body>
