@@ -107,7 +107,7 @@
         button:disabled { background-color: #30363d; color: #8b949e; cursor: not-allowed; }
         button.btn-crear { background-color: #8957e5; width: 100%; padding: 10px; margin-top: 5px; }
         button.btn-resolver { background-color: #d29922; color: #000; width: 100%; margin-top: 8px; }
-        button.btn-reclamar { background-color: #238636; padding: 8px 12px; font-size: 13px; }
+        button.btn-reclamar { background-color: #0e8a16; color: #ffffff; padding: 6px 10px; font-size: 12px; font-weight: bold; border: 1px solid #2ea043; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         button.btn-retirar { background-color: #d29922; color: #000; padding: 8px 12px; font-size: 13px; }
         button.btn-depositar { background-color: #f59e0b; color: #000; width: 100%; margin-top: 5px; }
         button.btn-admin { background-color: #30363d; color: #fff; border: 1px solid #444; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; }
@@ -139,7 +139,7 @@
         </div>
         <div class="brand-titles">
             <h1>P2P<span style="color: #f59e0b;">predict</span></h1>
-            <span>CLOB ENGINE • PI NETWORK</span>
+            <span>Predicciones -PiNetwork</span>
         </div>
     </div>
     <p class="subtitulo" id="lbl-estado-conexion">Conectando con Pi Browser...</p>
@@ -158,7 +158,7 @@
                 <h2 id="saldo-usuario">0.0000 Pi</h2>
             </div>
             <div style="display: flex; gap: 6px; align-items: center;">
-                <button class="btn-retirar" onclick="retirarPi()">Retirar</button>
+                <button class="btn-retirar" onclick="retirarPi()">Retirar a mi Billetera</button>
             </div>
         </div>
 
@@ -171,7 +171,7 @@
         </div>
 
         <div class="card" style="padding: 15px;">
-            <h3 style="margin-bottom: 5px; cursor: pointer;" onclick="toggleHistorial()">📋 Ver Mi Historial de Apuestas ▾</h3>
+            <h3 style="margin-bottom: 5px; cursor: pointer;" onclick="toggleHistorial()">📋 Ver Mi Historial de Apostado ▾</h3>
             <div id="contenedor-historial" class="historial-box" style="display: none;">
                 <span style="color: #8b949e;">Cargando historial...</span>
             </div>
@@ -252,7 +252,7 @@
         let usuarioActual = "Invitado";
         let eventosGlobales = [];
         let usuarioSeleccionadoActual = "";
-        let instanciasGraficos = {}; // Almacena las instancias de Chart.js
+        let instanciasGraficos = {};
 
         async function autenticarPiNetwork() {
             try {
@@ -408,9 +408,9 @@
                                     <span class="stats-opcion">Pool: ${op.pozo.toFixed(2)} Pi (${porcentaje}%)</span>
                                 </div>
                                 <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                                    <button onclick="participarEvento(${ev.id}, ${op.id})" style="background-color: #238636; padding: 6px 10px; font-size: 12px;">Predecir</button>
-                                    <button class="btn-reclamar" id="btn-reclamar" onclick="reclamarPremio()" disabled style="padding: 6px 10px; font-size: 12px; white-space: nowrap;">Cobrar el acierto</button>
-                                    <button onclick="toggleClobPanel(${ev.id}, ${op.id})" style="background-color: #1f6feb; padding: 6px 8px; font-size: 11px;">CLOB ⚙️</button>
+                                    <button onclick="participarEvento(${ev.id}, ${op.id})" style="background-color: #238636; padding: 6px 10px; font-size: 12px;">Apostar</button>
+                                    <button class="btn-reclamar" id="btn-reclamar" onclick="reclamarPremio()" disabled>Cobrar el acierto</button>
+                                    <button onclick="toggleClobPanel(${ev.id}, ${op.id})" style="background-color: #1f6feb; padding: 6px 8px; font-size: 11px;">Mercado/Limit ⚙️</button>
                                 </div>
                             </div>
 
@@ -439,7 +439,7 @@
                                     <div class="preview-row"><span>ROI Estimado:</span> <b id="sim-roi-${ev.id}-${op.id}" style="color:#58a6ff;">+100.0%</b></div>
                                 </div>
 
-                                <button onclick="enviarOrdenClob(${ev.id}, ${op.id})" style="width:100%; background:#8957e5; padding:6px; font-size:11px;">Ejecutar Orden CLOB</button>
+                                <button onclick="enviarOrdenClob(${ev.id}, ${op.id})" style="width:100%; background:#8957e5; padding:6px; font-size:11px;">Ejecutar Orden</button>
                             </div>
                         </div>
                     `;
@@ -458,7 +458,6 @@
                 `;
                 container.appendChild(card);
 
-                // Renderizar los gráficos después de añadir las tarjetas al DOM
                 ev.opciones.forEach(op => {
                     renderizarGraficoOpcion(ev.id, op.id, porcentajeHistoricoSimulado(op.pozo, pozoTotal));
                 });
@@ -467,7 +466,6 @@
 
         function porcentajeHistoricoSimulado(pozoOp, pozoTot) {
             let base = pozoTot > 0 ? pozoOp / pozoTot : 0.5;
-            // Generar datos simulados de tendencia basados en el valor actual
             return [
                 Math.max(0.1, base - 0.15),
                 Math.max(0.1, base - 0.08),
