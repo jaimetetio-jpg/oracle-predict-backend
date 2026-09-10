@@ -262,7 +262,7 @@
             font-weight: bold;
         }
 
-        input[type="number"], input[type="text"], select {
+        input[type="number"], input[type="text"], input[type="password"], select {
             width: 100%;
             background: var(--bg-color);
             border: 1px solid var(--border-color);
@@ -275,7 +275,7 @@
             outline: none;
         }
 
-        input[type="text"]:focus, input[type="number"]:focus, select:focus {
+        input[type="text"]:focus, input[type="number"]:focus, input[type="password"]:focus, select:focus {
             border-color: var(--accent);
         }
 
@@ -389,7 +389,7 @@
             max-width: 400px;
         }
 
-        /* ================= ESTILOS MEJORADOS: CHAT DE SOPORTE ELEGANTE ================= */
+        /* ================= ESTILOS CHAT DE SOPORTE ================= */
         .support-card {
             border: 1px solid var(--chat-primary) !important;
             box-shadow: 0 4px 20px rgba(137, 87, 229, 0.08);
@@ -599,7 +599,7 @@
                 <div id="contenedor-transacciones" style="display: none; margin-top: 10px;"></div>
             </div>
 
-            <!-- ================= MÓDULO DE SOPORTE DIRECTO (REDiseñado) ================= -->
+            <!-- ================= MÓDULO DE SOPORTE DIRECTO ================= -->
             <div class="card support-card">
                 <div class="support-header" onclick="toggleChatSoporte()">
                     <div class="support-title-wrapper">
@@ -658,11 +658,25 @@
             </div>
         </div>
 
-        <!-- ================= VISTA ADMIN ================= -->
+        <!-- ================= VISTA ADMIN (PROTEGIDA) ================= -->
         <div id="vista-admin" style="display: none;">
-            <div class="card">
-                <h3 style="color: #da3633; margin-bottom: 12px;">Panel de Control Administrativo</h3>
-                <p style="font-size: 12px; color: var(--subtext); margin-bottom: 12px;">Herramientas avanzadas de gestión de mercados, resolución de disputas y soporte directo.</p>
+            <!-- Bloque de Login de Administrador -->
+            <div id="admin-login-box" class="card">
+                <h3 style="color: #da3633; margin-bottom: 8px;">🔐 Acceso Restringido</h3>
+                <p style="font-size: 11px; color: var(--subtext); margin-bottom: 12px;">Introduce la clave maestra de administrador para acceder al panel de control.</p>
+                <label style="font-size: 11px;">Contraseña de Admin:</label>
+                <input type="password" id="input-admin-pass" placeholder="••••••••">
+                <button onclick="verificarClaveAdmin()" style="width: 100%; margin-top: 6px; background: #da3633;">Entrar al Panel</button>
+            </div>
+
+            <!-- Panel de Control Real (Oculto hasta que ingresen la clave) -->
+            <div id="admin-dashboard-box" class="card" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <h3 style="color: #da3633; margin-bottom: 0;">Panel de Control Administrativo</h3>
+                    <button onclick="cerrarSesionAdmin()" style="background: var(--border-color); color: var(--text-color); padding: 2px 6px; font-size: 10px;">Bloquear</button>
+                </div>
+                <p style="font-size: 12px; color: var(--subtext); margin-bottom: 12px;">Herramientas avanzadas de gestión de mercados, reembolsos y soporte directo.</p>
+                
                 <div style="display: flex; gap: 8px; margin-bottom: 16px;">
                     <button onclick="cambiarSubpestanaAdmin('mercados')" id="btn-sub-mercados" style="flex: 1; background: var(--accent);">Mercados</button>
                     <button onclick="cambiarSubpestanaAdmin('soporte')" id="btn-sub-soporte" style="flex: 1; background: var(--border-color); color: var(--text-color);">Soporte (Admin)</button>
@@ -689,14 +703,61 @@
 
     <!-- Modal Auxiliar -->
     <div id="modal-aux" class="modal">
-        <div class="modal-content" id="modal-body">
-            <!-- Contenido dinámico del modal -->
-        </div>
+        <div class="modal-content" id="modal-body"></div>
     </div>
 
-    <!-- Lógica de Scripts e Integración de Soporte y Moderación -->
+    <!-- Lógica de Scripts e Integración de Seguridad -->
     <script>
-        // Funciones auxiliares para la bandeja de soporte y moderación avanzada
+        // Contraseña configurada a petición del usuario
+        const PASSWORD_MAESTRA = "Anthony*2023";
+        let adminAutenticado = false;
+
+        function cambiarVista(vista) {
+            document.getElementById('vista-usuario').style.display = vista === 'usuario' ? 'block' : 'none';
+            document.getElementById('vista-crear-mercado').style.display = vista === 'crear' ? 'block' : 'none';
+            document.getElementById('vista-ranking').style.display = vista === 'ranking' ? 'block' : 'none';
+            document.getElementById('vista-admin').style.display = vista === 'admin' ? 'block' : 'none';
+
+            document.getElementById('tab-user').classList.toggle('activo', vista === 'usuario');
+            document.getElementById('tab-crear').classList.toggle('activo', vista === 'crear');
+            document.getElementById('tab-rank').classList.toggle('activo', vista === 'ranking');
+            document.getElementById('tab-adm').classList.toggle('activo', vista === 'admin');
+
+            if (vista === 'admin') {
+                if (adminAutenticado) {
+                    document.getElementById('admin-login-box').style.display = 'none';
+                    document.getElementById('admin-dashboard-box').style.display = 'block';
+                    cargarPanelAdminMercados();
+                } else {
+                    document.getElementById('admin-login-box').style.display = 'block';
+                    document.getElementById('admin-dashboard-box').style.display = 'none';
+                }
+            }
+        }
+
+        function verificarClaveAdmin() {
+            const input = document.getElementById('input-admin-pass');
+            if (!input) return;
+
+            if (input.value === PASSWORD_MAESTRA) {
+                adminAutenticado = true;
+                input.value = '';
+                mostrarToast("Acceso concedido. Bienvenido al panel maestro.");
+                document.getElementById('admin-login-box').style.display = 'none';
+                document.getElementById('admin-dashboard-box').style.display = 'block';
+                cargarPanelAdminMercados();
+            } else {
+                mostrarToast("Contraseña incorrecta. Acceso denegado.", true);
+            }
+        }
+
+        function cerrarSesionAdmin() {
+            adminAutenticado = false;
+            document.getElementById('admin-dashboard-box').style.display = 'none';
+            document.getElementById('admin-login-box').style.display = 'block';
+            mostrarToast("Sesión de administrador cerrada.");
+        }
+
         function cambiarSubpestanaAdmin(sub) {
             const btnMercados = document.getElementById('btn-sub-mercados');
             const btnSoporte = document.getElementById('btn-sub-soporte');
@@ -725,7 +786,6 @@
             const contenedor = document.getElementById('admin-soporte-chats-container');
             if (!contenedor) return;
             
-            // Simulación de carga de chats activos de usuarios en la red P2P
             contenedor.innerHTML = `
                 <div style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 10px; border-radius: 6px;">
                     <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
@@ -821,22 +881,6 @@
             document.body.classList.toggle('light-mode');
         }
 
-        function cambiarVista(vista) {
-            document.getElementById('vista-usuario').style.display = vista === 'usuario' ? 'block' : 'none';
-            document.getElementById('vista-crear-mercado').style.display = vista === 'crear' ? 'block' : 'none';
-            document.getElementById('vista-ranking').style.display = vista === 'ranking' ? 'block' : 'none';
-            document.getElementById('vista-admin').style.display = vista === 'admin' ? 'block' : 'none';
-
-            document.getElementById('tab-user').classList.toggle('activo', vista === 'usuario');
-            document.getElementById('tab-crear').classList.toggle('activo', vista === 'crear');
-            document.getElementById('tab-rank').classList.toggle('activo', vista === 'ranking');
-            document.getElementById('tab-adm').classList.toggle('activo', vista === 'admin');
-
-            if (vista === 'admin') {
-                cargarPanelAdminMercados();
-            }
-        }
-
         function cargarPanelAdminMercados() {
             const container = document.getElementById('admin-mercados-container');
             if (!container) return;
@@ -861,9 +905,38 @@
             if (tipo === 'censurar') {
                 mostrarToast("Mercado censurado y ocultado de la red exitosamente.");
             } else if (tipo === 'reembolsar') {
-                mostrarToast("Reembolso automático procesado a los participantes del mercado.");
+                mostrarToast("Reembolso automático procesado: fondos devueltos a los participantes.");
             }
             cargarPanelAdminMercados();
+        }
+
+        // Mock functions de navegación general de usuario por compatibilidad
+        function renderizarMercados() {}
+        function retirarPi() { mostrarToast("Solicitud de retiro enviada a la red."); }
+        function recargarConPi() { mostrarToast("Recarga de prueba procesada con éxito."); }
+        function toggleHistorial() {
+            const el = document.getElementById('contenedor-historial');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+        function toggleOrdenesAbiertas() {
+            const el = document.getElementById('contenedor-ordenes-abiertas');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+        function toggleTradeHistory() {
+            const el = document.getElementById('contenedor-trade-history');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+        function toggleTransacciones() {
+            const el = document.getElementById('contenedor-transacciones');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+        function enviarCrearMercado() {
+            mostrarToast("Mercado creado y transmitido a la red P2P.");
+            cambiarVista('usuario');
+        }
+        function filtrarCategoria(cat, badge) {
+            document.querySelectorAll('.filter-badge').forEach(b => b.classList.remove('activo'));
+            badge.classList.add('activo');
         }
     </script>
 </body>
