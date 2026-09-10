@@ -95,6 +95,13 @@ def inicializar_bd():
                         detalles TEXT,
                         fecha TEXT
                     )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS soporte_mensajes (
+                        id SERIAL PRIMARY KEY,
+                        username TEXT,
+                        remitente TEXT,
+                        texto TEXT,
+                        fecha TEXT
+                    )''')
     else:
         # Tablas con sintaxis para SQLite (respaldo)
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (username TEXT PRIMARY KEY, saldo_disponible REAL DEFAULT 0.0)''')
@@ -104,6 +111,7 @@ def inicializar_bd():
         c.execute('''CREATE TABLE IF NOT EXISTS eventos (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT, categoria TEXT, estado TEXT DEFAULT 'activo', fecha_cierre TEXT, ganador_id INTEGER)''')
         c.execute('''CREATE TABLE IF NOT EXISTS opciones_evento (id INTEGER PRIMARY KEY AUTOINCREMENT, evento_id INTEGER, nombre TEXT, pozo REAL DEFAULT 0.0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS admin_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, accion TEXT, detalles TEXT, fecha TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS soporte_mensajes (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, remitente TEXT, texto TEXT, fecha TEXT)''')
     
     conn.commit()
 
@@ -611,6 +619,77 @@ def leaderboard():
     ranking = [{"username": row["username"], "ganancias_netas": row["saldo_disponible"]} for row in c.fetchall()]
     conn.close()
     return jsonify({"success": True, "leaderboard": ranking})
+
+# ================= ENDPOINT SOPORTE DIRECTO =================
+
+@app.route("/api/soporte/mensajes/<username>", methods=["GET"])
+def obtener_mensajes_soporte(username):
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT * FROM soporte_mensajes WHERE username = %s ORDER BY id ASC", (username,))
+        else:
+            c.execute("SELECT * FROM soporte_mensajes WHERE username = ? ORDER BY id ASC", (username,))
+        mensajes = [dict(row) for row in c.fetchall()]
+        return jsonify({"success": True, "mensajes": mensajes})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route("/api/soporte/enviar", methods=["POST"])
+def enviar_mensaje_soporte():
+    data = request.get_json() or {}
+    username = data.get("username")
+    remitente = data.get("remitente", username)
+    texto = data.get("texto")
+
+    if not username or not texto:
+        return jsonify({"success": False, "error": "Datos incompletos"}), 400
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+    fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
+    
+    try:
+        if DATABASE_URL:
+            c.execute("INSERT INTO soporte_mensajes (username, remitente, texto, fecha) VALUES (%s, %s, %s, %s)",
+                      (username, remitente, texto, fecha))
+        else:
+            c.execute("INSERT INTO soporte_mensajes (username, remitente, texto, fecha) VALUES (?, ?, ?, ?)",
+                      (username, remitente, texto, fecha))
+        conn.commit()
+        
+        nuevo_mensaje = {
+            "username": username,
+            "remitente": remitente,
+            "texto": texto,
+            "fecha": fecha
+        }
+        return jsonify({"success": True, "mensaje": nuevo_mensaje})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route("/api/admin/soporte/conversaciones", methods=["GET"])
+def admin_listar_conversaciones_soporte():
+    if not session.get('is_admin'):
+        return jsonify({"success": False, "error": "No autorizado"}), 403
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        # Obtiene una lista de usuarios únicos que tienen mensajes de soporte
+        c.execute("SELECT DISTINCT username FROM soporte_mensajes ORDER BY id DESC")
+        usuarios = [row["username"] for row in c.fetchall()]
+        return jsonify({"success": True, "conversaciones": usuarios})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
 
 # ================= ENDPOINT CLOB (LIMIT & MARKET) =================
 
