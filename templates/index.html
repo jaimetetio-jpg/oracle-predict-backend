@@ -371,8 +371,8 @@
     <header>
         <div class="logo">⚡ P2Ppredict</div>
         <div class="user-info">
-            <span id="pi-username"></span>
-            <span id="saldo-usuario" style="color: #3fb950; font-weight: bold;"></span>
+            <span id="pi-username">Invitado</span>
+            <span id="saldo-usuario" style="color: #3fb950; font-weight: bold;">-- Pi</span>
             <button class="theme-toggle" onclick="toggleTemaVisual()">🌓 Tema</button>
         </div>
     </header>
@@ -400,11 +400,7 @@
             </div>
 
             <div id="mercados-container">
-                <div class="card">
-                    <h3>¿Llegará ETH a 4k USD este mes?</h3>
-                    <div style="font-size: 11px; color: var(--subtext); margin-bottom: 8px;">Categoría: Crypto | Creador: PiUser_12</div>
-                    <button onclick="mostrarToast('Apuesta registrada en la red P2P')">Participar con 1 Pi</button>
-                </div>
+                <div class="card"><p style="font-size: 12px; color: var(--subtext); text-align: center;">Cargando mercados activos...</p></div>
             </div>
 
             <!-- ================= MÓDULO DE SOPORTE DIRECTO ================= -->
@@ -438,6 +434,14 @@
                 <h3 style="color: var(--accent); margin-bottom: 12px;">Crear Mercado de Predicción P2P</h3>
                 <label>Título del Mercado:</label>
                 <input type="text" id="crear-titulo" placeholder="Ej: ¿Bitcoin superará los 100k USD este mes?">
+                <label style="font-size: 11px; margin-top: 6px;">Categoría:</label>
+                <select id="crear-categoria">
+                    <option value="Crypto">Crypto</option>
+                    <option value="Deportes">Deportes</option>
+                    <option value="Política">Política</option>
+                </select>
+                <label style="font-size: 11px; margin-top: 6px;">Fecha de Cierre:</label>
+                <input type="text" id="crear-cierre" placeholder="Ej: 2026-12-31">
                 <button onclick="enviarCrearMercado()" style="width: 100%; margin-top: 10px;">Lanzar Mercado a la Red</button>
             </div>
         </div>
@@ -446,7 +450,9 @@
         <div id="vista-ranking" style="display: none;">
             <div class="card">
                 <h3 style="margin-bottom: 12px;">🏆 Top Predictores de la Red</h3>
-                <p style="font-size: 12px; color: var(--subtext);">1. PiUser_77 - 45.2 Pi ganados</p>
+                <div id="ranking-container">
+                    <p style="font-size: 12px; color: var(--subtext);">Cargando ranking...</p>
+                </div>
             </div>
         </div>
 
@@ -491,25 +497,7 @@
                 
                 <div id="admin-subpanel-mercados">
                     <div id="admin-mercados-container">
-                        <div class="card" style="background: var(--bg-color); margin-bottom: 0;">
-                            <!-- Alerta de Cierre / Estado -->
-                            <div class="admin-alert-badge">⚠️ Alerta: Mercado listo para Cierre / Resolución</div>
-                            <div style="font-size: 13px; font-weight: bold; margin-bottom: 4px;">¿Llegará ETH a 4k USD?</div>
-                            <div style="font-size: 11px; color: var(--subtext); margin-bottom: 10px;">Estado: Activo | Creador: PiUser_12</div>
-                            
-                            <!-- Botones de Resolución y Moderación -->
-                            <div style="display: flex; flex-direction: column; gap: 6px;">
-                                <div style="display: flex; gap: 6px;">
-                                    <span style="font-size: 11px; font-weight: bold; align-self: center; width: 75px;">Resolver:</span>
-                                    <button onclick="resolverResultado('SÍ')" style="background: #238636; flex: 1; padding: 4px; font-size: 11px;">Ganó SÍ</button>
-                                    <button onclick="resolverResultado('NO')" style="background: #8957e5; flex: 1; padding: 4px; font-size: 11px;">Ganó NO</button>
-                                </div>
-                                <div style="display: flex; gap: 6px; border-top: 1px solid var(--border-color); padding-top: 6px; margin-top: 4px;">
-                                    <button onclick="accionModeracion('censurar')" style="background: #da3633; padding: 4px 8px; font-size: 10px;">Censurar</button>
-                                    <button onclick="accionModeracion('reembolsar')" style="background: var(--border-color); color: var(--text-color); padding: 4px 8px; font-size: 10px;">Reembolso Masivo</button>
-                                </div>
-                            </div>
-                        </div>
+                        <p style="font-size: 12px; color: var(--subtext);">Cargando mercados para gestión...</p>
                     </div>
                 </div>
 
@@ -539,6 +527,12 @@
     <script>
         const PASSWORD_MAESTRA = "Anthony*2023";
         let adminAutenticado = false;
+        let categoriaFiltroActual = 'todos';
+
+        // Inicialización al cargar la página
+        document.addEventListener('DOMContentLoaded', () => {
+            renderizarMercados();
+        });
 
         /**
          * Realiza llamadas fetch con reintentos automáticos y espera exponencial.
@@ -548,7 +542,6 @@
             try {
                 const respuesta = await fetch(url, opciones);
                 
-                // Si el servidor de Render está despertando (502, 503, 504), reintentamos automáticamente
                 if ([502, 503, 504].includes(respuesta.status) && reintentos > 0) {
                     actualizarEstadoUI(`Servidor despertando... Reintentando (${reintentos})`);
                     await new Promise(res => setTimeout(res, demora));
@@ -586,11 +579,16 @@
             document.getElementById('tab-rank').classList.toggle('activo', vista === 'ranking');
             document.getElementById('tab-adm').classList.toggle('activo', vista === 'admin');
 
-            if (vista === 'admin') {
+            if (vista === 'usuario') {
+                renderizarMercados();
+            } else if (vista === 'ranking') {
+                cargarRanking();
+            } else if (vista === 'admin') {
                 if (adminAutenticado) {
                     document.getElementById('admin-login-box').style.display = 'none';
                     document.getElementById('admin-dashboard-box').style.display = 'block';
                     actualizarSaldoApp();
+                    cargarMercadosAdmin();
                 } else {
                     document.getElementById('admin-login-box').style.display = 'block';
                     document.getElementById('admin-dashboard-box').style.display = 'none';
@@ -609,6 +607,7 @@
                 document.getElementById('admin-login-box').style.display = 'none';
                 document.getElementById('admin-dashboard-box').style.display = 'block';
                 actualizarSaldoApp();
+                cargarMercadosAdmin();
             } else {
                 mostrarToast("Contraseña incorrecta. Acceso denegado.", true);
             }
@@ -627,7 +626,6 @@
             lblBalance.textContent = "Cargando...";
 
             try {
-                // Reemplazado fetch común por fetchConReintento
                 const response = await fetchConReintento('/api/admin/app-wallet-balance', {
                     method: 'GET',
                     headers: {
@@ -735,22 +733,238 @@
             document.body.classList.toggle('light-mode');
         }
 
-        function resolverResultado(ganador) {
-            mostrarToast(`Mercado resuelto con éxito. Ganador oficial: ${ganador}. Fondos distribuidos.`);
-        }
-
-        function accionModeracion(tipo) {
-            mostrarToast(tipo === 'censurar' ? "Mercado censurado con éxito." : "Reembolso masivo procesado.");
-        }
-
-        function renderizarMercados() {}
-        function enviarCrearMercado() {
-            mostrarToast("Mercado creado.");
-            cambiarVista('usuario');
-        }
         function filtrarCategoria(cat, badge) {
             document.querySelectorAll('.filter-badge').forEach(b => b.classList.remove('activo'));
             badge.classList.add('activo');
+            categoriaFiltroActual = cat;
+            renderizarMercados();
+        }
+
+        // ================= INTEGRACIÓN DE ENDPOINTS BACKEND =================
+
+        async function renderizarMercados() {
+            const contenedor = document.getElementById('mercados-container');
+            const textoBusqueda = document.getElementById('input-buscar') ? document.getElementById('input-buscar').value.toLowerCase() : '';
+            if (!contenedor) return;
+            
+            try {
+                const response = await fetchConReintento('/api/eventos');
+                const eventos = await response.json();
+                
+                contenedor.innerHTML = '';
+                
+                // Filtrar por categoría y texto de búsqueda
+                const eventosFiltrados = eventos.filter(ev => {
+                    const coincideCat = (categoriaFiltroActual === 'todos' || ev.categoria === categoriaFiltroActual);
+                    const coincideTexto = ev.titulo.toLowerCase().includes(textoBusqueda);
+                    return coincideCat && coincideTexto;
+                });
+
+                if (eventosFiltrados.length === 0) {
+                    contenedor.innerHTML = '<div class="card"><p style="font-size: 12px; color: var(--subtext); text-align: center;">No hay mercados activos en este momento.</p></div>';
+                    return;
+                }
+
+                eventosFiltrados.forEach(ev => {
+                    let opcionesHtml = '';
+                    if (ev.opciones && ev.opciones.length > 0) {
+                        ev.opciones.forEach(opt => {
+                            opcionesHtml += `<button onclick="participarEnMercado(${ev.id}, ${opt.id})" style="flex: 1; background: var(--accent); margin-top: 6px;">${opt.nombre} (Pozo: ${opt.pozo || 0} Pi)</button>`;
+                        });
+                    } else {
+                        // Opciones por defecto si la estructura viene simplificada
+                        opcionesHtml = `
+                            <button onclick="participarEnMercado(${ev.id}, 1)" style="flex: 1; background: #238636; margin-top: 6px;">SÍ</button>
+                            <button onclick="participarEnMercado(${ev.id}, 2)" style="flex: 1; background: #8957e5; margin-top: 6px;">NO</button>
+                        `;
+                    }
+
+                    contenedor.innerHTML += `
+                        <div class="card">
+                            <h3>${ev.titulo}</h3>
+                            <div style="font-size: 11px; color: var(--subtext); margin-bottom: 8px;">Categoría: ${ev.categoria || 'General'} | Cierre: ${ev.fecha_cierre || 'Próximo'}</div>
+                            <div style="display: flex; gap: 6px;">
+                                ${opcionesHtml}
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                console.error("Error al cargar mercados:", error);
+                contenedor.innerHTML = '<div class="card"><p style="font-size: 12px; color: #da3633; text-align: center;">Error al conectar con la red de mercados.</p></div>';
+            }
+        }
+
+        async function participarEnMercado(eventoId, opcionId) {
+            const usernameSpan = document.getElementById('pi-username');
+            const username = usernameSpan ? usernameSpan.textContent : "Invitado";
+            const montoStr = prompt("¿Cuántos Pi deseas apostar?", "1.0");
+            if (!montoStr) return;
+            const monto = parseFloat(montoStr);
+
+            if (isNaN(monto) || monto <= 0) {
+                mostrarToast("Por favor ingresa un monto válido.", true);
+                return;
+            }
+
+            try {
+                const response = await fetchConReintento('/api/participar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, evento_id: eventoId, opcion_id: opcionId, monto })
+                });
+                const data = await response.json();
+                if (response.ok && (data.success !== false)) {
+                    mostrarToast(data.mensaje || "Apuesta registrada en la red P2P");
+                    renderizarMercados();
+                } else {
+                    mostrarToast(data.error || "No se pudo procesar la participación", true);
+                }
+            } catch (e) {
+                mostrarToast("Error de conexión al participar", true);
+            }
+        }
+
+        async function enviarCrearMercado() {
+            const tituloInput = document.getElementById('crear-titulo');
+            const categoriaSelect = document.getElementById('crear-categoria');
+            const cierreInput = document.getElementById('crear-cierre');
+            
+            if (!tituloInput || !tituloInput.value.trim()) {
+                mostrarToast("El título del mercado es obligatorio.", true);
+                return;
+            }
+
+            const titulo = tituloInput.value.trim();
+            const categoria = categoriaSelect ? categoriaSelect.value : 'Crypto';
+            const fecha_cierre = cierreInput && cierreInput.value.trim() ? cierreInput.value.trim() : '2026-12-31';
+            const creador = document.getElementById('pi-username') ? document.getElementById('pi-username').textContent : 'PiUser';
+
+            try {
+                const response = await fetchConReintento('/api/crear-evento', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ titulo, categoria, fecha_cierre, creador })
+                });
+                const data = await response.json();
+                if (response.ok && (data.success !== false)) {
+                    mostrarToast("Mercado lanzado a la red con éxito.");
+                    tituloInput.value = '';
+                    if (cierreInput) cierreInput.value = '';
+                    cambiarVista('usuario');
+                } else {
+                    mostrarToast(data.error || "Error al crear el mercado", true);
+                }
+            } catch (error) {
+                mostrarToast("Error de conexión al crear el mercado.", true);
+            }
+        }
+
+        async function cargarRanking() {
+            const contenedor = document.getElementById('ranking-container');
+            if (!contenedor) return;
+
+            try {
+                const response = await fetchConReintento('/api/ranking');
+                const ranking = await response.json();
+
+                contenedor.innerHTML = '';
+                if (!ranking || ranking.length === 0) {
+                    contenedor.innerHTML = '<p style="font-size: 12px; color: var(--subtext);">Aún no hay registros en el ranking.</p>';
+                    return;
+                }
+
+                ranking.forEach((item, index) => {
+                    contenedor.innerHTML += `<p style="font-size: 12px; color: var(--subtext); margin-bottom: 4px;">${index + 1}. ${item.username || item.usuario} - ${item.ganancias || item.puntuacion || 0} Pi ganados</p>`;
+                });
+            } catch (e) {
+                contenedor.innerHTML = '<p style="font-size: 12px; color: #da3633;">No se pudo cargar el ranking.</p>';
+            }
+        }
+
+        async function cargarMercadosAdmin() {
+            const contenedor = document.getElementById('admin-mercados-container');
+            if (!contenedor) return;
+
+            try {
+                const response = await fetchConReintento('/api/eventos');
+                const eventos = await response.json();
+
+                contenedor.innerHTML = '';
+                if (!eventos || eventos.length === 0) {
+                    contenedor.innerHTML = '<div class="card" style="background: var(--bg-color);"><p style="font-size: 12px; color: var(--subtext); text-align: center;">No hay mercados para administrar.</p></div>';
+                    return;
+                }
+
+                eventos.forEach(ev => {
+                    contenedor.innerHTML += `
+                        <div class="card" style="background: var(--bg-color); margin-bottom: 12px;">
+                            <div class="admin-alert-badge">⚠️ Mercado ID: ${ev.id}</div>
+                            <div style="font-size: 13px; font-weight: bold; margin-bottom: 4px;">${ev.titulo}</div>
+                            <div style="font-size: 11px; color: var(--subtext); margin-bottom: 10px;">Estado: ${ev.estado || 'Activo'} | Creador: ${ev.creador || 'Comunidad'}</div>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                <div style="display: flex; gap: 6px;">
+                                    <span style="font-size: 11px; font-weight: bold; align-self: center; width: 75px;">Resolver:</span>
+                                    <button onclick="resolverResultadoAdmin(${ev.id}, 'SÍ')" style="background: #238636; flex: 1; padding: 4px; font-size: 11px;">Ganó SÍ</button>
+                                    <button onclick="resolverResultadoAdmin(${ev.id}, 'NO')" style="background: #8957e5; flex: 1; padding: 4px; font-size: 11px;">Ganó NO</button>
+                                </div>
+                                <div style="display: flex; gap: 6px; border-top: 1px solid var(--border-color); padding-top: 6px; margin-top: 4px;">
+                                    <button onclick="accionModeracionAdmin(${ev.id}, 'censurar')" style="background: #da3633; padding: 4px 8px; font-size: 10px;">Censurar</button>
+                                    <button onclick="accionModeracionAdmin(${ev.id}, 'reembolsar')" style="background: var(--border-color); color: var(--text-color); padding: 4px 8px; font-size: 10px;">Reembolso Masivo</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                contenedor.innerHTML = '<p style="font-size: 12px; color: #da3633;">Error al cargar mercados de administración.</p>';
+            }
+        }
+
+        async function resolverResultadoAdmin(eventoId, ganador) {
+            try {
+                const response = await fetchConReintento(`/api/admin/resolver/${eventoId}`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + (localStorage.getItem('admin_token') || '')
+                    },
+                    body: JSON.stringify({ ganador })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    mostrarToast(`Mercado resuelto con éxito. Ganador: ${ganador}.`);
+                    cargarMercadosAdmin();
+                    renderizarMercados();
+                } else {
+                    mostrarToast(data.error || "Error al resolver el mercado", true);
+                }
+            } catch (e) {
+                mostrarToast("Error de conexión al resolver el mercado.", true);
+            }
+        }
+
+        async function accionModeracionAdmin(eventoId, tipo) {
+            const endpoint = tipo === 'censurar' ? `/api/admin/censurar/${eventoId}` : `/api/admin/reembolsar/${eventoId}`;
+            try {
+                const response = await fetchConReintento(endpoint, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': 'Bearer ' + (localStorage.getItem('admin_token') || '')
+                    }
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    mostrarToast(tipo === 'censurar' ? "Mercado censurado con éxito." : "Reembolso masivo procesado.");
+                    cargarMercadosAdmin();
+                    renderizarMercados();
+                } else {
+                    mostrarToast(data.error || "Error en la acción de moderación", true);
+                }
+            } catch (e) {
+                mostrarToast("Error de conexión en moderación.", true);
+            }
         }
     </script>
 </body>
