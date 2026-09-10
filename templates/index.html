@@ -13,7 +13,8 @@
             --accent: #2563eb;
             --accent-hover: #1d4ed8;
             --border-color: #2a2e43;
-            --badge-bg: #222639;
+            --danger: #dc2626;
+            --success: #16a34a;
         }
 
         [data-theme="light"] {
@@ -24,7 +25,8 @@
             --accent: #2563eb;
             --accent-hover: #1d4ed8;
             --border-color: #e5e7eb;
-            --badge-bg: #f0f1f5;
+            --danger: #dc2626;
+            --success: #16a34a;
         }
 
         body {
@@ -70,7 +72,6 @@
             font-size: 0.8rem;
         }
 
-        /* Navigation tabs */
         .nav-tabs {
             display: flex;
             gap: 6px;
@@ -99,7 +100,6 @@
             color: #ffffff;
         }
 
-        /* Search & Filters */
         .search-box {
             width: 100%;
             padding: 10px 12px;
@@ -137,7 +137,6 @@
             border-color: var(--accent);
         }
 
-        /* Collapsible Accordions (Mis Apuestas, CLOB, etc.) */
         .accordion-card {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -172,7 +171,6 @@
             display: block;
         }
 
-        /* Market Cards */
         .market-card {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -208,7 +206,6 @@
             background: var(--accent-hover);
         }
 
-        /* Support Chat Box */
         .support-card {
             border: 1px solid #7c3aed;
             border-radius: 10px;
@@ -337,7 +334,6 @@
             <button class="pill" onclick="setCategory('Política', this)">Política</button>
         </div>
 
-        <!-- Contenedor dinámico de mercados -->
         <div id="markets-container">
             <div class="market-card">
                 <div class="market-title">Cargando mercados descentralizados...</div>
@@ -419,18 +415,59 @@
         </div>
     </div>
 
-    <!-- VISTA: ADMIN -->
+    <!-- VISTA: ADMIN CON CONTRASEÑA Y GESTIÓN AVANZADA -->
     <div id="view-admin" class="section-view">
-        <div class="market-card">
-            <div class="market-title">Panel de Administración</div>
-            <p style="font-size: 0.8rem; color: var(--text-muted);">Saldo Treasury App: <span id="admin-treasury" style="color: #38bdf8;">Cargando...</span></p>
-            <div id="admin-markets-list" style="margin-top: 10px; font-size: 0.85rem; color: var(--text-muted);">
-                Cargando mercados para moderación...
+        <!-- Pantalla de Login de Administrador -->
+        <div id="admin-login-card" class="market-card">
+            <div class="market-title" style="color: #f87171;">🔐 Acceso Restringido - Administrador</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Introduce la clave maestra para acceder a las herramientas de control.</p>
+            <div class="form-group">
+                <label>Contraseña</label>
+                <input type="password" class="form-control" id="admin-password-input" placeholder="••••••••••">
+            </div>
+            <button class="action-btn" onclick="verificarLoginAdmin()" style="width: 100%; background: #dc2626;">Entrar al Panel</button>
+        </div>
+
+        <!-- Panel de Control Administrador (Oculto hasta autenticarse) -->
+        <div id="admin-dashboard-card" style="display: none;">
+            <!-- Widget de Balance de la App -->
+            <div class="market-card" style="border-color: #38bdf8;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div class="market-title" style="margin-bottom: 2px;">Treasury / Liquidez Total</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Total de Pi dentro de la app</div>
+                    </div>
+                    <div id="admin-treasury" style="font-size: 1.2rem; font-weight: bold; color: #38bdf8;">0.00 Pi</div>
+                </div>
+            </div>
+
+            <!-- Gestión de Mercados (Cerrar anticipadamente o Declarar Ganador SÍ / NO) -->
+            <div class="market-card">
+                <div class="market-title" style="margin-bottom: 10px;">⚡ Gestión y Moderación de Mercados</div>
+                <div id="admin-markets-list" style="font-size: 0.85rem; color: var(--text-muted);">
+                    Cargando mercados activos...
+                </div>
+            </div>
+
+            <!-- Panel de Respuestas a Usuarios (Soporte Admin) -->
+            <div class="support-card" style="display: block; margin-top: 0;">
+                <div class="support-header" style="cursor: default; color: #a78bfa;">
+                    <span>💬 Bandeja de Soporte a Usuarios</span>
+                </div>
+                <div class="support-body" style="display: block; padding-top: 4px;">
+                    <div class="chat-messages" id="admin-support-box" style="height: 140px;">
+                        <div>Usuario @jaimetetio: Hola, tengo una duda sobre mi apuesta.</div>
+                    </div>
+                    <div class="chat-input-area">
+                        <input type="text" class="chat-input" id="admin-chat-reply" placeholder="Escribe respuesta como Admin...">
+                        <button class="chat-send-btn" onclick="enviarRespuestaAdmin()">Responder</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Soporte Directo Desplegable -->
+    <!-- Soporte Directo Desplegable (Usuario) -->
     <div class="support-card" id="support-box">
         <button class="support-header" onclick="toggleSupport()">
             <span>💬 Soporte Directo P2Ppredict</span>
@@ -448,7 +485,9 @@
     </div>
 
     <script>
-        // Funcionalidad de acordeones avanzados
+        const CLAVE_ADMIN = "Anthony*2023";
+        let isAdminLoggedIn = false;
+
         function toggleAccordion(id) {
             const card = document.getElementById(id);
             card.classList.toggle('open');
@@ -476,10 +515,21 @@
             btn.classList.add('active');
 
             if (tabName === 'ranking') cargarRanking();
-            if (tabName === 'admin') cargarAdminData();
+            if (tabName === 'admin' && isAdminLoggedIn) cargarAdminData();
         }
 
-        // Conectividad Backend Flask
+        function verificarLoginAdmin() {
+            const passInput = document.getElementById('admin-password-input').value;
+            if (passInput === CLAVE_ADMIN) {
+                isAdminLoggedIn = true;
+                document.getElementById('admin-login-card').style.display = 'none';
+                document.getElementById('admin-dashboard-card').style.display = 'block';
+                cargarAdminData();
+            } else {
+                alert("Contraseña incorrecta. Acceso denegado.");
+            }
+        }
+
         let currentCategory = 'Todos';
 
         async function cargarMercados() {
@@ -514,7 +564,7 @@
             container.innerHTML = filtrados.map(m => `
                 <div class="market-card">
                     <div class="market-title">${m.pregunta}</div>
-                    <div class="market-meta">Categoría: ${m.categoria} | Creador: ${m.creador || 'P2Puser'}</div>
+                    <div class="market-meta">Categoría: ${m.categoria} | Estado: ${m.estado || 'Activo'}</div>
                     <button class="action-btn" onclick="participar(${m.id})">Participar con 1 Pi</button>
                 </div>
             `).join('');
@@ -580,19 +630,65 @@
 
         async function cargarAdminData() {
             try {
+                // Consulta de saldo total en la app (Treasury)
                 const resBal = await fetch('/api/admin/app-wallet-balance');
                 const balData = await resBal.json();
                 document.getElementById('admin-treasury').innerText = (balData.balance || '0.00') + ' Pi';
 
+                // Cargar mercados para gestión de cierre anticipado y declaración de ganadores SÍ / NO
                 const resEv = await fetch('/api/eventos');
                 const evData = await resEv.json();
-                document.getElementById('admin-markets-list').innerHTML = evData.map(e => `
-                    <div style="border-bottom: 1px solid var(--border-color); padding: 6px 0;">
-                        <b>[#${e.id}]</b> ${e.pregunta}
+                
+                const listContainer = document.getElementById('admin-markets-list');
+                if (!evData || evData.length === 0) {
+                    listContainer.innerHTML = "No hay mercados activos.";
+                    return;
+                }
+
+                listContainer.innerHTML = evData.map(e => `
+                    <div style="border-bottom: 1px solid var(--border-color); padding: 8px 0;">
+                        <div style="font-weight: bold; margin-bottom: 4px;">[#${e.id}] ${e.pregunta}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">Estado: ${e.estado || 'Activo'}</div>
+                        <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                            <button class="action-btn" style="background: #dc2626; padding: 4px 8px; font-size: 0.75rem;" onclick="adminCerrarAnticipado(${e.id})">Cerrar (Normativa)</button>
+                            <button class="action-btn" style="background: #16a34a; padding: 4px 8px; font-size: 0.75rem;" onclick="adminDeclararGanador(${e.id}, 'SI')">Ganador: SÍ</button>
+                            <button class="action-btn" style="background: #2563eb; padding: 4px 8px; font-size: 0.75rem;" onclick="adminDeclararGanador(${e.id}, 'NO')">Ganador: NO</button>
+                        </div>
                     </div>
-                `).join('') || "No hay mercados activos.";
+                `).join('');
             } catch (e) {
                 document.getElementById('admin-treasury').innerText = "Error";
+                document.getElementById('admin-markets-list').innerHTML = "Error al conectar con los datos de administración.";
+            }
+        }
+
+        async function adminCerrarAnticipado(idEvento) {
+            if (!confirm("¿Estás seguro de cerrar este mercado por incumplimiento de normativas?")) return;
+            try {
+                const res = await fetch(`/api/admin/censurar/${idEvento}`, { method: 'POST' });
+                const data = await res.json();
+                alert(data.mensaje || "Predicción cerrada por normativas.");
+                cargarAdminData();
+                cargarMercados();
+            } catch (e) {
+                alert("Error al cerrar el mercado.");
+            }
+        }
+
+        async function adminDeclararGanador(idEvento, ganador) {
+            if (!confirm(`¿Declarar como ganador "${ganador}" para este evento?`)) return;
+            try {
+                const res = await fetch(`/api/admin/resolver/${idEvento}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ganador })
+                });
+                const data = await res.json();
+                alert(data.mensaje || `Ganador ${ganador} declarado con éxito.`);
+                cargarAdminData();
+                cargarMercados();
+            } catch (e) {
+                alert("Error al declarar ganador.");
             }
         }
 
@@ -606,7 +702,16 @@
             chatMsgs.scrollTop = chatMsgs.scrollHeight;
         }
 
-        // Carga inicial
+        function enviarRespuestaAdmin() {
+            const input = document.getElementById('admin-chat-reply');
+            const chatMsgs = document.getElementById('admin-support-box');
+            if (!input.value.trim()) return;
+
+            chatMsgs.innerHTML += `<div style="margin-bottom: 4px; color: #a78bfa;"><b>Admin (Tú):</b> ${input.value}</div>`;
+            input.value = '';
+            chatMsgs.scrollTop = chatMsgs.scrollHeight;
+        }
+
         window.onload = () => {
             cargarMercados();
             document.getElementById('chat-messages').innerHTML = "<div>Soporte P2Ppredict: Hola, ¿en qué podemos ayudarte hoy?</div>";
