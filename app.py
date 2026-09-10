@@ -440,8 +440,11 @@ def solicitar_retiro():
     monto = float(data.get("monto", 0))
     wallet_destino = data.get("wallet_address", "")
 
-    if monto <= 0:
-        return jsonify({"success": False, "error": "El monto a retirar debe ser mayor a 0"}), 400
+    if monto < 1.0:
+        return jsonify({"success": False, "error": "El monto mínimo de retiro es de 1.0 Pi"}), 400
+
+    if not wallet_destino or len(wallet_destino.strip()) < 10:
+        return jsonify({"success": False, "error": "La dirección de la billetera de destino no es válida"}), 400
 
     if not PI_API_KEY:
         return jsonify({"success": False, "error": "PI_API_KEY no configurada en el servidor"}), 500
