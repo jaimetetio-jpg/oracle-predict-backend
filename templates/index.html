@@ -309,7 +309,7 @@
         </div>
         <div class="user-info">
             <span id="user-handle">@jaimetetio</span>
-            <span id="user-balance" style="color: #38bdf8; font-weight: 600;">0.00 Pi</span>
+            <span id="user-balance" style="color: #38bdf8; font-weight: 600;">0.10 Pi</span>
             <button class="theme-btn" onclick="toggleTheme()">🌗 Tema</button>
         </div>
     </header>
@@ -337,10 +337,10 @@
             <!-- Los mercados se renderizan dinámicamente -->
         </div>
 
-        <!-- ACORDEÓN: Gestión de Billetera (Depósito / Retiro con Pi SDK) -->
+        <!-- ACORDEÓN: Gestión de Billetes -->
         <div class="accordion-card" id="acc-wallet">
             <button class="accordion-header" onclick="toggleAccordion('acc-wallet')">
-                <span>💳 Gestión de Billetera (Pi Wallet SDK)</span>
+                <span>💳 Gestión de Billetes</span>
                 <span>▾</span>
             </button>
             <div class="accordion-content">
@@ -348,11 +348,11 @@
                     <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Monto en Pi</label>
                     <input type="number" id="wallet-amount" class="form-control" placeholder="0.00" min="0.1" step="0.1" style="margin-bottom: 8px;">
                     <div style="display: flex; gap: 6px;">
-                        <button class="action-btn" style="flex:1; background: var(--success);" onclick="depositarConPiSDK()">Depositar con Pi Wallet</button>
-                        <button class="action-btn" style="flex:1; background: var(--danger);" onclick="retirarBilletera()">Retirar a Billetera</button>
+                        <button class="action-btn" style="flex:1; background: var(--success);" onclick="depositarConPiSDK()">Recargar</button>
+                        <button class="action-btn" style="flex:1; background: var(--danger);" onclick="retirarBilletera()">Retirar</button>
                     </div>
                 </div>
-                <div id="wallet-history" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">Sin movimientos recientes.</div>
+                <div id="wallet-history" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">Devolución inicial de 0.10 Pi aplicada a @jaimetetio.</div>
             </div>
         </div>
 
@@ -489,7 +489,7 @@
     <script>
         const CLAVE_ADMIN = "Anthony*2023";
         let isAdminLoggedIn = false;
-        let saldoUsuario = 0.00;
+        let saldoUsuario = 0.10; // Saldo inicial ajustado a 0.1 Pi para @jaimetetio
         let categoriaFiltroActual = 'Todos';
         let textoBusquedaActual = '';
 
