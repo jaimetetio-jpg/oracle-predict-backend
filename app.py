@@ -946,5 +946,38 @@ def admin_ajustar_saldo():
     finally:
         conn.close()
 
+@app.route("/api/admin/finanzas", methods=["GET"])
+def admin_finanzas():
+    if not session.get('is_admin'):
+        return jsonify({"success": False, "error": "No autorizado"}), 403
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+    
+    # Obtener el total de Pi circulante en las cuentas de los usuarios
+    c.execute("SELECT SUM(saldo_disponible) as total_saldo, COUNT(*) as total_usuarios FROM usuarios")
+    res_usuarios = c.fetchone()
+    
+    # Obtener el total de transacciones registradas agrupadas por tipo
+    if DATABASE_URL:
+        c.execute("SELECT tipo, SUM(monto) as suma_monto FROM transacciones GROUP BY tipo")
+    else:
+        c.execute("SELECT tipo, SUM(monto) as suma_monto FROM transacciones GROUP BY tipo")
+    res_transacciones = [dict(row) for row in c.fetchall()]
+    
+    # Obtener las últimas transacciones de la plataforma
+    c.execute("SELECT * FROM transacciones ORDER BY id DESC LIMIT 20")
+    ultimas_tx = [dict(row) for row in c.fetchall()]
+    
+    conn.close()
+    
+    return jsonify({
+        "success": True,
+        "balance_total_usuarios": res_usuarios["total_saldo"] if res_usuarios and res_usuarios["total_saldo"] else 0.0,
+        "total_usuarios": res_usuarios["total_usuarios"] if res_usuarios else 0,
+        "resumen_transacciones": res_transacciones,
+        "ultimas_transacciones": ultimas_tx
+    })
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
