@@ -408,7 +408,7 @@
     <!-- VISTA: RANKING -->
     <div id="view-ranking" class="section-view">
         <div class="market-card">
-            <div class="market-title">Ranking Global de Predictores</div>
+            <div class="market-title">Ranking Global de Predictorxs</div>
             <div id="ranking-content" style="font-size: 0.85rem; color: var(--text-muted);">
                 Cargando tabla de posiciones...
             </div>
@@ -467,23 +467,6 @@
         </div>
     </div>
 
-    <!-- Soporte Directo Desplegable (Usuario) -->
-    <div class="support-card" id="support-box">
-        <button class="support-header" onclick="toggleSupport()">
-            <span>💬 Soporte Directo P2Ppredict</span>
-            <span>▾</span>
-        </button>
-        <div class="support-body">
-            <div class="chat-messages" id="chat-messages">
-                Cargando mensajes...
-            </div>
-            <div class="chat-input-area">
-                <input type="text" class="chat-input" id="chat-input" placeholder="Escribe tu duda...">
-                <button class="chat-send-btn" onclick="enviarMensajeSoporte()">Enviar</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         const CLAVE_ADMIN = "Anthony*2023";
         let isAdminLoggedIn = false;
@@ -491,11 +474,6 @@
         function toggleAccordion(id) {
             const card = document.getElementById(id);
             card.classList.toggle('open');
-        }
-
-        function toggleSupport() {
-            const box = document.getElementById('support-box');
-            box.classList.toggle('open');
         }
 
         function toggleTheme() {
@@ -692,16 +670,6 @@
             }
         }
 
-        function enviarMensajeSoporte() {
-            const input = document.getElementById('chat-input');
-            const chatMsgs = document.getElementById('chat-messages');
-            if (!input.value.trim()) return;
-            
-            chatMsgs.innerHTML += `<div style="margin-bottom: 4px;"><b>Tú:</b> ${input.value}</div>`;
-            input.value = '';
-            chatMsgs.scrollTop = chatMsgs.scrollHeight;
-        }
-
         function enviarRespuestaAdmin() {
             const input = document.getElementById('admin-chat-reply');
             const chatMsgs = document.getElementById('admin-support-box');
@@ -714,7 +682,6 @@
 
         window.onload = () => {
             cargarMercados();
-            document.getElementById('chat-messages').innerHTML = "<div>Soporte P2Ppredict: Hola, ¿en qué podemos ayudarte hoy?</div>";
         };
     </script>
 </body>
