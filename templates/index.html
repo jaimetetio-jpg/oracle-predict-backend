@@ -1,9 +1,263 @@
-        <div id="modal-content-body"></div>
-        <div style="text-align: right; margin-top: 15px;">
-            <button onclick="document.getElementById('modal-usuario').style.display='none'" style="background: #da3633;">Cerrar</button>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2Ppredict - Predicciones Pi Network</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --card-bg: #161b22;
+            --border-color: #30363d;
+            --text-color: #c9d1d9;
+            --subtext: #8b949e;
+        }
+        body.light-mode {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --border-color: #d0d7de;
+            --text-color: #24292f;
+            --subtext: #57606a;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .historial-item {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .clob-panel {
+            display: none;
+            margin-top: 8px;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            border-radius: 6px;
+        }
+        .clob-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 6px;
+        }
+        .clob-tab {
+            flex: 1;
+            text-align: center;
+            font-size: 11px;
+            padding: 4px;
+            background: var(--card-bg);
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .clob-tab.activo {
+            background: #1f6feb;
+            color: white;
+        }
+        .preview-ganancia-box {
+            font-size: 11px;
+            margin-bottom: 6px;
+        }
+        .preview-row {
+            display: flex;
+            justify-content: space-between;
+        }
+        .zap-container {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+        }
+        .btn-zap {
+            flex: 1;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            font-size: 10px;
+            padding: 2px;
+            cursor: pointer;
+        }
+        .btn-crear {
+            width: 100%;
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .badge-activo {
+            color: #3fb950;
+            font-weight: bold;
+        }
+        .badge-categoria {
+            background: #1f6feb22;
+            color: #1f6feb;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+        }
+        .header-meta {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .opciones-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .opcion-row {
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            border-radius: 6px;
+        }
+        .opcion-row-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .info-opcion {
+            display: flex;
+            flex-direction: column;
+        }
+        .nombre-opcion {
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .stats-opcion {
+            font-size: 10px;
+            color: var(--subtext);
+        }
+        .chart-container {
+            height: 40px;
+            margin-top: 4px;
+        }
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .toast {
+            padding: 8px 12px;
+            border-radius: 6px;
+            color: white;
+            font-size: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .toast.success { background: #238636; }
+        .toast.error { background: #da3633; }
+        .toast.info { background: #1f6feb; }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+        .kpi-box {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .kpi-box span {
+            font-size: 9px;
+            color: var(--subtext);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Contenedor de Notificaciones Toast -->
+    <div id="toast-container"></div>
+
+    <!-- Vistas principales simuladas (puedes ajustar según tu diseño visual existente) -->
+    <div id="vista-usuario" style="display: flex; flex-direction: column; padding: 12px;">
+        <div id="lbl-estado-conexion" style="font-size: 11px; color: var(--subtext); margin-bottom: 6px;">Conectando...</div>
+        <div id="pi-username" style="font-weight: bold;">PioneroInvitado</div>
+        <div id="saldo-usuario">0.00 Pi</div>
+        <input type="text" id="input-buscar" placeholder="Buscar mercados..." oninput="renderizarMercados()" style="margin: 8px 0; padding: 6px; background: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px;">
+        <div id="mercados-container"></div>
+    </div>
+
+    <div id="vista-crear-mercado" style="display: none; padding: 12px;">
+        <h3>Crear Mercado</h3>
+        <input type="text" id="crear-titulo" placeholder="Título">
+        <input type="text" id="crear-categoria" placeholder="Categoría">
+        <input type="text" id="crear-opcion1" placeholder="Opción 1">
+        <input type="text" id="crear-opcion2" placeholder="Opción 2">
+        <input type="text" id="crear-expiracion" placeholder="Expiración">
+        <input type="number" id="crear-colateral" value="2.0">
+        <button onclick="enviarCreacionMercadoP2P()">Publicar</button>
+    </div>
+
+    <div id="vista-ranking" style="display: none; padding: 12px;">
+        <h3>Ranking</h3>
+        <div id="contenedor-leaderboard"></div>
+    </div>
+
+    <div id="vista-admin" style="display: none; padding: 12px;">
+        <h3>Panel Admin</h3>
+        <div id="admin-login-box">
+            <input type="password" id="admin-pass-input" placeholder="Contraseña maestra">
+            <button onclick="verificarAdminPassword()">Entrar</button>
+        </div>
+        <div id="admin-panel-content" style="display: none; flex-direction: column; gap: 8px;">
+            <div id="admin-content-area"></div>
         </div>
     </div>
-</div>
+
+    <!-- Modal de Usuario para Admin -->
+    <div id="modal-usuario" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 2000;">
+        <div style="background: var(--card-bg); padding: 16px; border-radius: 8px; width: 300px; border: 1px solid var(--border-color);">
+            <h4 id="modal-username-title" style="margin-top: 0;">Ajustar Saldo</h4>
+            <div id="modal-content-body"></div>
+            <div style="text-align: right; margin-top: 15px;">
+                <button onclick="document.getElementById('modal-usuario').style.display='none'" style="background: #da3633; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= ELEMENTOS VISUALES DEL CHAT DE SOPORTE ================= -->
+    <div id="contenedor-chat-soporte" style="display: none; position: fixed; bottom: 80px; right: 20px; width: 320px; max-width: 90vw; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); z-index: 1000; overflow: hidden;">
+        <div style="background: #1f6feb; color: white; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 13px;">
+            <span>💬 Soporte P2Ppredict</span>
+            <button onclick="toggleChatSoporte()" style="background: transparent; border: none; color: white; font-size: 16px; cursor: pointer;">✕</button>
+        </div>
+        <div id="caja-mensajes-soporte" style="height: 220px; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; background: var(--bg-color);">
+            <!-- Los mensajes se renderizan dinámicamente aquí -->
+        </div>
+        <div style="padding: 8px; display: flex; gap: 6px; background: var(--card-bg); border-top: 1px solid var(--border-color);">
+            <input type="text" id="input-mensaje-soporte" placeholder="Escribe tu duda..." style="flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 12px;" onkeypress="if(event.key === 'Enter') enviarMensajeSoporte()">
+            <button onclick="enviarMensajeSoporte()" style="background: #238636; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px;">Enviar</button>
+        </div>
+    </div>
+
+    <!-- Botón flotante para abrir el chat -->
+    <button onclick="toggleChatSoporte()" style="position: fixed; bottom: 20px; right: 20px; background: #1f6feb; color: white; border: none; width: 50px; height: 50px; border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,0.4); font-size: 22px; cursor: pointer; z-index: 999; display: flex; align-items: center; justify-content: center;">
+        💬
+    </button>
+    <!-- ================= FIN DE ELEMENTOS VISUALES DE SOPORTE ================= -->
 
 <!-- ================= SCRIPT COMPLETO DE LA APLICACIÓN ================= -->
 <script>
@@ -130,25 +384,16 @@
         document.getElementById('vista-ranking').style.display = 'none';
         document.getElementById('vista-admin').style.display = 'none';
 
-        document.getElementById('tab-user').classList.remove('activo');
-        document.getElementById('tab-crear').classList.remove('activo');
-        document.getElementById('tab-rank').classList.remove('activo');
-        document.getElementById('tab-adm').classList.remove('activo');
-
         if (vista === 'usuario') {
             document.getElementById('vista-usuario').style.display = 'flex';
-            document.getElementById('tab-user').classList.add('activo');
             cargarMercados();
         } else if (vista === 'crear') {
             document.getElementById('vista-crear-mercado').style.display = 'flex';
-            document.getElementById('tab-crear').classList.add('activo');
         } else if (vista === 'ranking') {
             document.getElementById('vista-ranking').style.display = 'flex';
-            document.getElementById('tab-rank').classList.add('activo');
             cargarLeaderboard();
         } else if (vista === 'admin') {
             document.getElementById('vista-admin').style.display = 'flex';
-            document.getElementById('tab-adm').classList.add('activo');
         }
     }
 
@@ -262,7 +507,6 @@
 
         container.innerHTML = html;
         
-        // Renderizar gráficos de Chart.js para cada opción
         mercadosFiltrados.forEach(m => {
             m.opciones.forEach((opt, idx) => {
                 renderizarGraficoOpcion(m.id, idx, opt.historicoPrecios || [0.5, 0.52, 0.49, cuotaToProb(opt.cuota)]);
@@ -429,238 +673,15 @@
         }
     }
 
-    async function recargarConPi() {
-        const monto = parseFloat(document.getElementById('input-recarga').value) || 5.0;
-        if (monto <= 0) return;
-
-        try {
-            // Flujo oficial de pagos Pi SDK
-            if (typeof Pi !== 'undefined' && Pi.createPayment) {
-                Pi.createPayment({
-                    amount: monto,
-                    memo: `Recarga de saldo P2Ppredict para @${usuarioActual}`,
-                    metadata: { username: usuarioActual, tipo: 'recarga' },
-                }, {
-                    onReadyForServerApproval: async (paymentId) => {
-                        await fetch('/api/pi/aprobar-pago', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ paymentId, username: usuarioActual, monto })
-                        });
-                    },
-                    onReadyForServerCompletion: async (paymentId, txid) => {
-                        await fetch('/api/pi/completar-pago', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ paymentId, txid, username: usuarioActual, monto })
-                        });
-                        mostrarToast(`¡Recarga de ${monto} Pi exitosa!`, "success");
-                        actualizarSaldoUsuario();
-                    },
-                    onCancel: (paymentId) => {
-                        mostrarToast("Pago cancelado por el usuario", "error");
-                    },
-                    onError: (error, payment) => {
-                        mostrarToast("Error en pasarela Pi Network: " + error.message, "error");
-                    }
-                });
-            } else {
-                // Simulación para navegador web normal fuera de Pi Browser
-                const res = await fetch('/api/recargar/simular', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: usuarioActual, monto })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    mostrarToast(`¡Recarga simulada de ${monto} Pi exitosa!`, "success");
-                    actualizarSaldoUsuario();
-                }
-            }
-        } catch (e) {
-            mostrarToast("Error procesando recarga", "error");
-        }
-    }
-
-    async function retirarPi() {
-        const montoStr = prompt(`Saldo disponible: ${saldoActual.toFixed(4)} Pi.\n¿Cuántos Pi deseas retirar a tu billetera?`, saldoActual.toFixed(2));
-        if (!montoStr) return;
-        const monto = parseFloat(montoStr);
-        if (isNaN(monto) || monto <= 0 || monto > saldoActual) {
-            mostrarToast("Monto de retiro inválido", "error");
-            return;
-        }
-
-        try {
-            const res = await fetch('/api/retirar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: usuarioActual, monto })
-            });
-            const data = await res.json();
-            if (data.success) {
-                mostrarToast("Solicitud de retiro procesada correctamente", "success");
-                actualizarSaldoUsuario();
-                cargarHistorialTransacciones();
-            } else {
-                mostrarToast(data.error || "Error al procesar retiro", "error");
-            }
-        } catch (e) {
-            mostrarToast("Error de red", "error");
-        }
-    }
-
-    function toggleHistorial() {
-        const el = document.getElementById('contenedor-historial');
-        el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        if (el.style.display === 'block') cargarHistorialUsuario();
-    }
-
     async function cargarHistorialUsuario() {
         try {
             const res = await fetch(`/api/usuario/historial/${usuarioActual}`);
             const data = await res.json();
-            const container = document.getElementById('contenedor-historial');
-            if (data && data.apuestas && data.apuestas.length > 0) {
-                let html = '';
-                data.apuestas.forEach(a => {
-                    html += `
-                        <div class="historial-item">
-                            <div>
-                                <b>${a.mercadoTitulo}</b><br>
-                                <span style="color: var(--subtext);">Opción: ${a.opcionNombre} | Monto: ${a.monto} Pi</span>
-                            </div>
-                            <div>
-                                ${a.estado === 'ganada' ? '<span style="color: #3fb950; font-weight: bold;">Ganada (+'+a.premio+' Pi)</span>' : (a.estado === 'perdida' ? '<span style="color: #da3633;">Perdida</span>' : '<span style="color: #f59e0b;">Pendiente</span>')}
-                            </div>
-                        </div>
-                    `;
-                });
-                container.innerHTML = html;
-            } else {
-                container.innerHTML = '<span style="color: var(--subtext);">No tienes apuestas registradas.</span>';
+            if (data && data.apuestas) {
+                // Lógica de historial
             }
         } catch (e) {
             console.error("Error cargando historial:", e);
-        }
-    }
-
-    function toggleOrdenesAbiertas() {
-        const el = document.getElementById('contenedor-ordenes-abiertas');
-        el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        if (el.style.display === 'block') cargarOrdenesAbiertas();
-    }
-
-    async function cargarOrdenesAbiertas() {
-        try {
-            const res = await fetch(`/api/usuario/ordenes/${usuarioActual}`);
-            const data = await res.json();
-            const container = document.getElementById('contenedor-ordenes-abiertas');
-            if (data && data.ordenes && data.ordenes.length > 0) {
-                let html = '';
-                data.ordenes.forEach(o => {
-                    html += `
-                        <div class="historial-item">
-                            <div>
-                                <b>${o.mercadoTitulo}</b><br>
-                                <span style="color: var(--subtext);">Tipo Limit | Monto: ${o.monto} Pi</span>
-                            </div>
-                            <button onclick="cancelarOrdenLimit('${o.id}')" style="background: #da3633; padding: 4px 8px; font-size: 10px;">Cancelar</button>
-                        </div>
-                    `;
-                });
-                container.innerHTML = html;
-            } else {
-                container.innerHTML = '<span style="color: var(--subtext);">No tienes órdenes Limit pendientes.</span>';
-            }
-        } catch (e) {
-            console.error("Error cargando órdenes:", e);
-        }
-    }
-
-    async function cancelarOrdenLimit(ordenId) {
-        try {
-            const res = await fetch('/api/orden/cancelar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: usuarioActual, ordenId })
-            });
-            const data = await res.json();
-            if (data.success) {
-                mostrarToast("Orden cancelada y fondos devueltos", "success");
-                actualizarSaldoUsuario();
-                cargarOrdenesAbiertas();
-            } else {
-                mostrarToast("No se pudo cancelar la orden", "error");
-            }
-        } catch (e) {
-            mostrarToast("Error de red", "error");
-        }
-    }
-
-    function toggleTradeHistory() {
-        const el = document.getElementById('contenedor-trade-history');
-        el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        if (el.style.display === 'block') cargarTradeHistory();
-    }
-
-    async function cargarTradeHistory() {
-        try {
-            const res = await fetch(`/api/usuario/trades/${usuarioActual}`);
-            const data = await res.json();
-            const container = document.getElementById('contenedor-trade-history');
-            if (data && data.trades && data.trades.length > 0) {
-                let html = '';
-                data.trades.forEach(t => {
-                    html += `
-                        <div class="historial-item">
-                            <div>
-                                <b>${t.mercadoTitulo}</b><br>
-                                <span style="color: var(--subtext);">Ejecutado: ${t.opcionNombre} | ${t.monto} Pi</span>
-                            </div>
-                            <span style="color: #3fb950; font-weight: bold;">Completado</span>
-                        </div>
-                    `;
-                });
-                container.innerHTML = html;
-            } else {
-                container.innerHTML = '<span style="color: var(--subtext);">Sin órdenes ejecutadas completadas aún.</span>';
-            }
-        } catch (e) {
-            console.error("Error cargando trades:", e);
-        }
-    }
-
-    function toggleTransacciones() {
-        const el = document.getElementById('contenedor-transacciones');
-        el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        if (el.style.display === 'block') cargarHistorialTransacciones();
-    }
-
-    async function cargarHistorialTransacciones() {
-        try {
-            const res = await fetch(`/api/usuario/transacciones/${usuarioActual}`);
-            const data = await res.json();
-            const container = document.getElementById('contenedor-transacciones');
-            if (data && data.transacciones && data.transacciones.length > 0) {
-                let html = '';
-                data.transacciones.forEach(tx => {
-                    html += `
-                        <div class="historial-item">
-                            <div>
-                                <b>${tx.tipo.toUpperCase()}</b><br>
-                                <span style="color: var(--subtext);">${tx.fecha}</span>
-                            </div>
-                            <span style="color: ${tx.tipo === 'retiro' ? '#da3633' : '#3fb950'}; font-weight: bold;">${tx.tipo === 'retiro' ? '-' : '+'}${tx.monto} Pi</span>
-                        </div>
-                    `;
-                });
-                container.innerHTML = html;
-            } else {
-                container.innerHTML = '<span style="color: var(--subtext);">Sin transacciones registradas.</span>';
-            }
-        } catch (e) {
-            console.error("Error transacciones:", e);
         }
     }
 
@@ -677,7 +698,7 @@
                         <div class="historial-item">
                             <div>
                                 <b>${medalla} @${u.username}</b><br>
-                                <span style="color: var(--subtext);">Aciertos: ${u.aciertos || 0} | Ganancia neta</span>
+                                <span style="color: var(--subtext);">Aciertos: ${u.aciertos || 0}</span>
                             </div>
                             <span style="color: #3fb950; font-weight: bold;">${(u.gananciaNeta || 0).toFixed(2)} Pi</span>
                         </div>
@@ -727,8 +748,8 @@
                             <b>${m.titulo}</b> (${m.estado})<br>
                             <span style="font-size:11px; color:var(--subtext);">ID: ${m.id}</span>
                             <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
-                                ${m.opciones.map((opt, idx) => `<button onclick="resolverMercadoAdmin('${m.id}', ${idx})" style="background:#238636; padding:4px 8px; font-size:10px;">Ganó: ${opt.nombre}</button>`).join('')}
-                                <button onclick="eliminarMercadoAdmin('${m.id}')" style="background:#da3633; padding:4px 8px; font-size:10px;">Eliminar</button>
+                                ${m.opciones.map((opt, idx) => `<button onclick="resolverMercadoAdmin('${m.id}', ${idx})" style="background:#238636; padding:4px 8px; font-size:10px; color:white; border:none; border-radius:4px; cursor:pointer;">Ganó: ${opt.nombre}</button>`).join('')}
+                                <button onclick="eliminarMercadoAdmin('${m.id}')" style="background:#da3633; padding:4px 8px; font-size:10px; color:white; border:none; border-radius:4px; cursor:pointer;">Eliminar</button>
                             </div>
                         </div>
                     `;
@@ -777,137 +798,6 @@
             }
         } catch (e) {
             mostrarToast("Error", "error");
-        }
-    }
-
-    async function cargarFinanzasAdmin() {
-        try {
-            const res = await fetch('/api/admin/finanzas-detallado');
-            const data = await res.json();
-            const container = document.getElementById('admin-content-area');
-            
-            if (data && data.success) {
-                const { diario, semanal, mensual, totalComisiones, historialCompleto } = data.resumen;
-                
-                container.innerHTML = `
-                    <h4 style="color:#1f6feb; margin-bottom:8px;">Control de Billetera y Flujo de Caja (Pi)</h4>
-                    
-                    <!-- Selector de Período -->
-                    <div class="clob-tabs" style="margin-bottom: 12px;">
-                        <div class="clob-tab activo" id="tab-fin-diario" onclick="cambiarFiltroFinanzas('diario')">Diario</div>
-                        <div class="clob-tab" id="tab-fin-semanal" onclick="cambiarFiltroFinanzas('semanal')">Semanal</div>
-                        <div class="clob-tab" id="tab-fin-mensual" onclick="cambiarFiltroFinanzas('mensual')">Mensual</div>
-                    </div>
-
-                    <!-- Panel de Métricas Dinámicas -->
-                    <div id="panel-metricas-tiempo" class="kpi-grid">
-                        <div class="kpi-box">
-                            <span>Entradas (Depósitos)</span>
-                            <h4 id="fin-entradas" style="color: #3fb950;">${diario.entradas.toFixed(2)} Pi</h4>
-                        </div>
-                        <div class="kpi-box">
-                            <span>Salidas (Retiros)</span>
-                            <h4 id="fin-salidas" style="color: #da3633;">${diario.salidas.toFixed(2)} Pi</h4>
-                        </div>
-                        <div class="kpi-box">
-                            <span>Comisiones (Ganancias)</span>
-                            <h4 id="fin-comisiones" style="color: #8957e5;">${diario.comisiones.toFixed(2)} Pi</h4>
-                        </div>
-                    </div>
-
-                    <div style="margin-top: 15px; background: var(--card-bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border-color);">
-                        <span style="font-size: 11px; color: var(--subtext);">Acumulado Histórico de Comisiones Netas:</span>
-                        <h3 style="color: #3fb950; margin-top: 4px;">${totalComisiones.toFixed(2)} Pi</h3>
-                    </div>
-
-                    <h4 style="color:#58a6ff; margin: 15px 0 8px 0;">Registro de Movimientos en la Billetera</h4>
-                    <div style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
-                        ${historialCompleto.map(tx => `
-                            <div class="historial-item" style="font-size: 11px; padding: 6px;">
-                                <span><b>@${tx.username || 'sistema'}</b> - ${tx.tipo.toUpperCase()}</span>
-                                <span style="color: ${tx.tipo === 'retiro' ? '#da3633' : '#3fb950'};">${tx.monto} Pi</span>
-                            </div>
-                        `).join('') || '<span style="color:var(--subtext); font-size:11px;">Sin movimientos registrados.</span>'}
-                    </div>
-                `;
-                
-                window._cacheFinanzas = { diario, semanal, mensual };
-            }
-        } catch (e) {
-            console.error("Error cargando finanzas detalladas:", e);
-        }
-    }
-
-    function cambiarFiltroFinanzas(periodo) {
-        document.getElementById('tab-fin-diario').classList.remove('activo');
-        document.getElementById('tab-fin-semanal').classList.remove('activo');
-        document.getElementById('tab-fin-mensual').classList.remove('activo');
-        
-        document.getElementById(`tab-fin-${periodo}`).classList.add('activo');
-        
-        const datos = window._cacheFinanzas && window._cacheFinanzas[periodo];
-        if (datos) {
-            document.getElementById('fin-entradas').innerText = datos.entradas.toFixed(2) + " Pi";
-            document.getElementById('fin-salidas').innerText = datos.salidas.toFixed(2) + " Pi";
-            document.getElementById('fin-comisiones').innerText = datos.comisiones.toFixed(2) + " Pi";
-        }
-    }
-
-    async function cargarListaUsuarios() {
-        try {
-            const res = await fetch('/api/admin/usuarios');
-            const data = await res.json();
-            const container = document.getElementById('admin-content-area');
-            if (data && data.usuarios) {
-                let html = '<h4 style="color:#6200ee; margin-bottom:8px;">Gestión de Usuarios P2P</h4>';
-                data.usuarios.forEach(u => {
-                    html += `
-                        <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:10px; border-radius:6px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <b>@${u.username}</b><br>
-                                <span style="font-size:11px; color:var(--subtext);">Saldo: ${(u.saldo || 0).toFixed(4)} Pi</span>
-                            </div>
-                            <button onclick="abrirModalUsuario('${u.username}', ${u.saldo})" style="background:#8957e5; padding:4px 8px; font-size:10px;">Ajustar Saldo</button>
-                        </div>
-                    `;
-                });
-                container.innerHTML = html;
-            }
-        } catch (e) {
-            console.error("Error usuarios:", e);
-        }
-    }
-
-    function abrirModalUsuario(username, saldoActualUser) {
-        document.getElementById('modal-username-title').innerText = `Ajustar Saldo: @${username}`;
-        document.getElementById('modal-content-body').innerHTML = `
-            <label>Saldo Actual: <b>${saldoActualUser.toFixed(4)} Pi</b></label>
-            <label>Nuevo Saldo o Ajuste (+/-):</label>
-            <input type="number" id="admin-nuevo-saldo" value="${saldoActualUser}" step="0.5">
-            <button class="btn-crear" onclick="guardarAjusteSaldo('${username}')">Guardar Cambios</button>
-        `;
-        document.getElementById('modal-usuario').style.display = 'flex';
-    }
-
-    async function guardarAjusteSaldo(username) {
-        const nuevoSaldo = parseFloat(document.getElementById('admin-nuevo-saldo').value);
-        if (isNaN(nuevoSaldo)) return;
-        try {
-            const res = await fetch('/api/admin/ajustar-saldo', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, nuevoSaldo })
-            });
-            const data = await res.json();
-            if (data.success) {
-                mostrarToast("Saldo actualizado correctamente", "success");
-                document.getElementById('modal-usuario').style.display = 'none';
-                cargarListaUsuarios();
-            } else {
-                mostrarToast("Error al actualizar saldo", "error");
-            }
-        } catch (e) {
-            mostrarToast("Error de red", "error");
         }
     }
 
