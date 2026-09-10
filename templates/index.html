@@ -858,6 +858,78 @@
             mostrarToast("Error de red", "error");
         }
     }
+
+    // ================= MÓDULO DE CHAT DE SOPORTE INTEGRADO =================
+    function toggleChatSoporte() {
+        const el = document.getElementById('contenedor-chat-soporte');
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        if (el.style.display === 'block') {
+            cargarHistorialSoporte();
+        }
+    }
+
+    async function cargarHistorialSoporte() {
+        try {
+            const res = await fetch(`/api/soporte/mensajes/${usuarioActual}`);
+            const data = await res.json();
+            if (data.success) {
+                renderizarMensajesSoporte(data.mensajes);
+            }
+        } catch (e) {
+            console.error("Error al cargar chat de soporte:", e);
+        }
+    }
+
+    function renderizarMensajesSoporte(mensajes) {
+        const caja = document.getElementById('caja-mensajes-soporte');
+        if (!caja) return;
+        if (!mensajes || mensajes.length === 0) {
+            caja.innerHTML = '<span style="color: var(--subtext); font-size: 11px; text-align: center;">No hay mensajes previos.</span>';
+            return;
+        }
+        
+        let html = '';
+        mensajes.forEach(m => {
+            let esAdmin = m.remitente === 'admin';
+            let alineacion = esAdmin ? 'text-align: left; background: var(--card-bg); border-left: 3px solid #8957e5;' : 'text-align: right; background: #1f6feb22; border-right: 3px solid #1f6feb;';
+            let remitenteLabel = esAdmin ? '<b>Soporte P2Ppredict</b>' : '<b>Tú</b>';
+            
+            html += `
+                <div style="padding: 6px 8px; border-radius: 6px; font-size: 11px; ${alineacion}">
+                    ${remitenteLabel}<br>
+                    <span>${m.texto}</span>
+                    <div style="font-size: 9px; color: var(--subtext); margin-top: 2px;">${m.fecha}</div>
+                </div>
+            `;
+        });
+        caja.innerHTML = html;
+        caja.scrollTop = caja.scrollHeight;
+    }
+
+    async function enviarMensajeSoporte() {
+        const input = document.getElementById('input-mensaje-soporte');
+        if (!input) return;
+        const texto = input.value.trim();
+        if (!texto) return;
+
+        try {
+            const res = await fetch('/api/soporte/enviar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: usuarioActual, remitente: usuarioActual, texto })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                input.value = '';
+                cargarHistorialSoporte();
+            } else {
+                mostrarToast("No se pudo enviar el mensaje", "error");
+            }
+        } catch (e) {
+            mostrarToast("Error de red al enviar mensaje", "error");
+        }
+    }
 </script>
 </body>
 </html>
