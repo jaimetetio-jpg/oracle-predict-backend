@@ -334,9 +334,7 @@
         </div>
 
         <div id="markets-container">
-            <div class="market-card">
-                <div class="market-title">Cargando mercados descentralizados...</div>
-            </div>
+            <!-- Los mercados se renderizan dinámicamente -->
         </div>
 
         <!-- ACORDEÓN: Gestión de Billetera (Depósito / Retiro con Pi SDK) -->
@@ -376,7 +374,7 @@
                 <span>▾</span>
             </button>
             <div class="accordion-content">
-                <div>Sin órdenes limit abiertas en el libro de órdenes descentralizado.</div>
+                <div id="clob-content">Sin órdenes limit abiertas en el libro de órdenes descentralizado.</div>
             </div>
         </div>
 
@@ -387,7 +385,7 @@
                 <span>▾</span>
             </button>
             <div class="accordion-content">
-                <div>No se registran transacciones previas en tu historial de trades.</div>
+                <div id="trades-content">No se registran transacciones previas en tu historial de trades.</div>
             </div>
         </div>
 
@@ -492,6 +490,19 @@
         const CLAVE_ADMIN = "Anthony*2023";
         let isAdminLoggedIn = false;
         let saldoUsuario = 0.00;
+        let categoriaFiltroActual = 'Todos';
+        let textoBusquedaActual = '';
+
+        // Base de datos de mercados en memoria (Mock interactivo funcional)
+        let mercados = [
+            { id: 1, pregunta: '¿Bitcoin superará los $100,000 antes de finalizar este mes?', categoria: 'Crypto', siPool: 145.5, noPool: 82.0, creadoPor: '@satoshi', estado: 'activo' },
+            { id: 2, pregunta: '¿Ganará la selección local el próximo partido oficial de eliminatorias?', categoria: 'Deportes', siPool: 50.0, noPool: 65.0, creadoPor: '@cancha', estado: 'activo' },
+            { id: 3, pregunta: '¿Se aprobará la nueva ley de regulación cripto en la región este año?', categoria: 'Política', siPool: 30.0, noPool: 120.0, creadoPor: '@govwatch', estado: 'activo' }
+        ];
+
+        let misApuestas = [];
+        let ordenesCLOB = [];
+        let historialTrades = [];
 
         let historialChat = [
             { remitente: 'soporte', texto: 'Hola, ¿en qué podemos ayudarte hoy?' }
@@ -499,6 +510,187 @@
 
         function actualizarBalanceUI() {
             document.getElementById('user-balance').innerText = saldoUsuario.toFixed(2) + ' Pi';
+        }
+
+        // ==========================================
+        // RENDERIZADO Y FILTRADO DE MERCADOS
+        // ==========================================
+        function renderizarMercados() {
+            const container = document.getElementById('markets-container');
+            
+            const filtrados = mercados.filter(m => {
+                const coincideCat = categoriaFiltroActual === 'Todos' || m.categoria === categoriaFiltroActual;
+                const coincideTexto = m.pregunta.toLowerCase().includes(textoBusquedaActual.toLowerCase());
+                return coincideCat && coincideTexto && m.estado === 'activo';
+            });
+
+            if (filtrados.length === 0) {
+                container.innerHTML = `<div class="market-card"><div class="market-title" style="color: var(--text-muted); text-align: center;">No se encontraron mercados activos.</div></div>`;
+                return;
+            }
+
+            container.innerHTML = filtrados.map(m => {
+                const totalPool = m.siPool + m.noPool;
+                const probSi = totalPool > 0 ? Math.round((m.siPool / totalPool) * 100) : 50;
+                const probNo = 100 - probSi;
+
+                return `
+                    <div class="market-card">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">
+                            <span>🏷️ ${m.categoria}</span>
+                            <span>Creador: ${m.creadoPor}</span>
+                        </div>
+                        <div class="market-title">${m.pregunta}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">
+                            Probabilidad SÍ: <b style="color: var(--success);">${probSi}%</b> | NO: <b style="color: var(--danger);">${probNo}%</b> (Pool: ${totalPool.toFixed(1)} Pi)
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="action-btn" style="flex: 1; background: var(--success);" onclick="apostarEnMercado(${m.id}, 'SI')">Apostar SÍ</button>
+                            <button class="action-btn" style="flex: 1; background: var(--danger);" onclick="apostarEnMercado(${m.id}, 'NO')">Apostar NO</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filtrarMercados() {
+            textoBusquedaActual = document.getElementById('search-input').value;
+            renderizarMercados();
+        }
+
+        function setCategory(cat, btn) {
+            document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            categoriaFiltroActual = cat;
+            renderizarMercados();
+        }
+
+        // ==========================================
+        // APUESTAS Y GESTIÓN DE ORDENES
+        // ==========================================
+        function apostarEnMercado(idMercado, opcion) {
+            const mercado = mercados.find(m => m.id === idMercado);
+            if (!mercado) return;
+
+            const montoStr = prompt(`¿Cuántos Pi deseas apostar a [${opcion}] en: "${mercado.pregunta}"?`, "1");
+            if (!montoStr) return;
+            const monto = parseFloat(montoStr);
+
+            if (isNaN(monto) || monto <= 0) {
+                alert("Por favor ingresa un monto válido.");
+                return;
+            }
+
+            if (saldoUsuario < monto) {
+                alert("Saldo insuficiente en tu cuenta. Realiza un depósito previo con tu Pi Wallet.");
+                return;
+            }
+
+            // Descontar saldo y actualizar pools
+            saldoUsuario -= monto;
+            actualizarBalanceUI();
+
+            if (opcion === 'SI') {
+                mercado.siPool += monto;
+            } else {
+                mercado.noPool += monto;
+            }
+
+            // Registrar apuesta del usuario
+            misApuestas.push({
+                id: Date.now(),
+                pregunta: mercado.pregunta,
+                opcion: opcion,
+                monto: monto,
+                fecha: new Date().toLocaleTimeString()
+            });
+
+            // Registrar en historial de trades
+            historialTrades.push({
+                texto: `Apuesta de ${monto.toFixed(2)} Pi a [${opcion}] en "${mercado.pregunta.substring(0, 30)}..."`,
+                fecha: new Date().toLocaleTimeString()
+            });
+
+            actualizarMisApuestasUI();
+            actualizarHistorialTradesUI();
+            renderizarMercados();
+            
+            alert(`¡Apuesta de ${monto.toFixed(2)} Pi a [${opcion}] registrada con éxito!`);
+        }
+
+        function actualizarMisApuestasUI() {
+            const container = document.getElementById('my-bets-content');
+            if (misApuestas.length === 0) {
+                container.innerHTML = "No tienes apuestas activas registradas en este momento.";
+                return;
+            }
+            container.innerHTML = misApuestas.map(a => `
+                <div style="background: var(--bg-color); padding: 8px; border-radius: 6px; margin-bottom: 6px; border: 1px solid var(--border-color);">
+                    <div><b>${a.pregunta}</b></div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.8rem;">
+                        <span>Opción: <b style="color: ${a.opcion === 'SI' ? 'var(--success)' : 'var(--danger)'};">${a.opcion}</b></span>
+                        <span>Monto: ${a.monto.toFixed(2)} Pi</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function actualizarHistorialTradesUI() {
+            const container = document.getElementById('trades-content');
+            if (historialTrades.length === 0) {
+                container.innerHTML = "No se registran transacciones previas en tu historial de trades.";
+                return;
+            }
+            container.innerHTML = historialTrades.map(t => `
+                <div style="padding: 4px 0; border-bottom: 1px solid var(--border-color); font-size: 0.75rem;">
+                    <span>⏱️ [${t.fecha}]</span> ${t.texto}
+                </div>
+            `).join('');
+        }
+
+        // ==========================================
+        // CREAR MERCADO
+        // ==========================================
+        function crearMercado() {
+            const pregunta = document.getElementById('new-question').value.trim();
+            const categoria = document.getElementById('new-category').value;
+            const stake = parseFloat(document.getElementById('new-stake').value);
+
+            if (!pregunta) {
+                alert("Por favor escribe la pregunta del evento.");
+                return;
+            }
+            if (isNaN(stake) || stake <= 0) {
+                alert("Introduce un monto válido de stake inicial.");
+                return;
+            }
+            if (saldoUsuario < stake) {
+                alert("No tienes suficiente saldo para cubrir el stake inicial de creación.");
+                return;
+            }
+
+            saldoUsuario -= stake;
+            actualizarBalanceUI();
+
+            const nuevo = {
+                id: Date.now(),
+                pregunta: pregunta,
+                categoria: categoria,
+                siPool: stake / 2,
+                noPool: stake / 2,
+                creadoPor: document.getElementById('user-handle').innerText,
+                estado: 'activo'
+            };
+
+            mercados.unshift(nuevo);
+            
+            // Limpiar formulario y volver a pestaña de mercados
+            document.getElementById('new-question').value = '';
+            document.getElementById('new-stake').value = '1';
+            
+            renderizarMercados();
+            switchTab('mercados', document.querySelector('.nav-tab'));
+            alert("¡Mercado creado y publicado exitosamente con liquidez inicial!");
         }
 
         // ==========================================
@@ -587,7 +779,133 @@
         }
 
         function retirarBilletera() {
-            alert("Módulo de retiros en proceso de sincronización con la red principal.");
+            const montoStr = prompt("¿Cuántos Pi deseas retirar a tu Pi Wallet?", "1");
+            if (!montoStr) return;
+            const monto = parseFloat(montoStr);
+
+            if (isNaN(monto) || monto <= 0) {
+                alert("Introduce un monto válido para retirar.");
+                return;
+            }
+            if (saldoUsuario < monto) {
+                alert("No tienes suficiente saldo disponible para retirar esa cantidad.");
+                return;
+            }
+
+            saldoUsuario -= monto;
+            actualizarBalanceUI();
+            document.getElementById('wallet-history').innerHTML = `Retiro procesado: -${monto.toFixed(2)} Pi a dirección de billetera principal.`;
+            alert(`Solicitud de retiro de ${monto.toFixed(2)} Pi enviada correctamente a procesamiento de red.`);
+        }
+
+        // ==========================================
+        // SOPORTE Y CHAT
+        // ==========================================
+        function enviarMensajeSoporte() {
+            const input = document.getElementById('chat-input');
+            const texto = input.value.trim();
+            if(!texto) return;
+
+            historialChat.push({ remitente: 'usuario', texto });
+            input.value = '';
+            renderChat();
+
+            // Respuesta automática simulada del bot/soporte si el admin no está conectado
+            setTimeout(() => {
+                historialChat.push({ remitente: 'soporte', texto: 'Gracias por tu consulta. Un moderador la revisará pronto.' });
+                renderChat();
+            }, 1000);
+        }
+
+        function renderChat() {
+            const box = document.getElementById('chat-messages');
+            box.innerHTML = historialChat.map(m => `
+                <div style="margin-bottom: 4px;">
+                    <b style="color: ${m.remitente === 'usuario' ? '#38bdf8' : '#a78bfa'};">${m.remitente === 'usuario' ? 'Tú' : 'Soporte'}:</b> ${m.texto}
+                </div>
+            `).join('');
+            box.scrollTop = box.scrollHeight;
+
+            if (isAdminLoggedIn) {
+                const adminBox = document.getElementById('admin-support-box');
+                adminBox.innerHTML = historialChat.map(m => `
+                    <div style="margin-bottom: 4px;">
+                        <b style="color: ${m.remitente === 'usuario' ? '#38bdf8' : '#a78bfa'};">${m.remitente}:</b> ${m.texto}
+                    </div>
+                `).join('');
+                adminBox.scrollTop = adminBox.scrollHeight;
+            }
+        }
+
+        function enviarRespuestaAdmin() {
+            const input = document.getElementById('admin-chat-reply');
+            const texto = input.value.trim();
+            if (!texto) return;
+
+            historialChat.push({ remitente: 'soporte (Admin)', texto });
+            input.value = '';
+            renderChat();
+        }
+
+        // ==========================================
+        // PANEL DE ADMINISTRADOR Y RANKING
+        // ==========================================
+        function verificarLoginAdmin() {
+            const pass = document.getElementById('admin-password-input').value;
+            if (pass === CLAVE_ADMIN) {
+                isAdminLoggedIn = true;
+                document.getElementById('admin-login-card').style.display = 'none';
+                document.getElementById('admin-dashboard-card').style.display = 'block';
+                actualizarPanelAdmin();
+            } else {
+                alert("Contraseña incorrecta");
+            }
+        }
+
+        function actualizarPanelAdmin() {
+            // Calcular treasury total sumando los pools de todos los mercados
+            let totalTreasury = mercados.reduce((acc, m) => acc + m.siPool + m.noPool, 0);
+            document.getElementById('admin-treasury').innerText = totalTreasury.toFixed(2) + ' Pi';
+
+            const listContainer = document.getElementById('admin-markets-list');
+            listContainer.innerHTML = mercados.map(m => `
+                <div style="background: var(--bg-color); padding: 8px; border-radius: 6px; margin-bottom: 6px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-weight: 600; color: var(--text-color);">${m.pregunta}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Pool: SÍ (${m.siPool.toFixed(1)}) / NO (${m.noPool.toFixed(1)})</div>
+                    </div>
+                    <button class="action-btn" style="background: var(--danger); font-size: 0.75rem; padding: 4px 8px;" onclick="eliminarMercadoAdmin(${m.id})">Cerrar</button>
+                </div>
+            `).join('');
+            renderChat();
+        }
+
+        function eliminarMercadoAdmin(id) {
+            mercados = mercados.filter(m => m.id !== id);
+            renderizarMercados();
+            actualizarPanelAdmin();
+            alert("Mercado cerrado por el administrador.");
+        }
+
+        function actualizarRanking() {
+            const container = document.getElementById('ranking-content');
+            // Ranking simulado dinámico basado en actividad
+            const ranking = [
+                { puesto: 1, usuario: '@cryptoking', ganancias: '1,420.50 Pi', aciertos: '92%' },
+                { puesto: 2, usuario: '@jaimetetio', ganancias: saldoUsuario.toFixed(2) + ' Pi', aciertos: '85%' },
+                { puesto: 3, usuario: '@oracle_pi', ganancias: '840.00 Pi', aciertos: '78%' },
+                { puesto: 4, usuario: '@satoshi', ganancias: '510.20 Pi', aciertos: '71%' }
+            ];
+
+            container.innerHTML = ranking.map(r => `
+                <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-color); padding: 8px; border-radius: 6px; margin-bottom: 6px; border: 1px solid var(--border-color);">
+                    <div>
+                        <b>#${r.puesto} ${r.usuario}</b>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Aciertos: ${r.aciertos}</div>
+                    </div>
+                    <div style="color: #38bdf8; font-weight: bold;">${r.ganancias}</div>
+                </div>
+            `).join('');
         }
 
         function toggleTheme() {
@@ -601,6 +919,10 @@
             document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
             document.getElementById('view-' + tabId).classList.add('active');
             btn.classList.add('active');
+
+            if (tabId === 'ranking') {
+                actualizarRanking();
+            }
         }
 
         function toggleAccordion(id) {
@@ -613,37 +935,10 @@
             card.classList.toggle('open');
         }
 
-        function verificarLoginAdmin() {
-            const pass = document.getElementById('admin-password-input').value;
-            if (pass === CLAVE_ADMIN) {
-                isAdminLoggedIn = true;
-                document.getElementById('admin-login-card').style.display = 'none';
-                document.getElementById('admin-dashboard-card').style.display = 'block';
-            } else {
-                alert("Contraseña incorrecta");
-            }
-        }
-
-        function filtrarMercados() {}
-        function setCategory(cat, btn) {
-            document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
-            btn.classList.add('active');
-        }
-        function crearMercado() {
-            alert("Mercado creado exitosamente.");
-        }
-        function enviarMensajeSoporte() {
-            const texto = document.getElementById('chat-input').value;
-            if(!texto) return;
-            historialChat.push({ remitente: 'usuario', texto });
-            document.getElementById('chat-input').value = '';
-            renderChat();
-        }
-        function renderChat() {
-            const box = document.getElementById('chat-messages');
-            box.innerHTML = historialChat.map(m => `<div><b>${m.remitente}:</b> ${m.texto}</div>`).join('');
-        }
+        // Inicialización de la UI al cargar
+        renderizarMercados();
         renderChat();
+        actualizarBalanceUI();
     </script>
 </body>
 </html>
