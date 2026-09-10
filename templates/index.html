@@ -1,987 +1,1512 @@
-        <div id="modal-content-body"></div>
-        <div style="text-align: right; margin-top: 15px;">
-            <button onclick="document.getElementById('modal-usuario').style.display='none'" style="background: #da3633;">Cerrar</button>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2Ppredict - Red Descentralizada de Predicciones</title>
+    <!-- SDK de Pi Network -->
+    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+    <script>
+        if (typeof Pi !== 'undefined') {
+            Pi.init({ version: "2.0", sandbox: false });
+        }
+    </script>
+    <!-- Chart.js para gráficos financieros -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Socket.io para tiempo real -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --card-bg: #161b22;
+            --text-color: #c9d1d9;
+            --subtext: #8b949e;
+            --border-color: #30363d;
+            --accent: #1f6feb;
+            --accent-hover: #388bfd;
+        }
+
+        body.light-mode {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-color: #24292e;
+            --subtext: #586069;
+            --border-color: #e1e4e8;
+            --accent: #0366d6;
+            --accent-hover: #005cc5;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding-bottom: 70px;
+        }
+
+        header {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        .connection-status {
+            font-size: 11px;
+            color: var(--subtext);
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--subtext);
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+
+        .tab.activo {
+            color: var(--text-color);
+            background-color: var(--accent);
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .header-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .badge-categoria {
+            background-color: rgba(31, 111, 235, 0.15);
+            color: var(--accent);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .badge-activo {
+            color: #3fb950;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        h3 {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .pozo-global {
+            font-size: 13px;
+            font-weight: bold;
+            color: #3fb950;
+            margin-bottom: 4px;
+        }
+
+        .opciones-container {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .opcion-row {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+        }
+
+        .opcion-row-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .info-opcion {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nombre-opcion {
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .stats-opcion {
+            font-size: 11px;
+            color: var(--subtext);
+        }
+
+        button {
+            background-color: var(--accent);
+            color: #ffffff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .chart-container {
+            height: 40px;
+            margin-top: 6px;
+        }
+
+        .clob-panel {
+            display: none;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed var(--border-color);
+        }
+
+        .clob-tabs {
+            display: flex;
+            background: var(--bg-color);
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+
+        .clob-tab {
+            flex: 1;
+            text-align: center;
+            font-size: 11px;
+            padding: 4px;
+            cursor: pointer;
+            color: var(--subtext);
+        }
+
+        .clob-tab.activo {
+            background: var(--accent);
+            color: #fff;
+            font-weight: bold;
+        }
+
+        input[type="number"], input[type="text"], select {
+            width: 100%;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-top: 4px;
+            margin-bottom: 8px;
+        }
+
+        .zap-container {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .btn-zap {
+            flex: 1;
+            background: var(--border-color);
+            color: var(--text-color);
+            padding: 4px;
+            font-size: 10px;
+        }
+
+        .preview-ganancia-box {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+
+        .preview-row {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .filter-container {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            margin-bottom: 16px;
+            padding-bottom: 4px;
+        }
+
+        .filter-badge {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--subtext);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .filter-badge.activo {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .toast {
+            background: #238636;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .toast.error {
+            background: #da3633;
+        }
+
+        .historial-item {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 16px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">⚡ P2Ppredict</div>
+        <div class="user-info">
+            <span id="pi-username">Cargando...</span>
+            <span id="saldo-usuario" style="color: #3fb950; font-weight: bold;">0.00 Pi</span>
+            <button class="theme-toggle" onclick="toggleTemaVisual()">🌓 Tema</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="lbl-estado-conexion" class="connection-status">Conectando a la Red P2P Descentralizada...</div>
+
+        <!-- Barra de Navegación por Pestañas -->
+        <div class="nav-tabs">
+            <button class="tab activo" id="tab-user" onclick="cambiarVista('usuario')">Mercados</button>
+            <button class="tab" id="tab-crear" onclick="cambiarVista('crear')">Crear</button>
+            <button class="tab" id="tab-rank" onclick="cambiarVista('ranking')">Ranking</button>
+            <button class="tab" id="tab-adm" onclick="cambiarVista('admin')">Admin</button>
+        </div>
+
+        <!-- ================= VISTA USUARIO (MERCADOS) ================= -->
+        <div id="vista-usuario">
+            <input type="text" id="input-buscar" placeholder="🔍 Buscar mercados o temas..." oninput="renderizarMercados()">
+            
+            <div class="filter-container">
+                <div class="filter-badge activo" onclick="filtrarCategoria('todos', this)">Todos</div>
+                <div class="filter-badge" onclick="filtrarCategoria('Crypto', this)">Crypto</div>
+                <div class="filter-badge" onclick="filtrarCategoria('Deportes', this)">Deportes</div>
+                <div class="filter-badge" onclick="filtrarCategoria('Política', this)">Política</div>
+                <div class="filter-badge" onclick="filtrarCategoria('Finalizados', this)">Finalizados</div>
+            </div>
+
+            <!-- Panel de Billetera Rápida -->
+            <div class="card" style="padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span style="font-size: 11px; color: var(--subtext);">Gestión de Fondos</span>
+                    <div style="font-weight: bold; font-size: 13px;">Billetera Pi Network</div>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                    <button onclick="retirarPi()" style="background: #da3633; padding: 4px 8px; font-size: 11px;">Retirar</button>
+                    <button onclick="recargarConPi()" style="background: #238636; padding: 4px 8px; font-size: 11px;">Recargar</button>
+                </div>
+            </div>
+            <input type="number" id="input-recarga" value="5.0" step="1" style="display:none;">
+
+            <!-- Listado de Mercados -->
+            <div id="mercados-container">
+                <div class="card"><span style="color: var(--subtext);">Cargando mercados descentralizados...</span></div>
+            </div>
+
+            <!-- Historiales Desplegables -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; cursor: pointer;" onclick="toggleHistorial()">
+                    <b>📜 Mis Apuestas Realizadas</b> <span>▾</span>
+                </div>
+                <div id="contenedor-historial" style="display: none; margin-top: 10px;"></div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; cursor: pointer;" onclick="toggleOrdenesAbiertas()">
+                    <b>⚡ Órdenes Limit Activas (CLOB)</b> <span>▾</span>
+                </div>
+                <div id="contenedor-ordenes-abiertas" style="display: none; margin-top: 10px;"></div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; cursor: pointer;" onclick="toggleTradeHistory()">
+                    <b>🔄 Historial de Trades Ejecutados</b> <span>▾</span>
+                </div>
+                <div id="contenedor-trade-history" style="display: none; margin-top: 10px;"></div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; cursor: pointer;" onclick="toggleTransacciones()">
+                    <b>💳 Historial de Depósitos / Retiros</b> <span>▾</span>
+                </div>
+                <div id="contenedor-transacciones" style="display: none; margin-top: 10px;"></div>
+            </div>
+
+            <!-- Módulo de Chat de Soporte Directo -->
+            <div class="card" style="border-color: #8957e5;">
+                <div style="display: flex; justify-content: space-between; cursor: pointer;" onclick="toggleChatSoporte()">
+                    <b style="color: #8957e5;">💬 Soporte Directo P2Ppredict</b> <span>▾</span>
+                </div>
+                <div id="contenedor-chat-soporte" style="display: none; margin-top: 10px;">
+                    <div id="caja-mensajes-soporte" style="height: 120px; overflow-y: auto; background: var(--bg-color); border: 1px solid var(--border-color); padding: 8px; border-radius: 6px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;">
+                        <span style="color: var(--subtext); font-size: 11px; text-align: center;">Cargando mensajes...</span>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <input type="text" id="input-mensaje-soporte" placeholder="Escribe tu consulta o reporte..." style="margin-bottom: 0;">
+                        <button onclick="enviarMensajeSoporte()" style="background: #8957e5;">Enviar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= VISTA CREAR MERCADO ================= -->
+        <div id="vista-crear-mercado" style="display: none;">
+            <div class="card">
+                <h3 style="color: var(--accent); margin-bottom: 12px;">Crear Mercado de Predicción P2P</h3>
+                <label>Título del Mercado:</label>
+                <input type="text" id="crear-titulo" placeholder="Ej: ¿Bitcoin superará los 100k USD este mes?">
+                
+                <label>Categoría:</label>
+                <select id="crear-categoria">
+                    <option value="Crypto">Crypto</option>
+                    <option value="Deportes">Deportes</option>
+                    <option value="Política">Política</option>
+                    <option value="Tecnología">Tecnología</option>
+                    <option value="Otros">Otros</option>
+                </select>
+
+                <label>Opción 1 (Ej: Sí / Gana Equipo A):</label>
+                <input type="text" id="crear-opcion1" placeholder="Opción A">
+
+                <label>Opción 2 (Ej: No / Gana Equipo B):</label>
+                <input type="text" id="crear-opcion2" placeholder="Opción B">
+
+                <label>Fecha de Expiración / Cierre:</label>
+                <input type="text" id="crear-expiracion" placeholder="Ej: 31 Dic 2026">
+
+                <label>Colateral Inicial (Pi):</label>
+                <input type="number" id="crear-colateral" value="2.0" min="1.0" step="0.5">
+
+                <button class="btn-crear" style="width: 100%; margin-top: 10px; padding: 10px;" onclick="enviarCreacionMercadoP2P()">Publicar Mercado P2P</button>
+            </div>
+        </div>
+
+        <!-- ================= VISTA RANKING ================= -->
+        <div id="vista-ranking" style="display: none;">
+            <div class="card">
+                <h3 style="color: #f59e0b; margin-bottom: 12px;">🏆 Leaderboard Global (Pioneros)</h3>
+                <div id="contenedor-leaderboard">
+                    <span style="color: var(--subtext);">Cargando ranking...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= VISTA ADMIN ================= -->
+        <div id="vista-admin" style="display: none;">
+            <div class="card" id="admin-login-box">
+                <h3 style="color: #da3633; margin-bottom: 8px;">🔐 Panel de Control Maestro</h3>
+                <label>Contraseña de Administrador:</label>
+                <input type="password" id="admin-pass-input" placeholder="••••••••">
+                <button style="width: 100%; margin-top: 6px;" onclick="verificarAdminPassword()">Acceder</button>
+            </div>
+
+            <div class="card" id="admin-panel-content" style="display: none;">
+                <div class="clob-tabs" style="margin-bottom: 12px;">
+                    <div class="clob-tab activo" onclick="cargarPanelAdmin()">Mercados</div>
+                    <div class="clob-tab" onclick="cargarFinanzasAdmin()">Finanzas</div>
+                    <div class="clob-tab" onclick="cargarListaUsuarios()">Usuarios</div>
+                </div>
+                <div id="admin-content-area"></div>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- ================= SCRIPT COMPLETO DE LA APLICACIÓN ================= -->
-<script>
-    const BACKEND_URL = ""; 
-    let socket = null;
-    let usuarioActual = "PioneroInvitado";
-    let saldoActual = 0.0;
-    let mercadosGlobal = [];
-    let categoriaSeleccionada = 'todos';
-    let temaOscuro = true;
+    <!-- Contenedor de Alertas Toast -->
+    <div id="toast-container" class="toast-container"></div>
 
-    window.addEventListener('DOMContentLoaded', async () => {
-        inicializarTemaVisual();
-        inicializarWebSockets();
-        await autenticarConPiNetwork();
-        cargarMercados();
-        cargarLeaderboard();
-        
-        // Intervalos de actualización automática
-        setInterval(cargarMercados, 10000);
-        setInterval(actualizarSaldoUsuario, 8000);
-    });
+    <!-- Modal Dinámico -->
+    <div id="modal-usuario" class="modal">
+        <div class="modal-content">
+            <h3 id="modal-username-title" style="margin-bottom: 10px;">Gestión de Usuario</h3>
+            <div id="modal-content-body"></div>
+            <div style="text-align: right; margin-top: 15px;">
+                <button onclick="document.getElementById('modal-usuario').style.display='none'" style="background: #da3633;">Cerrar</button>
+            </div>
+        </div>
+    </div>
 
-    function toggleTemaVisual() {
-        temaOscuro = !temaOscuro;
-        if (temaOscuro) {
-            document.body.classList.remove('light-mode');
-            localStorage.setItem('p2p_tema', 'oscuro');
-        } else {
-            document.body.classList.add('light-mode');
-            localStorage.setItem('p2p_tema', 'claro');
+    <!-- ================= SCRIPT COMPLETO DE LA APLICACIÓN ================= -->
+    <script>
+        const BACKEND_URL = ""; 
+        let socket = null;
+        let usuarioActual = "PioneroInvitado";
+        let saldoActual = 0.0;
+        let mercadosGlobal = [];
+        let categoriaSeleccionada = 'todos';
+        let temaOscuro = true;
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            inicializarTemaVisual();
+            inicializarWebSockets();
+            await autenticarConPiNetwork();
+            cargarMercados();
+            cargarLeaderboard();
+            
+            setInterval(cargarMercados, 10000);
+            setInterval(actualizarSaldoUsuario, 8000);
+        });
+
+        function toggleTemaVisual() {
+            temaOscuro = !temaOscuro;
+            if (temaOscuro) {
+                document.body.classList.remove('light-mode');
+                localStorage.setItem('p2p_tema', 'oscuro');
+            } else {
+                document.body.classList.add('light-mode');
+                localStorage.setItem('p2p_tema', 'claro');
+            }
         }
-    }
 
-    function inicializarTemaVisual() {
-        const guardado = localStorage.getItem('p2p_tema');
-        if (guardado === 'claro') {
-            temaOscuro = false;
-            document.body.classList.add('light-mode');
+        function inicializarTemaVisual() {
+            const guardado = localStorage.getItem('p2p_tema');
+            if (guardado === 'claro') {
+                temaOscuro = false;
+                document.body.classList.add('light-mode');
+            }
         }
-    }
 
-    function inicializarWebSockets() {
-        try {
-            socket = io(BACKEND_URL || window.location.origin);
-            socket.on('connect', () => {
-                document.getElementById('lbl-estado-conexion').innerText = "Conectado a la Red P2P Descentralizada 🟢";
-            });
-            socket.on('disconnect', () => {
-                document.getElementById('lbl-estado-conexion').innerText = "Desconectado. Reconectando...";
-            });
-            socket.on('actualizacion_mercados', (data) => {
+        function inicializarWebSockets() {
+            try {
+                socket = io(BACKEND_URL || window.location.origin);
+                socket.on('connect', () => {
+                    document.getElementById('lbl-estado-conexion').innerText = "Conectado a la Red P2P Descentralizada 🟢";
+                });
+                socket.on('disconnect', () => {
+                    document.getElementById('lbl-estado-conexion').innerText = "Desconectado. Reconectando...";
+                });
+                socket.on('actualizacion_mercados', (data) => {
+                    if (data && data.mercados) {
+                        mercadosGlobal = data.mercados;
+                        renderizarMercados();
+                    }
+                });
+                socket.on('nuevo_mensaje_soporte', (data) => {
+                    if (data.username === usuarioActual) {
+                        if (typeof cargarHistorialSoporte === 'function') {
+                            cargarHistorialSoporte();
+                        }
+                        mostrarToast("Nuevo mensaje de Soporte Directo 💬", "info");
+                    }
+                });
+            } catch (e) {
+                console.error("Error inicializando Socket.io:", e);
+            }
+        }
+
+        async function autenticarConPiNetwork() {
+            try {
+                const scopes = ['username', 'payments'];
+                const authResult = await Pi.authenticate(scopes, onIncompletePaymentFound);
+                if (authResult && authResult.user) {
+                    usuarioActual = authResult.user.username;
+                    document.getElementById('pi-username').innerText = "@" + usuarioActual;
+                    document.getElementById('lbl-estado-conexion').innerText = `Sesión iniciada como @${usuarioActual}`;
+                    await registrarUsuarioBackend(usuarioActual);
+                    await actualizarSaldoUsuario();
+                    cargarHistorialUsuario();
+                }
+            } catch (err) {
+                console.warn("Autenticación Pi SDK omitida o en modo navegador web común:", err);
+                usuarioActual = "Invitado_" + Math.floor(Math.random() * 10000);
+                document.getElementById('pi-username').innerText = "@" + usuarioActual;
+                await registrarUsuarioBackend(usuarioActual);
+                await actualizarSaldoUsuario();
+            }
+        }
+
+        function onIncompletePaymentFound(payment) {
+            console.log("Pago incompleto detectado:", payment);
+        }
+
+        async function registrarUsuarioBackend(username) {
+            try {
+                await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+            } catch (e) {
+                console.error("Error registrando usuario:", e);
+            }
+        }
+
+        async function actualizarSaldoUsuario() {
+            try {
+                const res = await fetch(`/api/usuario/${usuarioActual}`);
+                const data = await res.json();
+                if (data && typeof data.saldo === 'number') {
+                    saldoActual = data.saldo;
+                    document.getElementById('saldo-usuario').innerText = saldoActual.toFixed(4) + " Pi";
+                }
+            } catch (e) {
+                console.error("Error actualizando saldo:", e);
+            }
+        }
+
+        function cambiarVista(vista) {
+            document.getElementById('vista-usuario').style.display = 'none';
+            document.getElementById('vista-crear-mercado').style.display = 'none';
+            document.getElementById('vista-ranking').style.display = 'none';
+            document.getElementById('vista-admin').style.display = 'none';
+
+            document.getElementById('tab-user').classList.remove('activo');
+            document.getElementById('tab-crear').classList.remove('activo');
+            document.getElementById('tab-rank').classList.remove('activo');
+            document.getElementById('tab-adm').classList.remove('activo');
+
+            if (vista === 'usuario') {
+                document.getElementById('vista-usuario').style.display = 'block';
+                document.getElementById('tab-user').classList.add('activo');
+                cargarMercados();
+            } else if (vista === 'crear') {
+                document.getElementById('vista-crear-mercado').style.display = 'block';
+                document.getElementById('tab-crear').classList.add('activo');
+            } else if (vista === 'ranking') {
+                document.getElementById('vista-ranking').style.display = 'block';
+                document.getElementById('tab-rank').classList.add('activo');
+                cargarLeaderboard();
+            } else if (vista === 'admin') {
+                document.getElementById('vista-admin').style.display = 'block';
+                document.getElementById('tab-adm').classList.add('activo');
+            }
+        }
+
+        function mostrarToast(mensaje, tipo = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${tipo}`;
+            toast.innerText = mensaje;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3500);
+        }
+
+        async function cargarMercados() {
+            try {
+                const res = await fetch('/api/mercados');
+                const data = await res.json();
                 if (data && data.mercados) {
                     mercadosGlobal = data.mercados;
                     renderizarMercados();
                 }
-            });
-            socket.on('nuevo_mensaje_soporte', (data) => {
-                if (data.username === usuarioActual) {
-                    if (typeof cargarHistorialSoporte === 'function') {
-                        cargarHistorialSoporte();
-                    }
-                    mostrarToast("Nuevo mensaje de Soporte Directo 💬", "info");
-                }
-            });
-        } catch (e) {
-            console.error("Error inicializando Socket.io:", e);
-        }
-    }
-
-    async function autenticarConPiNetwork() {
-        try {
-            const scopes = ['username', 'payments'];
-            const authResult = await Pi.authenticate(scopes, onIncompletePaymentFound);
-            if (authResult && authResult.user) {
-                usuarioActual = authResult.user.username;
-                document.getElementById('pi-username').innerText = usuarioActual;
-                document.getElementById('lbl-estado-conexion').innerText = `Sesión iniciada como @${usuarioActual}`;
-                await registrarUsuarioBackend(usuarioActual);
-                await actualizarSaldoUsuario();
-                cargarHistorialUsuario();
+            } catch (e) {
+                console.error("Error cargando mercados:", e);
             }
-        } catch (err) {
-            console.warn("Autenticación Pi SDK omitida o en modo navegador web común:", err);
-            usuarioActual = "Invitado_" + Math.floor(Math.random() * 10000);
-            document.getElementById('pi-username').innerText = usuarioActual;
-            await registrarUsuarioBackend(usuarioActual);
-            await actualizarSaldoUsuario();
-        }
-    }
-
-    function onIncompletePaymentFound(payment) {
-        console.log("Pago incompleto detectado:", payment);
-    }
-
-    async function registrarUsuarioBackend(username) {
-        try {
-            await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username })
-            });
-        } catch (e) {
-            console.error("Error registrando usuario:", e);
-        }
-    }
-
-    async function actualizarSaldoUsuario() {
-        try {
-            const res = await fetch(`/api/usuario/${usuarioActual}`);
-            const data = await res.json();
-            if (data && typeof data.saldo === 'number') {
-                saldoActual = data.saldo;
-                document.getElementById('saldo-usuario').innerText = saldoActual.toFixed(4) + " Pi";
-            }
-        } catch (e) {
-            console.error("Error actualizando saldo:", e);
-        }
-    }
-
-    function cambiarVista(vista) {
-        document.getElementById('vista-usuario').style.display = 'none';
-        document.getElementById('vista-crear-mercado').style.display = 'none';
-        document.getElementById('vista-ranking').style.display = 'none';
-        document.getElementById('vista-admin').style.display = 'none';
-
-        document.getElementById('tab-user').classList.remove('activo');
-        document.getElementById('tab-crear').classList.remove('activo');
-        document.getElementById('tab-rank').classList.remove('activo');
-        document.getElementById('tab-adm').classList.remove('activo');
-
-        if (vista === 'usuario') {
-            document.getElementById('vista-usuario').style.display = 'flex';
-            document.getElementById('tab-user').classList.add('activo');
-            cargarMercados();
-        } else if (vista === 'crear') {
-            document.getElementById('vista-crear-mercado').style.display = 'flex';
-            document.getElementById('tab-crear').classList.add('activo');
-        } else if (vista === 'ranking') {
-            document.getElementById('vista-ranking').style.display = 'flex';
-            document.getElementById('tab-rank').classList.add('activo');
-            cargarLeaderboard();
-        } else if (vista === 'admin') {
-            document.getElementById('vista-admin').style.display = 'flex';
-            document.getElementById('tab-adm').classList.add('activo');
-        }
-    }
-
-    function mostrarToast(mensaje, tipo = 'success') {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast ${tipo}`;
-        toast.innerText = mensaje;
-        container.appendChild(toast);
-        setTimeout(() => toast.remove(), 3500);
-    }
-
-    async function cargarMercados() {
-        try {
-            const res = await fetch('/api/mercados');
-            const data = await res.json();
-            if (data && data.mercados) {
-                mercadosGlobal = data.mercados;
-                renderizarMercados();
-            }
-        } catch (e) {
-            console.error("Error cargando mercados:", e);
-        }
-    }
-
-    function filtrarCategoria(cat, elemento) {
-        categoriaSeleccionada = cat;
-        document.querySelectorAll('.filter-badge').forEach(el => el.classList.remove('activo'));
-        elemento.classList.add('activo');
-        renderizarMercados();
-    }
-
-    function renderizarMercados() {
-        const container = document.getElementById('mercados-container');
-        const filtroTexto = document.getElementById('input-buscar').value.toLowerCase();
-        
-        let mercadosFiltrados = mercadosGlobal.filter(m => {
-            const matchTexto = m.titulo.toLowerCase().includes(filtroTexto) || m.categoria.toLowerCase().includes(filtroTexto);
-            if (categoriaSeleccionada === 'todos') return matchTexto;
-            if (categoriaSeleccionada === 'Finalizados') return matchTexto && m.estado === 'finalizado';
-            return matchTexto && m.categoria.toLowerCase() === categoriaSeleccionada.toLowerCase() && m.estado !== 'finalizado';
-        });
-
-        if (mercadosFiltrados.length === 0) {
-            container.innerHTML = `<div class="card"><span style="color: var(--subtext);">No se encontraron mercados activos.</span></div>`;
-            return;
         }
 
-        let html = '';
-        mercadosFiltrados.forEach(m => {
-            let pozoTotal = (m.pozoTotal || 0).toFixed(2);
-            let estadoBadge = m.estado === 'activo' ? '<span class="badge-activo">🟢 Activo</span>' : '<span style="color: #da3633; font-weight: bold;">🔴 Finalizado</span>';
+        function filtrarCategoria(cat, elemento) {
+            categoriaSeleccionada = cat;
+            document.querySelectorAll('.filter-badge').forEach(el => el.classList.remove('activo'));
+            elemento.classList.add('activo');
+            renderizarMercados();
+        }
+
+        function renderizarMercados() {
+            const container = document.getElementById('mercados-container');
+            const filtroTexto = document.getElementById('input-buscar').value.toLowerCase();
             
-            html += `
-                <div class="card">
-                    <div class="header-meta">
-                        <span class="badge-categoria">${m.categoria}</span>
-                        ${estadoBadge}
-                    </div>
-                    <h3>${m.titulo}</h3>
-                    <div class="pozo-global">Pozo Global: ${pozoTotal} Pi</div>
-                    <div style="font-size: 11px; color: var(--subtext); margin-bottom: 8px;">Creador: @${m.creador || 'sistema'} | Expira: ${m.expiracion || 'N/A'}</div>
-                    
-                    <div class="opciones-container">
-            `;
+            let mercadosFiltrados = mercadosGlobal.filter(m => {
+                const matchTexto = m.titulo.toLowerCase().includes(filtroTexto) || m.categoria.toLowerCase().includes(filtroTexto);
+                if (categoriaSeleccionada === 'todos') return matchTexto;
+                if (categoriaSeleccionada === 'Finalizados') return matchTexto && m.estado === 'finalizado';
+                return matchTexto && m.categoria.toLowerCase() === categoriaSeleccionada.toLowerCase() && m.estado !== 'finalizado';
+            });
 
-            m.opciones.forEach((opt, idx) => {
-                let cuota = opt.cuota || 2.0;
-                let probabilidad = ((1 / cuota) * 100).toFixed(0);
+            if (mercadosFiltrados.length === 0) {
+                container.innerHTML = `<div class="card"><span style="color: var(--subtext);">No se encontraron mercados activos.</span></div>`;
+                return;
+            }
+
+            let html = '';
+            mercadosFiltrados.forEach(m => {
+                let pozoTotal = (m.pozoTotal || 0).toFixed(2);
+                let estadoBadge = m.estado === 'activo' ? '<span class="badge-activo">🟢 Activo</span>' : '<span style="color: #da3633; font-weight: bold;">🔴 Finalizado</span>';
                 
                 html += `
-                    <div class="opcion-row">
-                        <div class="opcion-row-top">
-                            <div class="info-opcion">
-                                <span class="nombre-opcion">${opt.nombre}</span>
-                                <span class="stats-opcion">Cuota: <b>${cuota.toFixed(2)}x</b> | Implícito: ${probabilidad}% | Apuestas: ${opt.volumen || 0} Pi</span>
-                            </div>
-                            ${m.estado === 'activo' ? `<button onclick="apostarMercado('${m.id}', ${idx})">Apostar</button>` : ''}
+                    <div class="card">
+                        <div class="header-meta">
+                            <span class="badge-categoria">${m.categoria}</span>
+                            ${estadoBadge}
                         </div>
-                        <div class="chart-container">
-                            <canvas id="chart-${m.id}-${idx}"></canvas>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
-                            <span style="font-size: 10px; color: #58a6ff; cursor: pointer;" onclick="toggleClobPanel('${m.id}', ${idx})">⚡ Orden Limit (CLOB) ▾</span>
-                            <span style="font-size: 10px; color: var(--subtext);">Creador Maker: @${opt.maker || m.creador}</span>
-                        </div>
-                        <div id="clob-${m.id}-${idx}" class="clob-panel">
-                            <div class="clob-tabs">
-                                <div class="clob-tab activo" id="tab-comprar-${m.id}-${idx}" onclick="setTipoClob('${m.id}', ${idx}, 'comprar')">Comprar (Maker)</div>
-                                <div class="clob-tab" id="tab-vender-${m.id}-${idx}" onclick="setTipoClob('${m.id}', ${idx}, 'vender')">Vender (Taker)</div>
-                            </div>
-                            <div class="preview-ganancia-box">
-                                <div class="preview-row"><span>Inversión:</span> <b id="lbl-inv-${m.id}-${idx}">1.0 Pi</b></div>
-                                <div class="preview-row"><span>Retorno Potencial:</span> <b id="lbl-ret-${m.id}-${idx}" style="color: #3fb950;">${cuota.toFixed(2)} Pi</b></div>
-                            </div>
-                            <label>Monto a Apostar (Pi):</label>
-                            <input type="number" id="clob-monto-${m.id}-${idx}" value="1.0" min="0.1" step="0.5" oninput="calcularPreviewGanancia('${m.id}', ${idx}, ${cuota})">
-                            <div class="zap-container">
-                                <button class="btn-zap" onclick="fijarZap('${m.id}', ${idx}, 1, ${cuota})">+1 Pi</button>
-                                <button class="btn-zap" onclick="fijarZap('${m.id}', ${idx}, 5, ${cuota})">+5 Pi</button>
-                                <button class="btn-zap" onclick="fijarZap('${m.id}', ${idx}, 10, ${cuota})">+10 Pi</button>
-                            </div>
-                            <button class="btn-crear" style="margin-top: 8px; padding: 6px;" onclick="ejecutarOrdenLimit('${m.id}', ${idx})">Confirmar Orden</button>
-                        </div>
-                    </div>
+                        <h3>${m.titulo}</h3>
+                        <div class="pozo-global">Pozo Global: ${pozoTotal} Pi</div>
+                        <div style="font-size: 11px; color: var(--subtext); margin-bottom: 8px;">Creador: @${m.creador || 'sistema'} | Expira: ${m.expiracion || 'N/A'}</div>
+                        
+                        <div class="opciones-container">
                 `;
-            });
 
-            html += `</div></div>`;
-        });
-
-        container.innerHTML = html;
-        
-        // Renderizar gráficos de Chart.js para cada opción
-        mercadosFiltrados.forEach(m => {
-            m.opciones.forEach((opt, idx) => {
-                renderizarGraficoOpcion(m.id, idx, opt.historicoPrecios || [0.5, 0.52, 0.49, cuotaToProb(opt.cuota)]);
-            });
-        });
-    }
-
-    function cuotaToProb(cuota) {
-        return Math.max(0.1, Math.min(0.9, 1 / cuota));
-    }
-
-    function renderizarGraficoOpcion(mercadoId, opcionIdx, datosHistorial) {
-        const canvasId = `chart-${mercadoId}-${opcionIdx}`;
-        const ctx = document.getElementById(canvasId);
-        if (!ctx) return;
-
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: datosHistorial.map((_, i) => i + 1),
-                datasets: [{
-                    data: datosHistorial,
-                    borderColor: '#1f6feb',
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    tension: 0.3,
-                    fill: true,
-                    backgroundColor: 'rgba(31, 111, 235, 0.05)'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: { enabled: false } },
-                scales: {
-                    x: { display: false },
-                    y: { display: false, min: 0, max: 1 }
-                }
-            }
-        });
-    }
-
-    function toggleClobPanel(mercadoId, opcionIdx) {
-        const panel = document.getElementById(`clob-${mercadoId}-${opcionIdx}`);
-        panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
-    }
-
-    function setTipoClob(mercadoId, opcionIdx, tipo) {
-        const tabComprar = document.getElementById(`tab-comprar-${mercadoId}-${opcionIdx}`);
-        const tabVender = document.getElementById(`tab-vender-${mercadoId}-${opcionIdx}`);
-        if (tipo === 'comprar') {
-            tabComprar.classList.add('activo');
-            tabVender.classList.remove('activo');
-        } else {
-            tabVender.classList.add('activo');
-            tabComprar.classList.remove('activo');
-        }
-    }
-
-    function calcularPreviewGanancia(mercadoId, opcionIdx, cuota) {
-        const input = document.getElementById(`clob-monto-${mercadoId}-${opcionIdx}`);
-        const monto = parseFloat(input.value) || 0;
-        document.getElementById(`lbl-inv-${mercadoId}-${opcionIdx}`).innerText = monto.toFixed(1) + " Pi";
-        document.getElementById(`lbl-ret-${mercadoId}-${opcionIdx}`).innerText = (monto * cuota).toFixed(2) + " Pi";
-    }
-
-    function fijarZap(mercadoId, opcionIdx, valorAdicional, cuota) {
-        const input = document.getElementById(`clob-monto-${mercadoId}-${opcionIdx}`);
-        const actual = parseFloat(input.value) || 0;
-        input.value = (actual + valorAdicional).toFixed(1);
-        calcularPreviewGanancia(mercadoId, opcionIdx, cuota);
-    }
-
-    async function apostarMercado(mercadoId, opcionIdx) {
-        const montoStr = prompt("Ingresa la cantidad de Pi a apostar en esta opción:", "1.0");
-        if (!montoStr) return;
-        const monto = parseFloat(montoStr);
-        if (isNaN(monto) || monto <= 0) {
-            mostrarToast("Monto inválido", "error");
-            return;
-        }
-
-        try {
-            const res = await fetch('/api/apostar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: usuarioActual, mercadoId, opcionIdx, monto })
-            });
-            const data = await res.json();
-            if (data.success) {
-                mostrarToast("¡Apuesta realizada con éxito!", "success");
-                actualizarSaldoUsuario();
-                cargarMercados();
-                cargarHistorialUsuario();
-            } else {
-                mostrarToast(data.error || "Error al realizar apuesta", "error");
-            }
-        } catch (e) {
-            mostrarToast("Error de red al apostar", "error");
-        }
-    }
-
-    async function ejecutarOrdenLimit(mercadoId, opcionIdx) {
-        const input = document.getElementById(`clob-monto-${mercadoId}-${opcionIdx}`);
-        const monto = parseFloat(input.value) || 0;
-        if (monto <= 0) {
-            mostrarToast("Monto inválido para orden Limit", "error");
-            return;
-        }
-
-        try {
-            const res = await fetch('/api/orden/limit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: usuarioActual, mercadoId, opcionIdx, monto })
-            });
-            const data = await res.json();
-            if (data.success) {
-                mostrarToast("Orden Limit colocada correctamente ⚡", "success");
-                actualizarSaldoUsuario();
-                cargarMercados();
-                cargarHistorialUsuario();
-            } else {
-                mostrarToast(data.error || "No se pudo colocar la orden", "error");
-            }
-        } catch (e) {
-            mostrarToast("Error de red", "error");
-        }
-    }
-
-    async function enviarCreacionMercadoP2P() {
-        const titulo = document.getElementById('crear-titulo').value.trim();
-        const categoria = document.getElementById('crear-categoria').value.trim();
-        const op1 = document.getElementById('crear-opcion1').value.trim();
-        const op2 = document.getElementById('crear-opcion2').value.trim();
-        const expiracion = document.getElementById('crear-expiracion').value.trim();
-        const colateral = parseFloat(document.getElementById('crear-colateral').value) || 2.0;
-
-        if (!titulo || !categoria || !op1 || !op2) {
-            mostrarToast("Por favor completa los campos principales", "error");
-            return;
-        }
-
-        try {
-            const res = await fetch('/api/mercados/crear', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: usuarioActual, titulo, categoria, op1, op2, expiracion, colateral })
-            });
-            const data = await res.json();
-            if (data.success) {
-                mostrarToast("¡Mercado P2P publicado con éxito!", "success");
-                document.getElementById('crear-titulo').value = '';
-                document.getElementById('crear-categoria').value = '';
-                document.getElementById('crear-opcion1').value = '';
-                document.getElementById('crear-opcion2').value = '';
-                cambiarVista('usuario');
-                cargarMercados();
-            } else {
-                mostrarToast(data.error || "Error al crear mercado", "error");
-            }
-        } catch (e) {
-            mostrarToast("Error de conexión al crear mercado", "error");
-        }
-    }
-
-    async function recargarConPi() {
-        const monto = parseFloat(document.getElementById('input-recarga').value) || 5.0;
-        if (monto <= 0) return;
-
-        try {
-            // Flujo oficial de pagos Pi SDK
-            if (typeof Pi !== 'undefined' && Pi.createPayment) {
-                Pi.createPayment({
-                    amount: monto,
-                    memo: `Recarga de saldo P2Ppredict para @${usuarioActual}`,
-                    metadata: { username: usuarioActual, tipo: 'recarga' },
-                }, {
-                    onReadyForServerApproval: async (paymentId) => {
-                        await fetch('/api/pi/aprobar-pago', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ paymentId, username: usuarioActual, monto })
-                        });
-                    },
-                    onReadyForServerCompletion: async (paymentId, txid) => {
-                        await fetch('/api/pi/completar-pago', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ paymentId, txid, username: usuarioActual, monto })
-                        });
-                        mostrarToast(`¡Recarga de ${monto} Pi exitosa!`, "success");
-                        actualizarSaldoUsuario();
-                    },
-                    onCancel: (paymentId) => {
-                        mostrarToast("Pago cancelado por el usuario", "error");
-                    },
-                    onError: (error, payment) => {
-                        mostrarToast("Error en pasarela Pi Network: " + error.message, "error");
-                    }
+                m.opciones.forEach((opt, idx) => {
+                    let cuota = opt.cuota || 2.0;
+                    let probabilidad = ((1 / cuota) * 100).toFixed(0);
+                    
+                    html += `
+                        <div class="opcion-row">
+                            <div class="opcion-row-top">
+                                <div class="info-opcion">
+                                    <span class="nombre-opcion">${opt.nombre}</span>
+                                    <span class="stats-opcion">Cuota: <b>${cuota.toFixed(2)}x</b> | Implícito: ${probabilidad}% | Apuestas: ${opt.volumen || 0} Pi</span>
+                                </div>
+                                ${m.estado === 'activo' ? `<button onclick="apostarMercado('${m.id}', ${idx})">Apostar</button>` : ''}
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="chart-${m.id}-${idx}"></canvas>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                                <span style="font-size: 10px; color: var(--accent); cursor: pointer;" onclick="toggleClobPanel('${m.id}', ${idx})">⚡ Orden Limit (CLOB) ▾</span>
+                                <span style="font-size: 10px; color: var(--subtext);">Creador Maker: @${opt.maker || m.creador}</span>
+                            </div>
+                            <div id="clob-${m.id}-${idx}" class="clob-panel">
+                                <div class="clob-tabs">
+                                    <div class="clob-tab activo" id="tab-comprar-${m.id}-${idx}" onclick="setTipoClob('${m.id}', ${idx}, 'comprar')">Comprar (Maker)</div>
+                                    <div class="clob-tab" id="tab-vender-${m.id}-${idx}" onclick="setTipoClob('${m.id}', ${idx}, 'vender')">Vender (Taker)</div>
+                                </div>
+                                <div class="preview-ganancia-box">
+                                    <div class="preview-row"><span>Inversión:</span> <b id="lbl-inv-${m.id}-${idx}">1.0 Pi</b></div>
+                                    <div class="preview-row"><span>Retorno Potencial:</span> <b id="lbl-ret-${m.id}-${idx}" style="color: #3fb950;">${cuota.toFixed(2)} Pi</b></div>
+                                </div>
+                                <label>Monto a Apostar (Pi):</label>
+                                <input type="number" id="clob-monto-${m.id}-${idx}" value="1.0" min="0.1" step="0.5" oninput="calcularPreviewGanancia('${m.id}', ${idx}, ${cuota})">
+                                <div class="zap-container">
+                                    <button class="btn-zap" onclick="fijarZap('${m.id}', ${idx}, 1, ${cuota})">+1 Pi</button>
+                                    <button class="btn-zap" onclick="fijarZap('${m.id}', ${idx}, 5, ${cuota})">+5 Pi</button>
+                                    <button class="btn-zap" onclick="fijarZap('${m.id}', ${idx}, 10, ${cuota})">+10 Pi</button>
+                                </div>
+                                <button style="width: 100%; margin-top: 6px; padding: 6px;" onclick="ejecutarOrdenLimit('${m.id}', ${idx})">Confirmar Orden</button>
+                            </div>
+                        </div>
+                    `;
                 });
+
+                html += `</div></div>`;
+            });
+
+            container.innerHTML = html;
+            
+            mercadosFiltrados.forEach(m => {
+                m.opciones.forEach((opt, idx) => {
+                    renderizarGraficoOpcion(m.id, idx, opt.historicoPrecios || [0.5, 0.52, 0.49, cuotaToProb(opt.cuota)]);
+                });
+            });
+        }
+
+        function cuotaToProb(cuota) {
+            return Math.max(0.1, Math.min(0.9, 1 / cuota));
+        }
+
+        function renderizarGraficoOpcion(mercadoId, opcionIdx, datosHistorial) {
+            const canvasId = `chart-${mercadoId}-${opcionIdx}`;
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: datosHistorial.map((_, i) => i + 1),
+                    datasets: [{
+                        data: datosHistorial,
+                        borderColor: '#1f6feb',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.3,
+                        fill: true,
+                        backgroundColor: 'rgba(31, 111, 235, 0.05)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: {
+                        x: { display: false },
+                        y: { display: false, min: 0, max: 1 }
+                    }
+                }
+            });
+        }
+
+        function toggleClobPanel(mercadoId, opcionIdx) {
+            const panel = document.getElementById(`clob-${mercadoId}-${opcionIdx}`);
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function setTipoClob(mercadoId, opcionIdx, tipo) {
+            const tabComprar = document.getElementById(`tab-comprar-${mercadoId}-${opcionIdx}`);
+            const tabVender = document.getElementById(`tab-vender-${mercadoId}-${opcionIdx}`);
+            if (tipo === 'comprar') {
+                tabComprar.classList.add('activo');
+                tabVender.classList.remove('activo');
             } else {
-                // Simulación para navegador web normal fuera de Pi Browser
-                const res = await fetch('/api/recargar/simular', {
+                tabVender.classList.add('activo');
+                tabComprar.classList.remove('activo');
+            }
+        }
+
+        function calcularPreviewGanancia(mercadoId, opcionIdx, cuota) {
+            const input = document.getElementById(`clob-monto-${mercadoId}-${opcionIdx}`);
+            const monto = parseFloat(input.value) || 0;
+            document.getElementById(`lbl-inv-${mercadoId}-${opcionIdx}`).innerText = monto.toFixed(1) + " Pi";
+            document.getElementById(`lbl-ret-${mercadoId}-${opcionIdx}`).innerText = (monto * cuota).toFixed(2) + " Pi";
+        }
+
+        function fijarZap(mercadoId, opcionIdx, valorAdicional, cuota) {
+            const input = document.getElementById(`clob-monto-${mercadoId}-${opcionIdx}`);
+            const actual = parseFloat(input.value) || 0;
+            input.value = (actual + valorAdicional).toFixed(1);
+            calcularPreviewGanancia(mercadoId, opcionIdx, cuota);
+        }
+
+        async function apostarMercado(mercadoId, opcionIdx) {
+            const montoStr = prompt("Ingresa la cantidad de Pi a apostar en esta opción:", "1.0");
+            if (!montoStr) return;
+            const monto = parseFloat(montoStr);
+            if (isNaN(monto) || monto <= 0) {
+                mostrarToast("Monto inválido", "error");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/apostar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: usuarioActual, mercadoId, opcionIdx, monto })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    mostrarToast("¡Apuesta realizada con éxito!", "success");
+                    actualizarSaldoUsuario();
+                    cargarMercados();
+                    cargarHistorialUsuario();
+                } else {
+                    mostrarToast(data.error || "Error al realizar apuesta", "error");
+                }
+            } catch (e) {
+                mostrarToast("Error de red al apostar", "error");
+            }
+        }
+
+        async function ejecutarOrdenLimit(mercadoId, opcionIdx) {
+            const input = document.getElementById(`clob-monto-${mercadoId}-${opcionIdx}`);
+            const monto = parseFloat(input.value) || 0;
+            if (monto <= 0) {
+                mostrarToast("Monto inválido para orden Limit", "error");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/orden/limit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: usuarioActual, mercadoId, opcionIdx, monto })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    mostrarToast("Orden Limit colocada correctamente ⚡", "success");
+                    actualizarSaldoUsuario();
+                    cargarMercados();
+                    cargarHistorialUsuario();
+                } else {
+                    mostrarToast(data.error || "No se pudo colocar la orden", "error");
+                }
+            } catch (e) {
+                mostrarToast("Error de red", "error");
+            }
+        }
+
+        async function enviarCreacionMercadoP2P() {
+            const titulo = document.getElementById('crear-titulo').value.trim();
+            const categoria = document.getElementById('crear-categoria').value.trim();
+            const op1 = document.getElementById('crear-opcion1').value.trim();
+            const op2 = document.getElementById('crear-opcion2').value.trim();
+            const expiracion = document.getElementById('crear-expiracion').value.trim();
+            const colateral = parseFloat(document.getElementById('crear-colateral').value) || 2.0;
+
+            if (!titulo || !categoria || !op1 || !op2) {
+                mostrarToast("Por favor completa los campos principales", "error");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/mercados/crear', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: usuarioActual, titulo, categoria, op1, op2, expiracion, colateral })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    mostrarToast("¡Mercado P2P publicado con éxito!", "success");
+                    document.getElementById('crear-titulo').value = '';
+                    document.getElementById('crear-opcion1').value = '';
+                    document.getElementById('crear-opcion2').value = '';
+                    cambiarVista('usuario');
+                    cargarMercados();
+                } else {
+                    mostrarToast(data.error || "Error al crear mercado", "error");
+                }
+            } catch (e) {
+                mostrarToast("Error de conexión al crear mercado", "error");
+            }
+        }
+
+        async function recargarConPi() {
+            const monto = parseFloat(document.getElementById('input-recarga').value) || 5.0;
+            if (monto <= 0) return;
+
+            try {
+                if (typeof Pi !== 'undefined' && Pi.createPayment) {
+                    Pi.createPayment({
+                        amount: monto,
+                        memo: `Recarga de saldo P2Ppredict para @${usuarioActual}`,
+                        metadata: { username: usuarioActual, tipo: 'recarga' },
+                    }, {
+                        onReadyForServerApproval: async (paymentId) => {
+                            await fetch('/api/pi/aprobar-pago', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ paymentId, username: usuarioActual, monto })
+                            });
+                        },
+                        onReadyForServerCompletion: async (paymentId, txid) => {
+                            await fetch('/api/pi/completar-pago', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ paymentId, txid, username: usuarioActual, monto })
+                            });
+                            mostrarToast(`¡Recarga de ${monto} Pi exitosa!`, "success");
+                            actualizarSaldoUsuario();
+                        },
+                        onCancel: (paymentId) => {
+                            mostrarToast("Pago cancelado por el usuario", "error");
+                        },
+                        onError: (error, payment) => {
+                            mostrarToast("Error en pasarela Pi Network: " + error.message, "error");
+                        }
+                    });
+                } else {
+                    const res = await fetch('/api/recargar/simular', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: usuarioActual, monto })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        mostrarToast(`¡Recarga simulada de ${monto} Pi exitosa!`, "success");
+                        actualizarSaldoUsuario();
+                    }
+                }
+            } catch (e) {
+                mostrarToast("Error procesando recarga", "error");
+            }
+        }
+
+        async function retirarPi() {
+            const montoStr = prompt(`Saldo disponible: ${saldoActual.toFixed(4)} Pi.\n¿Cuántos Pi deseas retirar a tu billetera?`, saldoActual.toFixed(2));
+            if (!montoStr) return;
+            const monto = parseFloat(montoStr);
+            if (isNaN(monto) || monto <= 0 || monto > saldoActual) {
+                mostrarToast("Monto de retiro inválido", "error");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/retirar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: usuarioActual, monto })
                 });
                 const data = await res.json();
                 if (data.success) {
-                    mostrarToast(`¡Recarga simulada de ${monto} Pi exitosa!`, "success");
+                    mostrarToast("Solicitud de retiro procesada correctamente", "success");
                     actualizarSaldoUsuario();
+                    cargarHistorialTransacciones();
+                } else {
+                    mostrarToast(data.error || "Error al procesar retiro", "error");
                 }
+            } catch (e) {
+                mostrarToast("Error de red", "error");
             }
-        } catch (e) {
-            mostrarToast("Error procesando recarga", "error");
-        }
-    }
-
-    async function retirarPi() {
-        const montoStr = prompt(`Saldo disponible: ${saldoActual.toFixed(4)} Pi.\n¿Cuántos Pi deseas retirar a tu billetera?`, saldoActual.toFixed(2));
-        if (!montoStr) return;
-        const monto = parseFloat(montoStr);
-        if (isNaN(monto) || monto <= 0 || monto > saldoActual) {
-            mostrarToast("Monto de retiro inválido", "error");
-            return;
         }
 
-        try {
-            const res = await fetch('/api/retirar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: usuarioActual, monto })
-            });
-            const data = await res.json();
-            if (data.success) {
-                mostrarToast("Solicitud de retiro procesada correctamente", "success");
-                actualizarSaldoUsuario();
-                cargarHistorialTransacciones();
-            } else {
-                mostrarToast(data.error || "Error al procesar retiro", "error");
+        function toggleHistorial() {
+            const el = document.getElementById('contenedor-historial');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+            if (el.style.display === 'block') cargarHistorialUsuario();
+        }
+
+        async function cargarHistorialUsuario() {
+            try {
+                const res = await fetch(`/api/usuario/historial/${usuarioActual}`);
+                const data = await res.json();
+                const container = document.getElementById('contenedor-historial');
+                if (data && data.apuestas && data.apuestas.length > 0) {
+                    let html = '';
+                    data.apuestas.forEach(a => {
+                        html += `
+                            <div class="historial-item">
+                                <div>
+                                    <b>${a.mercadoTitulo}</b><br>
+                                    <span style="color: var(--subtext);">Opción: ${a.opcionNombre} | Monto: ${a.monto} Pi</span>
+                                </div>
+                                <div>
+                                    ${a.estado === 'ganada' ? '<span style="color: #3fb950; font-weight: bold;">Ganada (+'+a.premio+' Pi)</span>' : (a.estado === 'perdida' ? '<span style="color: #da3633;">Perdida</span>' : '<span style="color: #f59e0b;">Pendiente</span>')}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<span style="color: var(--subtext);">No tienes apuestas registradas.</span>';
+                }
+            } catch (e) {
+                console.error("Error cargando historial:", e);
             }
-        } catch (e) {
-            mostrarToast("Error de red", "error");
         }
-    }
 
-    function toggleHistorial() {
-        const el = document.getElementById('contenedor-historial');
-        el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        if (el.style.display === 'block') cargarHistorialUsuario();
-    }
+        function toggleOrdenesAbiertas() {
+            const el = document.getElementById('contenedor-ordenes-abiertas');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+            if (el.style.display === 'block') cargarOrdenesAbiertas();
+        }
 
-    async function cargarHistorialUsuario() {
-        try {
-            const res = await fetch(`/api/usuario/historial/${usuarioActual}`);
-            const data = await res.json();
-            const container = document.getElementById('contenedor-historial');
-            if (data && data.apuestas && data.apuestas.length > 0) {
-                let html = '';
-                data.apuestas.forEach(a => {
-                    html += `
-                        <div class="historial-item">
-                            <div>
-                                <b>${a.mercadoTitulo}</b><br>
-                                <span style="color: var(--subtext);">Opción: ${a.opcionNombre} | Monto: ${a.monto} Pi</span>
+        async function cargarOrdenesAbiertas() {
+            try {
+                const res = await fetch(`/api/usuario/ordenes/${usuarioActual}`);
+                const data = await res.json();
+                const container = document.getElementById('contenedor-ordenes-abiertas');
+                if (data && data.ordenes && data.ordenes.length > 0) {
+                    let html = '';
+                    data.ordenes.forEach(o => {
+                        html += `
+                            <div class="historial-item">
+                                <div>
+                                    <b>${o.mercadoTitulo}</b><br>
+                                    <span style="color: var(--subtext);">Tipo Limit | Monto: ${o.monto} Pi</span>
+                                </div>
+                                <button onclick="cancelarOrdenLimit('${o.id}')" style="background: #da3633; padding: 4px 8px; font-size: 10px;">Cancelar</button>
                             </div>
-                            <div>
-                                ${a.estado === 'ganada' ? '<span style="color: #3fb950; font-weight: bold;">Ganada (+'+a.premio+' Pi)</span>' : (a.estado === 'perdida' ? '<span style="color: #da3633;">Perdida</span>' : '<span style="color: #f59e0b;">Pendiente</span>')}
-                            </div>
-                        </div>
-                    `;
+                        `;
+                    });
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<span style="color: var(--subtext);">No tienes órdenes Limit pendientes.</span>';
+                }
+            } catch (e) {
+                console.error("Error cargando órdenes:", e);
+            }
+        }
+
+        async function cancelarOrdenLimit(ordenId) {
+            try {
+                const res = await fetch('/api/orden/cancelar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: usuarioActual, ordenId })
                 });
-                container.innerHTML = html;
-            } else {
-                container.innerHTML = '<span style="color: var(--subtext);">No tienes apuestas registradas.</span>';
+                const data = await res.json();
+                if (data.success) {
+                    mostrarToast("Orden cancelada y fondos devueltos", "success");
+                    actualizarSaldoUsuario();
+                    cargarOrdenesAbiertas();
+                } else {
+                    mostrarToast("No se pudo cancelar la orden", "error");
+                }
+            } catch (e) {
+                mostrarToast("Error de red", "error");
             }
-        } catch (e) {
-            console.error("Error cargando historial:", e);
         }
-    }
 
-    function toggleOrdenesAbiertas() {
-        const el = document.getElementById('contenedor-ordenes-abiertas');
-        el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        if (el.style.display === 'block') cargarOrdenesAbiertas();
-    }
+        function toggleTradeHistory() {
+            const el = document.getElementById('contenedor-trade-history');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+            if (el.style.display === 'block') cargarTradeHistory();
+        }
 
-    async function cargarOrdenesAbiertas() {
-        try {
-            const res = await fetch(`/api/usuario/ordenes/${usuarioActual}`);
-            const data = await res.json();
-            const container = document.getElementById('contenedor-ordenes-abiertas');
-            if (data && data.ordenes && data.ordenes.length > 0) {
-                let html = '';
-                data.ordenes.forEach(o => {
-                    html += `
-                        <div class="historial-item">
-                            <div>
-                                <b>${o.mercadoTitulo}</b><br>
-                                <span style="color: var(--subtext);">Tipo Limit | Monto: ${o.monto} Pi</span>
+        async function cargarTradeHistory() {
+            try {
+                const res = await fetch(`/api/usuario/trades/${usuarioActual}`);
+                const data = await res.json();
+                const container = document.getElementById('contenedor-trade-history');
+                if (data && data.trades && data.trades.length > 0) {
+                    let html = '';
+                    data.trades.forEach(t => {
+                        html += `
+                            <div class="historial-item">
+                                <div>
+                                    <b>${t.mercadoTitulo}</b><br>
+                                    <span style="color: var(--subtext);">Ejecutado: ${t.opcionNombre} | ${t.monto} Pi</span>
+                                </div>
+                                <span style="color: #3fb950; font-weight: bold;">Completado</span>
                             </div>
-                            <button onclick="cancelarOrdenLimit('${o.id}')" style="background: #da3633; padding: 4px 8px; font-size: 10px;">Cancelar</button>
-                        </div>
-                    `;
-                });
-                container.innerHTML = html;
-            } else {
-                container.innerHTML = '<span style="color: var(--subtext);">No tienes órdenes Limit pendientes.</span>';
+                        `;
+                    });
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<span style="color: var(--subtext);">Sin órdenes ejecutadas completadas aún.</span>';
+                }
+            } catch (e) {
+                console.error("Error cargando trades:", e);
             }
-        } catch (e) {
-            console.error("Error cargando órdenes:", e);
         }
-    }
 
-    async function cancelarOrdenLimit(ordenId) {
-        try {
-            const res = await fetch('/api/orden/cancelar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: usuarioActual, ordenId })
-            });
-            const data = await res.json();
-            if (data.success) {
-                mostrarToast("Orden cancelada y fondos devueltos", "success");
-                actualizarSaldoUsuario();
-                cargarOrdenesAbiertas();
-            } else {
-                mostrarToast("No se pudo cancelar la orden", "error");
-            }
-        } catch (e) {
-            mostrarToast("Error de red", "error");
+        function toggleTransacciones() {
+            const el = document.getElementById('contenedor-transacciones');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+            if (el.style.display === 'block') cargarHistorialTransacciones();
         }
-    }
 
-    function toggleTradeHistory() {
-        const el = document.getElementById('contenedor-trade-history');
-        el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        if (el.style.display === 'block') cargarTradeHistory();
-    }
-
-    async function cargarTradeHistory() {
-        try {
-            const res = await fetch(`/api/usuario/trades/${usuarioActual}`);
-            const data = await res.json();
-            const container = document.getElementById('contenedor-trade-history');
-            if (data && data.trades && data.trades.length > 0) {
-                let html = '';
-                data.trades.forEach(t => {
-                    html += `
-                        <div class="historial-item">
-                            <div>
-                                <b>${t.mercadoTitulo}</b><br>
-                                <span style="color: var(--subtext);">Ejecutado: ${t.opcionNombre} | ${t.monto} Pi</span>
+        async function cargarHistorialTransacciones() {
+            try {
+                const res = await fetch(`/api/usuario/transacciones/${usuarioActual}`);
+                const data = await res.json();
+                const container = document.getElementById('contenedor-transacciones');
+                if (data && data.transacciones && data.transacciones.length > 0) {
+                    let html = '';
+                    data.transacciones.forEach(tx => {
+                        html += `
+                            <div class="historial-item">
+                                <div>
+                                    <b>${tx.tipo.toUpperCase()}</b><br>
+                                    <span style="color: var(--subtext);">${tx.fecha}</span>
+                                </div>
+                                <span style="color: ${tx.tipo === 'retiro' ? '#da3633' : '#3fb950'}; font-weight: bold;">${tx.tipo === 'retiro' ? '-' : '+'}${tx.monto} Pi</span>
                             </div>
-                            <span style="color: #3fb950; font-weight: bold;">Completado</span>
-                        </div>
-                    `;
-                });
-                container.innerHTML = html;
-            } else {
-                container.innerHTML = '<span style="color: var(--subtext);">Sin órdenes ejecutadas completadas aún.</span>';
+                        `;
+                    });
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<span style="color: var(--subtext);">Sin transacciones registradas.</span>';
+                }
+            } catch (e) {
+                console.error("Error transacciones:", e);
             }
-        } catch (e) {
-            console.error("Error cargando trades:", e);
         }
-    }
 
-    function toggleTransacciones() {
-        const el = document.getElementById('contenedor-transacciones');
-        el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        if (el.style.display === 'block') cargarHistorialTransacciones();
-    }
-
-    async function cargarHistorialTransacciones() {
-        try {
-            const res = await fetch(`/api/usuario/transacciones/${usuarioActual}`);
-            const data = await res.json();
-            const container = document.getElementById('contenedor-transacciones');
-            if (data && data.transacciones && data.transacciones.length > 0) {
-                let html = '';
-                data.transacciones.forEach(tx => {
-                    html += `
-                        <div class="historial-item">
-                            <div>
-                                <b>${tx.tipo.toUpperCase()}</b><br>
-                                <span style="color: var(--subtext);">${tx.fecha}</span>
+        async function cargarLeaderboard() {
+            try {
+                const res = await fetch('/api/ranking');
+                const data = await res.json();
+                const container = document.getElementById('contenedor-leaderboard');
+                if (data && data.ranking && data.ranking.length > 0) {
+                    let html = '';
+                    data.ranking.forEach((u, index) => {
+                        let medalla = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : `#${index+1}`));
+                        html += `
+                            <div class="historial-item">
+                                <div>
+                                    <b>${medalla} @${u.username}</b><br>
+                                    <span style="color: var(--subtext);">Aciertos: ${u.aciertos || 0} | Ganancia neta</span>
+                                </div>
+                                <span style="color: #3fb950; font-weight: bold;">${(u.gananciaNeta || 0).toFixed(2)} Pi</span>
                             </div>
-                            <span style="color: ${tx.tipo === 'retiro' ? '#da3633' : '#3fb950'}; font-weight: bold;">${tx.tipo === 'retiro' ? '-' : '+'}${tx.monto} Pi</span>
-                        </div>
-                    `;
-                });
-                container.innerHTML = html;
-            } else {
-                container.innerHTML = '<span style="color: var(--subtext);">Sin transacciones registradas.</span>';
+                        `;
+                    });
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<span style="color: var(--subtext);">Sin datos en el ranking todavía.</span>';
+                }
+            } catch (e) {
+                console.error("Error leaderboard:", e);
             }
-        } catch (e) {
-            console.error("Error transacciones:", e);
         }
-    }
 
-    async function cargarLeaderboard() {
-        try {
-            const res = await fetch('/api/ranking');
-            const data = await res.json();
-            const container = document.getElementById('contenedor-leaderboard');
-            if (data && data.ranking && data.ranking.length > 0) {
-                let html = '';
-                data.ranking.forEach((u, index) => {
-                    let medalla = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : `#${index+1}`));
-                    html += `
-                        <div class="historial-item">
-                            <div>
-                                <b>${medalla} @${u.username}</b><br>
-                                <span style="color: var(--subtext);">Aciertos: ${u.aciertos || 0} | Ganancia neta</span>
+        async function verificarAdminPassword() {
+            const pass = document.getElementById('admin-pass-input').value;
+            try {
+                const res = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pass })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('admin-login-box').style.display = 'none';
+                    document.getElementById('admin-panel-content').style.display = 'block';
+                    cargarPanelAdmin();
+                    mostrarToast("Acceso de Administrador Concedido 🛡️", "success");
+                } else {
+                    mostrarToast("Contraseña maestra incorrecta", "error");
+                }
+            } catch (e) {
+                mostrarToast("Error de verificación", "error");
+            }
+        }
+
+        async function cargarPanelAdmin() {
+            try {
+                const res = await fetch('/api/admin/mercados');
+                const data = await res.json();
+                const container = document.getElementById('admin-content-area');
+                if (data && data.mercados) {
+                    let html = '<h4 style="color:var(--accent); margin-bottom:8px;">Gestión de Mercados P2P</h4>';
+                    data.mercados.forEach(m => {
+                        html += `
+                            <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:10px; border-radius:6px; margin-bottom:8px;">
+                                <b>${m.titulo}</b> (${m.estado})<br>
+                                <span style="font-size:11px; color:var(--subtext);">ID: ${m.id}</span>
+                                <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
+                                    ${m.opciones.map((opt, idx) => `<button onclick="resolverMercadoAdmin('${m.id}', ${idx})" style="background:#238636; padding:4px 8px; font-size:10px;">Ganó: ${opt.nombre}</button>`).join('')}
+                                    <button onclick="eliminarMercadoAdmin('${m.id}')" style="background:#da3633; padding:4px 8px; font-size:10px;">Eliminar</button>
+                                </div>
                             </div>
-                            <span style="color: #3fb950; font-weight: bold;">${(u.gananciaNeta || 0).toFixed(2)} Pi</span>
-                        </div>
-                    `;
+                        `;
+                    });
+                    container.innerHTML = html;
+                }
+            } catch (e) {
+                console.error("Error admin mercados:", e);
+            }
+        }
+
+        async function resolverMercadoAdmin(mercadoId, opcionGanadoraIdx) {
+            if (!confirm("¿Estás seguro de declarar esta opción como ganadora? Se repartirán los premios automáticamente.")) return;
+            try {
+                const res = await fetch('/api/admin/resolver', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mercadoId, opcionGanadoraIdx })
                 });
-                container.innerHTML = html;
-            } else {
-                container.innerHTML = '<span style="color: var(--subtext);">Sin datos en el ranking todavía.</span>';
+                const data = await res.json();
+                if (data.success) {
+                    mostrarToast("Mercado resuelto y premios repartidos 🏆", "success");
+                    cargarPanelAdmin();
+                    cargarMercados();
+                } else {
+                    mostrarToast("Error al resolver mercado", "error");
+                }
+            } catch (e) {
+                mostrarToast("Error de red", "error");
             }
-        } catch (e) {
-            console.error("Error leaderboard:", e);
         }
-    }
 
-    async function verificarAdminPassword() {
-        const pass = document.getElementById('admin-pass-input').value;
-        try {
-            const res = await fetch('/api/admin/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: pass })
-            });
-            const data = await res.json();
-            if (data.success) {
-                document.getElementById('admin-login-box').style.display = 'none';
-                document.getElementById('admin-panel-content').style.display = 'flex';
-                cargarPanelAdmin();
-                mostrarToast("Acceso de Administrador Concedido 🛡️", "success");
-            } else {
-                mostrarToast("Contraseña maestra incorrecta", "error");
-            }
-        } catch (e) {
-            mostrarToast("Error de verificación", "error");
-        }
-    }
-
-    async function cargarPanelAdmin() {
-        try {
-            const res = await fetch('/api/admin/mercados');
-            const data = await res.json();
-            const container = document.getElementById('admin-content-area');
-            if (data && data.mercados) {
-                let html = '<h4 style="color:#58a6ff; margin-bottom:8px;">Gestión de Mercados P2P</h4>';
-                data.mercados.forEach(m => {
-                    html += `
-                        <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:10px; border-radius:6px; margin-bottom:8px;">
-                            <b>${m.titulo}</b> (${m.estado})<br>
-                            <span style="font-size:11px; color:var(--subtext);">ID: ${m.id}</span>
-                            <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
-                                ${m.opciones.map((opt, idx) => `<button onclick="resolverMercadoAdmin('${m.id}', ${idx})" style="background:#238636; padding:4px 8px; font-size:10px;">Ganó: ${opt.nombre}</button>`).join('')}
-                                <button onclick="eliminarMercadoAdmin('${m.id}')" style="background:#da3633; padding:4px 8px; font-size:10px;">Eliminar</button>
-                            </div>
-                        </div>
-                    `;
+        async function eliminarMercadoAdmin(mercadoId) {
+            if (!confirm("¿Eliminar este mercado y reembolsar fondos?")) return;
+            try {
+                const res = await fetch('/api/admin/eliminar-mercado', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mercadoId })
                 });
-                container.innerHTML = html;
+                const data = await res.json();
+                if (data.success) {
+                    mostrarToast("Mercado eliminado y reembolsado", "success");
+                    cargarPanelAdmin();
+                    cargarMercados();
+                }
+            } catch (e) {
+                mostrarToast("Error", "error");
             }
-        } catch (e) {
-            console.error("Error admin mercados:", e);
         }
-    }
 
-    async function resolverMercadoAdmin(mercadoId, opcionGanadoraIdx) {
-        if (!confirm("¿Estás seguro de declarar esta opción como ganadora? Se repartirán los premios automáticamente.")) return;
-        try {
-            const res = await fetch('/api/admin/resolver', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mercadoId, opcionGanadoraIdx })
-            });
-            const data = await res.json();
-            if (data.success) {
-                mostrarToast("Mercado resuelto y premios repartidos 🏆", "success");
-                cargarPanelAdmin();
-                cargarMercados();
-            } else {
-                mostrarToast("Error al resolver mercado", "error");
-            }
-        } catch (e) {
-            mostrarToast("Error de red", "error");
-        }
-    }
-
-    async function eliminarMercadoAdmin(mercadoId) {
-        if (!confirm("¿Eliminar este mercado y reembolsar fondos?")) return;
-        try {
-            const res = await fetch('/api/admin/eliminar-mercado', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mercadoId })
-            });
-            const data = await res.json();
-            if (data.success) {
-                mostrarToast("Mercado eliminado y reembolsado", "success");
-                cargarPanelAdmin();
-                cargarMercados();
-            }
-        } catch (e) {
-            mostrarToast("Error", "error");
-        }
-    }
-
-    async function cargarFinanzasAdmin() {
-        try {
-            const res = await fetch('/api/admin/finanzas-detallado');
-            const data = await res.json();
-            const container = document.getElementById('admin-content-area');
-            
-            if (data && data.success) {
-                const { diario, semanal, mensual, totalComisiones, historialCompleto } = data.resumen;
+        async function cargarFinanzasAdmin() {
+            try {
+                const res = await fetch('/api/admin/finanzas-detallado');
+                const data = await res.json();
+                const container = document.getElementById('admin-content-area');
                 
-                container.innerHTML = `
-                    <h4 style="color:#1f6feb; margin-bottom:8px;">Control de Billetera y Flujo de Caja (Pi)</h4>
+                if (data && data.success) {
+                    const { diario, semanal, mensual, totalComisiones, historialCompleto } = data.resumen;
                     
-                    <!-- Selector de Período -->
-                    <div class="clob-tabs" style="margin-bottom: 12px;">
-                        <div class="clob-tab activo" id="tab-fin-diario" onclick="cambiarFiltroFinanzas('diario')">Diario</div>
-                        <div class="clob-tab" id="tab-fin-semanal" onclick="cambiarFiltroFinanzas('semanal')">Semanal</div>
-                        <div class="clob-tab" id="tab-fin-mensual" onclick="cambiarFiltroFinanzas('mensual')">Mensual</div>
-                    </div>
-
-                    <!-- Panel de Métricas Dinámicas -->
-                    <div id="panel-metricas-tiempo" class="kpi-grid">
-                        <div class="kpi-box">
-                            <span>Entradas (Depósitos)</span>
-                            <h4 id="fin-entradas" style="color: #3fb950;">${diario.entradas.toFixed(2)} Pi</h4>
+                    container.innerHTML = `
+                        <h4 style="color:var(--accent); margin-bottom:8px;">Control de Billetera y Flujo de Caja (Pi)</h4>
+                        <div class="clob-tabs" style="margin-bottom: 12px;">
+                            <div class="clob-tab activo" id="tab-fin-diario" onclick="cambiarFiltroFinanzas('diario')">Diario</div>
+                            <div class="clob-tab" id="tab-fin-semanal" onclick="cambiarFiltroFinanzas('semanal')">Semanal</div>
+                            <div class="clob-tab" id="tab-fin-mensual" onclick="cambiarFiltroFinanzas('mensual')">Mensual</div>
                         </div>
-                        <div class="kpi-box">
-                            <span>Salidas (Retiros)</span>
-                            <h4 id="fin-salidas" style="color: #da3633;">${diario.salidas.toFixed(2)} Pi</h4>
+                        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+                            <div class="historial-item"><span>Entradas (Depósitos):</span> <b id="fin-entradas" style="color: #3fb950;">${diario.entradas.toFixed(2)} Pi</b></div>
+                            <div class="historial-item"><span>Salidas (Retiros):</span> <b id="fin-salidas" style="color: #da3633;">${diario.salidas.toFixed(2)} Pi</b></div>
+                            <div class="historial-item"><span>Comisiones (Ganancias):</span> <b id="fin-comisiones" style="color: #8957e5;">${diario.comisiones.toFixed(2)} Pi</b></div>
                         </div>
-                        <div class="kpi-box">
-                            <span>Comisiones (Ganancias)</span>
-                            <h4 id="fin-comisiones" style="color: #8957e5;">${diario.comisiones.toFixed(2)} Pi</h4>
+                        <div style="background: var(--bg-color); padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); margin-bottom: 12px;">
+                            <span style="font-size: 11px; color: var(--subtext);">Acumulado Histórico de Comisiones Netas:</span>
+                            <h3 style="color: #3fb950; margin-top: 2px;">${totalComisiones.toFixed(2)} Pi</h3>
                         </div>
-                    </div>
+                        <h4 style="color:var(--accent); margin-bottom: 6px;">Registro de Movimientos</h4>
+                        <div style="max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
+                            ${historialCompleto.map(tx => `
+                                <div class="historial-item" style="font-size: 11px; padding: 6px;">
+                                    <span><b>@${tx.username || 'sistema'}</b> - ${tx.tipo.toUpperCase()}</span>
+                                    <span style="color: ${tx.tipo === 'retiro' ? '#da3633' : '#3fb950'};">${tx.monto} Pi</span>
+                                </div>
+                            `).join('') || '<span style="color:var(--subtext); font-size:11px;">Sin movimientos.</span>'}
+                        </div>
+                    `;
+                    window._cacheFinanzas = { diario, semanal, mensual };
+                }
+            } catch (e) {
+                console.error("Error cargando finanzas:", e);
+            }
+        }
 
-                    <div style="margin-top: 15px; background: var(--card-bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border-color);">
-                        <span style="font-size: 11px; color: var(--subtext);">Acumulado Histórico de Comisiones Netas:</span>
-                        <h3 style="color: #3fb950; margin-top: 4px;">${totalComisiones.toFixed(2)} Pi</h3>
-                    </div>
+        function cambiarFiltroFinanzas(periodo) {
+            document.getElementById('tab-fin-diario').classList.remove('activo');
+            document.getElementById('tab-fin-semanal').classList.remove('activo');
+            document.getElementById('tab-fin-mensual').classList.remove('activo');
+            document.getElementById(`tab-fin-${periodo}`).classList.add('activo');
+            
+            const datos = window._cacheFinanzas && window._cacheFinanzas[periodo];
+            if (datos) {
+                document.getElementById('fin-entradas').innerText = datos.entradas.toFixed(2) + " Pi";
+                document.getElementById('fin-salidas').innerText = datos.salidas.toFixed(2) + " Pi";
+                document.getElementById('fin-comisiones').innerText = datos.comisiones.toFixed(2) + " Pi";
+            }
+        }
 
-                    <h4 style="color:#58a6ff; margin: 15px 0 8px 0;">Registro de Movimientos en la Billetera</h4>
-                    <div style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
-                        ${historialCompleto.map(tx => `
-                            <div class="historial-item" style="font-size: 11px; padding: 6px;">
-                                <span><b>@${tx.username || 'sistema'}</b> - ${tx.tipo.toUpperCase()}</span>
-                                <span style="color: ${tx.tipo === 'retiro' ? '#da3633' : '#3fb950'};">${tx.monto} Pi</span>
+        async function cargarListaUsuarios() {
+            try {
+                const res = await fetch('/api/admin/usuarios');
+                const data = await res.json();
+                const container = document.getElementById('admin-content-area');
+                if (data && data.usuarios) {
+                    let html = '<h4 style="color:#8957e5; margin-bottom:8px;">Gestión de Usuarios P2P</h4>';
+                    data.usuarios.forEach(u => {
+                        html += `
+                            <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:10px; border-radius:6px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <b>@${u.username}</b><br>
+                                    <span style="font-size:11px; color:var(--subtext);">Saldo: ${(u.saldo || 0).toFixed(4)} Pi</span>
+                                </div>
+                                <button onclick="abrirModalUsuario('${u.username}', ${u.saldo})" style="background:#8957e5; padding:4px 8px; font-size:10px;">Ajustar Saldo</button>
                             </div>
-                        `).join('') || '<span style="color:var(--subtext); font-size:11px;">Sin movimientos registrados.</span>'}
+                        `;
+                    });
+                    container.innerHTML = html;
+                }
+            } catch (e) {
+                console.error("Error usuarios:", e);
+            }
+        }
+
+        function abrirModalUsuario(username, saldoActualUser) {
+            document.getElementById('modal-username-title').innerText = `Ajustar Saldo: @${username}`;
+            document.getElementById('modal-content-body').innerHTML = `
+                <label>Saldo Actual: <b>${saldoActualUser.toFixed(4)} Pi</b></label>
+                <label>Nuevo Saldo o Ajuste (+/-):</label>
+                <input type="number" id="admin-nuevo-saldo" value="${saldoActualUser}" step="0.5">
+                <button style="width: 100%; margin-top: 8px;" onclick="guardarAjusteSaldo('${username}')">Guardar Cambios</button>
+            `;
+            document.getElementById('modal-usuario').style.display = 'flex';
+        }
+
+        async function guardarAjusteSaldo(username) {
+            const nuevoSaldo = parseFloat(document.getElementById('admin-nuevo-saldo').value);
+            if (isNaN(nuevoSaldo)) return;
+            try {
+                const res = await fetch('/api/admin/ajustar-saldo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, nuevoSaldo })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    mostrarToast("Saldo actualizado correctamente", "success");
+                    document.getElementById('modal-usuario').style.display = 'none';
+                    cargarListaUsuarios();
+                } else {
+                    mostrarToast("Error al actualizar saldo", "error");
+                }
+            } catch (e) {
+                mostrarToast("Error de red", "error");
+            }
+        }
+
+        function toggleChatSoporte() {
+            const el = document.getElementById('contenedor-chat-soporte');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+            if (el.style.display === 'block') {
+                cargarHistorialSoporte();
+            }
+        }
+
+        async function cargarHistorialSoporte() {
+            try {
+                const res = await fetch(`/api/soporte/mensajes/${usuarioActual}`);
+                const data = await res.json();
+                if (data.success) {
+                    renderizarMensajesSoporte(data.mensajes);
+                }
+            } catch (e) {
+                console.error("Error al cargar chat de soporte:", e);
+            }
+        }
+
+        function renderizarMensajesSoporte(mensajes) {
+            const caja = document.getElementById('caja-mensajes-soporte');
+            if (!caja) return;
+            if (!mensajes || mensajes.length === 0) {
+                caja.innerHTML = '<span style="color: var(--subtext); font-size: 11px; text-align: center;">No hay mensajes previos.</span>';
+                return;
+            }
+            
+            let html = '';
+            mensajes.forEach(m => {
+                let esAdmin = m.remitente === 'admin';
+                let alineacion = esAdmin ? 'text-align: left; background: var(--card-bg); border-left: 3px solid #8957e5;' : 'text-align: right; background: rgba(31,111,235,0.15); border-right: 3px solid var(--accent);';
+                let remitenteLabel = esAdmin ? '<b>Soporte P2Ppredict</b>' : '<b>Tú</b>';
+                
+                html += `
+                    <div style="padding: 6px 8px; border-radius: 6px; font-size: 11px; ${alineacion}">
+                        ${remitenteLabel}<br>
+                        <span>${m.texto}</span>
+                        <div style="font-size: 9px; color: var(--subtext); margin-top: 2px;">${m.fecha}</div>
                     </div>
                 `;
-                
-                window._cacheFinanzas = { diario, semanal, mensual };
-            }
-        } catch (e) {
-            console.error("Error cargando finanzas detalladas:", e);
+            });
+            caja.innerHTML = html;
+            caja.scrollTop = caja.scrollHeight;
         }
-    }
 
-    function cambiarFiltroFinanzas(periodo) {
-        document.getElementById('tab-fin-diario').classList.remove('activo');
-        document.getElementById('tab-fin-semanal').classList.remove('activo');
-        document.getElementById('tab-fin-mensual').classList.remove('activo');
-        
-        document.getElementById(`tab-fin-${periodo}`).classList.add('activo');
-        
-        const datos = window._cacheFinanzas && window._cacheFinanzas[periodo];
-        if (datos) {
-            document.getElementById('fin-entradas').innerText = datos.entradas.toFixed(2) + " Pi";
-            document.getElementById('fin-salidas').innerText = datos.salidas.toFixed(2) + " Pi";
-            document.getElementById('fin-comisiones').innerText = datos.comisiones.toFixed(2) + " Pi";
-        }
-    }
+        async function enviarMensajeSoporte() {
+            const input = document.getElementById('input-mensaje-soporte');
+            if (!input) return;
+            const texto = input.value.trim();
+            if (!texto) return;
 
-    async function cargarListaUsuarios() {
-        try {
-            const res = await fetch('/api/admin/usuarios');
-            const data = await res.json();
-            const container = document.getElementById('admin-content-area');
-            if (data && data.usuarios) {
-                let html = '<h4 style="color:#6200ee; margin-bottom:8px;">Gestión de Usuarios P2P</h4>';
-                data.usuarios.forEach(u => {
-                    html += `
-                        <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:10px; border-radius:6px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <b>@${u.username}</b><br>
-                                <span style="font-size:11px; color:var(--subtext);">Saldo: ${(u.saldo || 0).toFixed(4)} Pi</span>
-                            </div>
-                            <button onclick="abrirModalUsuario('${u.username}', ${u.saldo})" style="background:#8957e5; padding:4px 8px; font-size:10px;">Ajustar Saldo</button>
-                        </div>
-                    `;
+            try {
+                const res = await fetch('/api/soporte/enviar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: usuarioActual, remitente: usuarioActual, texto })
                 });
-                container.innerHTML = html;
+
+                const data = await res.json();
+                if (data.success) {
+                    input.value = '';
+                    cargarHistorialSoporte();
+                } else {
+                    mostrarToast("No se pudo enviar el mensaje", "error");
+                }
+            } catch (e) {
+                mostrarToast("Error de red al enviar mensaje", "error");
             }
-        } catch (e) {
-            console.error("Error usuarios:", e);
         }
-    }
-
-    function abrirModalUsuario(username, saldoActualUser) {
-        document.getElementById('modal-username-title').innerText = `Ajustar Saldo: @${username}`;
-        document.getElementById('modal-content-body').innerHTML = `
-            <label>Saldo Actual: <b>${saldoActualUser.toFixed(4)} Pi</b></label>
-            <label>Nuevo Saldo o Ajuste (+/-):</label>
-            <input type="number" id="admin-nuevo-saldo" value="${saldoActualUser}" step="0.5">
-            <button class="btn-crear" onclick="guardarAjusteSaldo('${username}')">Guardar Cambios</button>
-        `;
-        document.getElementById('modal-usuario').style.display = 'flex';
-    }
-
-    async function guardarAjusteSaldo(username) {
-        const nuevoSaldo = parseFloat(document.getElementById('admin-nuevo-saldo').value);
-        if (isNaN(nuevoSaldo)) return;
-        try {
-            const res = await fetch('/api/admin/ajustar-saldo', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, nuevoSaldo })
-            });
-            const data = await res.json();
-            if (data.success) {
-                mostrarToast("Saldo actualizado correctamente", "success");
-                document.getElementById('modal-usuario').style.display = 'none';
-                cargarListaUsuarios();
-            } else {
-                mostrarToast("Error al actualizar saldo", "error");
-            }
-        } catch (e) {
-            mostrarToast("Error de red", "error");
-        }
-    }
-
-    // ================= MÓDULO DE CHAT DE SOPORTE INTEGRADO =================
-    function toggleChatSoporte() {
-        const el = document.getElementById('contenedor-chat-soporte');
-        el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        if (el.style.display === 'block') {
-            cargarHistorialSoporte();
-        }
-    }
-
-    async function cargarHistorialSoporte() {
-        try {
-            const res = await fetch(`/api/soporte/mensajes/${usuarioActual}`);
-            const data = await res.json();
-            if (data.success) {
-                renderizarMensajesSoporte(data.mensajes);
-            }
-        } catch (e) {
-            console.error("Error al cargar chat de soporte:", e);
-        }
-    }
-
-    function renderizarMensajesSoporte(mensajes) {
-        const caja = document.getElementById('caja-mensajes-soporte');
-        if (!caja) return;
-        if (!mensajes || mensajes.length === 0) {
-            caja.innerHTML = '<span style="color: var(--subtext); font-size: 11px; text-align: center;">No hay mensajes previos.</span>';
-            return;
-        }
-        
-        let html = '';
-        mensajes.forEach(m => {
-            let esAdmin = m.remitente === 'admin';
-            let alineacion = esAdmin ? 'text-align: left; background: var(--card-bg); border-left: 3px solid #8957e5;' : 'text-align: right; background: #1f6feb22; border-right: 3px solid #1f6feb;';
-            let remitenteLabel = esAdmin ? '<b>Soporte P2Ppredict</b>' : '<b>Tú</b>';
-            
-            html += `
-                <div style="padding: 6px 8px; border-radius: 6px; font-size: 11px; ${alineacion}">
-                    ${remitenteLabel}<br>
-                    <span>${m.texto}</span>
-                    <div style="font-size: 9px; color: var(--subtext); margin-top: 2px;">${m.fecha}</div>
-                </div>
-            `;
-        });
-        caja.innerHTML = html;
-        caja.scrollTop = caja.scrollHeight;
-    }
-
-    async function enviarMensajeSoporte() {
-        const input = document.getElementById('input-mensaje-soporte');
-        if (!input) return;
-        const texto = input.value.trim();
-        if (!texto) return;
-
-        try {
-            const res = await fetch('/api/soporte/enviar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: usuarioActual, remitente: usuarioActual, texto })
-            });
-
-            const data = await res.json();
-            if (data.success) {
-                input.value = '';
-                cargarHistorialSoporte();
-            } else {
-                mostrarToast("No se pudo enviar el mensaje", "error");
-            }
-        } catch (e) {
-            mostrarToast("Error de red al enviar mensaje", "error");
-        }
-    }
-</script>
+    </script>
 </body>
 </html>
