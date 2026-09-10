@@ -25,6 +25,9 @@
             --border-color: #30363d;
             --accent: #1f6feb;
             --accent-hover: #388bfd;
+            --chat-primary: #8957e5;
+            --chat-bg-user: rgba(137, 87, 229, 0.12);
+            --chat-bg-admin: #21262d;
         }
 
         body.light-mode {
@@ -35,6 +38,9 @@
             --border-color: #e1e4e8;
             --accent: #0366d6;
             --accent-hover: #005cc5;
+            --chat-primary: #6f42c1;
+            --chat-bg-user: rgba(111, 66, 193, 0.08);
+            --chat-bg-admin: #f6f8fa;
         }
 
         * {
@@ -42,7 +48,7 @@
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            transition: background 0.2s, color 0.2s;
+            transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
         }
 
         body {
@@ -261,11 +267,16 @@
             background: var(--bg-color);
             border: 1px solid var(--border-color);
             color: var(--text-color);
-            padding: 6px;
-            border-radius: 4px;
+            padding: 8px;
+            border-radius: 6px;
             font-size: 12px;
             margin-top: 4px;
             margin-bottom: 8px;
+            outline: none;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus, select:focus {
+            border-color: var(--accent);
         }
 
         .zap-container {
@@ -377,6 +388,134 @@
             width: 90%;
             max-width: 400px;
         }
+
+        /* ================= ESTILOS MEJORADOS: CHAT DE SOPORTE ELEGANTE ================= */
+        .support-card {
+            border: 1px solid var(--chat-primary) !important;
+            box-shadow: 0 4px 20px rgba(137, 87, 229, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .support-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background: var(--chat-primary);
+        }
+
+        .support-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .support-title-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .support-icon {
+            font-size: 15px;
+        }
+
+        .support-body-container {
+            display: none;
+            margin-top: 12px;
+            animation: fadeInChat 0.25s ease-in-out;
+        }
+
+        @keyframes fadeInChat {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chat-messages-box {
+            height: 180px;
+            overflow-y: auto;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 10px;
+            scroll-behavior: smooth;
+        }
+
+        .chat-bubble {
+            max-width: 82%;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            line-height: 1.4;
+            position: relative;
+            word-break: break-word;
+        }
+
+        .chat-bubble.user {
+            background: var(--chat-bg-user);
+            border: 1px solid rgba(137, 87, 229, 0.25);
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+            color: var(--text-color);
+        }
+
+        .chat-bubble.admin {
+            background: var(--chat-bg-admin);
+            border: 1px solid var(--border-color);
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+            color: var(--text-color);
+        }
+
+        .chat-sender-name {
+            font-size: 10px;
+            font-weight: bold;
+            margin-bottom: 2px;
+            display: block;
+            color: var(--chat-primary);
+        }
+
+        .chat-bubble.user .chat-sender-name {
+            color: var(--chat-primary);
+            text-align: right;
+        }
+
+        .chat-time {
+            font-size: 9px;
+            color: var(--subtext);
+            margin-top: 3px;
+            display: block;
+            text-align: right;
+        }
+
+        .chat-input-wrapper {
+            display: flex;
+            gap: 6px;
+        }
+
+        .chat-input-wrapper input {
+            margin-bottom: 0 !important;
+            border-color: var(--border-color);
+        }
+
+        .chat-send-btn {
+            background: var(--chat-primary) !important;
+            color: #ffffff;
+            padding: 0 14px;
+            border-radius: 6px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .chat-send-btn:hover {
+            opacity: 0.9;
+        }
     </style>
 </head>
 <body>
@@ -460,18 +599,22 @@
                 <div id="contenedor-transacciones" style="display: none; margin-top: 10px;"></div>
             </div>
 
-            <!-- Módulo de Chat de Soporte Directo -->
-            <div class="card" style="border-color: #8957e5;">
-                <div style="display: flex; justify-content: space-between; cursor: pointer;" onclick="toggleChatSoporte()">
-                    <b style="color: #8957e5;">💬 Soporte Directo P2Ppredict</b> <span>▾</span>
-                </div>
-                <div id="contenedor-chat-soporte" style="display: none; margin-top: 10px;">
-                    <div id="caja-mensajes-soporte" style="height: 120px; overflow-y: auto; background: var(--bg-color); border: 1px solid var(--border-color); padding: 8px; border-radius: 6px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;">
-                        <span style="color: var(--subtext); font-size: 11px; text-align: center;">Cargando mensajes...</span>
+            <!-- ================= MÓDULO DE SOPORTE DIRECTO (REDiseñado) ================= -->
+            <div class="card support-card">
+                <div class="support-header" onclick="toggleChatSoporte()">
+                    <div class="support-title-wrapper">
+                        <span class="support-icon">💬</span>
+                        <b style="color: var(--chat-primary);">Soporte Directo P2Ppredict</b>
                     </div>
-                    <div style="display: flex; gap: 6px;">
-                        <input type="text" id="input-mensaje-soporte" placeholder="Escribe tu consulta o reporte..." style="margin-bottom: 0;">
-                        <button onclick="enviarMensajeSoporte()" style="background: #8957e5;">Enviar</button>
+                    <span id="support-chevron" style="color: var(--subtext); font-size: 12px;">▾</span>
+                </div>
+                <div id="contenedor-chat-soporte" class="support-body-container">
+                    <div id="caja-mensajes-soporte" class="chat-messages-box">
+                        <span style="color: var(--subtext); font-size: 11px; text-align: center; margin: auto;">Cargando mensajes...</span>
+                    </div>
+                    <div class="chat-input-wrapper">
+                        <input type="text" id="input-mensaje-soporte" placeholder="Escribe tu consulta o reporte aquí...">
+                        <button class="chat-send-btn" onclick="enviarMensajeSoporte()">Enviar</button>
                     </div>
                 </div>
             </div>
@@ -1439,8 +1582,13 @@
 
         function toggleChatSoporte() {
             const el = document.getElementById('contenedor-chat-soporte');
-            el.style.display = el.style.display === 'none' ? 'block' : 'none';
-            if (el.style.display === 'block') {
+            const chevron = document.getElementById('support-chevron');
+            const isOpen = el.style.display === 'block';
+            
+            el.style.display = isOpen ? 'none' : 'block';
+            chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+            
+            if (!isOpen) {
                 cargarHistorialSoporte();
             }
         }
@@ -1461,21 +1609,21 @@
             const caja = document.getElementById('caja-mensajes-soporte');
             if (!caja) return;
             if (!mensajes || mensajes.length === 0) {
-                caja.innerHTML = '<span style="color: var(--subtext); font-size: 11px; text-align: center;">No hay mensajes previos.</span>';
+                caja.innerHTML = '<span style="color: var(--subtext); font-size: 11px; text-align: center; margin: auto;">No hay mensajes previos. ¡Escríbenos!</span>';
                 return;
             }
             
             let html = '';
             mensajes.forEach(m => {
                 let esAdmin = m.remitente === 'admin';
-                let alineacion = esAdmin ? 'text-align: left; background: var(--card-bg); border-left: 3px solid #8957e5;' : 'text-align: right; background: rgba(31,111,235,0.15); border-right: 3px solid var(--accent);';
-                let remitenteLabel = esAdmin ? '<b>Soporte P2Ppredict</b>' : '<b>Tú</b>';
+                let tipoClase = esAdmin ? 'admin' : 'user';
+                let remitenteLabel = esAdmin ? 'Soporte P2Ppredict' : 'Tú';
                 
                 html += `
-                    <div style="padding: 6px 8px; border-radius: 6px; font-size: 11px; ${alineacion}">
-                        ${remitenteLabel}<br>
+                    <div class="chat-bubble ${tipoClase}">
+                        <span class="chat-sender-name">${remitenteLabel}</span>
                         <span>${m.texto}</span>
-                        <div style="font-size: 9px; color: var(--subtext); margin-top: 2px;">${m.fecha}</div>
+                        <span class="chat-time">${m.fecha || ''}</span>
                     </div>
                 `;
             });
