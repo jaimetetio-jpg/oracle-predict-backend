@@ -383,6 +383,23 @@
                 <div>Historial de saldo y movimientos en la red Pi vacía.</div>
             </div>
         </div>
+
+        <!-- SOPORTE DIRECTO (Único, dentro de la pestaña Mercados) -->
+        <div class="support-card" id="support-box">
+            <button class="support-header" onclick="toggleSupport()">
+                <span>💬 Soporte Directo P2Ppredict</span>
+                <span>▾</span>
+            </button>
+            <div class="support-body">
+                <div class="chat-messages" id="chat-messages">
+                    <div>Soporte P2Ppredict: Hola, ¿en qué podemos ayudarte hoy?</div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" class="chat-input" id="chat-input" placeholder="Escribe tu duda...">
+                    <button class="chat-send-btn" onclick="enviarMensajeSoporte()">Enviar</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- VISTA: CREAR MERCADO -->
@@ -474,6 +491,11 @@
         function toggleAccordion(id) {
             const card = document.getElementById(id);
             card.classList.toggle('open');
+        }
+
+        function toggleSupport() {
+            const box = document.getElementById('support-box');
+            box.classList.toggle('open');
         }
 
         function toggleTheme() {
@@ -608,12 +630,10 @@
 
         async function cargarAdminData() {
             try {
-                // Consulta de saldo total en la app (Treasury)
                 const resBal = await fetch('/api/admin/app-wallet-balance');
                 const balData = await resBal.json();
                 document.getElementById('admin-treasury').innerText = (balData.balance || '0.00') + ' Pi';
 
-                // Cargar mercados para gestión de cierre anticipado y declaración de ganadores SÍ / NO
                 const resEv = await fetch('/api/eventos');
                 const evData = await resEv.json();
                 
@@ -668,6 +688,16 @@
             } catch (e) {
                 alert("Error al declarar ganador.");
             }
+        }
+
+        function enviarMensajeSoporte() {
+            const input = document.getElementById('chat-input');
+            const chatMsgs = document.getElementById('chat-messages');
+            if (!input.value.json && !input.value.trim()) return;
+            
+            chatMsgs.innerHTML += `<div style="margin-bottom: 4px;"><b>Tú:</b> ${input.value}</div>`;
+            input.value = '';
+            chatMsgs.scrollTop = chatMsgs.scrollHeight;
         }
 
         function enviarRespuestaAdmin() {
