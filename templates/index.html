@@ -369,8 +369,8 @@
     <header>
         <div class="logo">⚡ P2Ppredict</div>
         <div class="user-info">
-            <span id="pi-username">PiUser_Mock</span>
-            <span id="saldo-usuario" style="color: #3fb950; font-weight: bold;">10.00 Pi</span>
+            <span id="pi-username"></span>
+            <span id="saldo-usuario" style="color: #3fb950; font-weight: bold;"></span>
             <button class="theme-toggle" onclick="toggleTemaVisual()">🌓 Tema</button>
         </div>
     </header>
@@ -467,6 +467,21 @@
                 </div>
                 <p style="font-size: 12px; color: var(--subtext); margin-bottom: 12px;">Herramientas avanzadas de gestión de mercados, resolución y soporte directo.</p>
                 
+                <!-- Widget de Billetera de la Aplicación -->
+                <div class="card" style="background: var(--bg-color); border: 1px solid var(--border-color); padding: 12px; margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin: 0; color: var(--text-color); font-size: 13px;">Billetera de la Aplicación (Treasury)</h4>
+                            <p style="margin: 3px 0 0 0; color: var(--subtext); font-size: 11px;">Saldo total del sistema</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <span id="admin-app-balance" style="font-size: 16px; font-weight: bold; color: #3fb950;">-- Pi</span>
+                            <br>
+                            <button onclick="actualizarSaldoApp()" style="background: #238636; color: white; border: none; padding: 2px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; margin-top: 4px;">Actualizar</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div style="display: flex; gap: 8px; margin-bottom: 16px;">
                     <button onclick="cambiarSubpestanaAdmin('mercados')" id="btn-sub-mercados" style="flex: 1; background: var(--accent);">Mercados</button>
                     <button onclick="cambiarSubpestanaAdmin('soporte')" id="btn-sub-soporte" style="flex: 1; background: var(--border-color); color: var(--text-color);">Soporte (Admin)</button>
@@ -538,6 +553,7 @@
                 if (adminAutenticado) {
                     document.getElementById('admin-login-box').style.display = 'none';
                     document.getElementById('admin-dashboard-box').style.display = 'block';
+                    actualizarSaldoApp(); // Carga automática al entrar al panel admin
                 } else {
                     document.getElementById('admin-login-box').style.display = 'block';
                     document.getElementById('admin-dashboard-box').style.display = 'none';
@@ -555,6 +571,7 @@
                 mostrarToast("Acceso concedido. Bienvenido al panel maestro.");
                 document.getElementById('admin-login-box').style.display = 'none';
                 document.getElementById('admin-dashboard-box').style.display = 'block';
+                actualizarSaldoApp(); // Consulta saldo al autenticarse
             } else {
                 mostrarToast("Contraseña incorrecta. Acceso denegado.", true);
             }
@@ -565,6 +582,31 @@
             document.getElementById('admin-dashboard-box').style.display = 'none';
             document.getElementById('admin-login-box').style.display = 'block';
             mostrarToast("Sesión de administrador cerrada.");
+        }
+
+        async function actualizarSaldoApp() {
+            const lblBalance = document.getElementById('admin-app-balance');
+            if (!lblBalance) return;
+            lblBalance.textContent = "Cargando...";
+
+            try {
+                const response = await fetch('/api/admin/app-wallet-balance', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + (localStorage.getItem('admin_token') || '')
+                    }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    lblBalance.textContent = `${data.balance} Pi`;
+                } else {
+                    lblBalance.textContent = "Error al cargar";
+                }
+            } catch (error) {
+                console.error("No se pudo obtener el balance de la app:", error);
+                lblBalance.textContent = "Sin conexión";
+            }
         }
 
         function cambiarSubpestanaAdmin(sub) {
