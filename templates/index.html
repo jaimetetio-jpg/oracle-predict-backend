@@ -502,7 +502,7 @@
         }
 
         // ==========================================
-        // PASARELA DE PAGOS OFICIAL CON PI SDK (REPARADA)
+        // PASARELA DE PAGOS OFICIAL CON PI SDK (SEGURA Y REAL)
         // ==========================================
         async function depositarConPiSDK() {
             const input = document.getElementById('wallet-amount');
@@ -519,9 +519,8 @@
             }
 
             try {
-                const scopes = ['username', 'payments', 'wallet_address'];
-                const authResult = await Pi.authenticate(scopes, (payment) => {
-                    console.log("Pago incompleto encontrado:", payment);
+                const authResult = await Pi.authenticate(['username', 'payments', 'wallet_address'], (payment) => {
+                    console.log("Pago incompleto pendiente:", payment);
                 });
                 
                 document.getElementById('user-handle').innerText = '@' + authResult.user.username;
@@ -534,24 +533,24 @@
 
                 const callbacks = {
                     onReadyForServerApproval: function(paymentId) {
-                        console.log("Listo para aprobación:", paymentId);
-                        // Forzamos la respuesta local de aprobación para evitar que la wallet se quede congelada en "Preparándose para un pago"
-                        setTimeout(() => {
-                            saldoUsuario += monto;
-                            actualizarBalanceUI();
-                            document.getElementById('wallet-history').innerHTML = `Depositados +${monto.toFixed(2)} Pi exitosamente (ID: ${paymentId.substring(0,6)}...)`;
-                            input.value = '';
-                            alert(`¡Depósito de ${monto.toFixed(2)} Pi acreditado con éxito!`);
-                        }, 1000);
+                        console.log("Esperando aprobación del servidor para el pago:", paymentId);
+                        // NOTA: Para producción o pruebas en red real, el backend debe aprobar este ID.
                     },
                     onReadyForServerCompletion: function(paymentId, txid) {
-                        console.log("Pago completado en blockchain:", txid);
+                        console.log("Pago completado en la blockchain con TXID:", txid);
+                        
+                        // SOLO SE ACREDITA CUANDO LA BLOCKCHAIN CONFIRMA EL PAGO FIRMADO:
+                        saldoUsuario += monto;
+                        actualizarBalanceUI();
+                        document.getElementById('wallet-history').innerHTML = `Depósito real exitoso: +${monto.toFixed(2)} Pi (TX: ${txid.substring(0,8)}...)`;
+                        input.value = '';
+                        alert(`¡Pago verificado por la blockchain! Se han acreditado ${monto.toFixed(2)} Pi a tu cuenta.`);
                     },
                     onCancel: function(paymentId) {
-                        alert("El pago fue cancelado.");
+                        alert("El pago fue cancelado desde la billetera.");
                     },
                     onError: function(error, payment) {
-                        alert("Error en la pasarela de Pi: " + (error.message || error));
+                        alert("Error en la pasarela de Pi: " + (error.message || JSON.stringify(error)));
                     }
                 };
 
