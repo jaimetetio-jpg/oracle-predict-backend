@@ -409,7 +409,7 @@
                                 </div>
                                 <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                                     <button onclick="participarEvento(${ev.id}, ${op.id})" style="background-color: #238636; padding: 6px 10px; font-size: 12px;">Apostar</button>
-                                    <button class="btn-reclamar" id="btn-reclamar" onclick="reclamarPremio()" disabled>Cobrar el acierto</button>
+                                    <button class="btn-reclamar" id="btn-reclamar-${ev.id}" onclick="reclamarPremio(${ev.id})">Cobrar el acierto</button>
                                     <button onclick="toggleClobPanel(${ev.id}, ${op.id})" style="background-color: #1f6feb; padding: 6px 8px; font-size: 11px;">Mercado/Limit ⚙️</button>
                                 </div>
                             </div>
@@ -649,8 +649,23 @@
             }
         }
 
-        async function reclamarPremio() {
-            alert("Función de cobro de acierto en proceso.");
+        async function reclamarPremio(eventoId) {
+            try {
+                const res = await fetch('/api/reclamar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: usuarioActual, evento_id: eventoId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.mensaje || "¡Premio reclamado con éxito!");
+                    inicializarApp();
+                } else {
+                    alert(data.error || "No hay premios disponibles para reclamar en este mercado.");
+                }
+            } catch (e) {
+                alert("Error de conexión al intentar reclamar el premio.");
+            }
         }
 
         async function recargarConPi() {
