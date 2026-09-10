@@ -782,22 +782,74 @@
 
     async function cargarFinanzasAdmin() {
         try {
-            const res = await fetch('/api/admin/finanzas');
+            const res = await fetch('/api/admin/finanzas-detallado');
             const data = await res.json();
             const container = document.getElementById('admin-content-area');
-            if (data) {
+            
+            if (data && data.success) {
+                const { diario, semanal, mensual, totalComisiones, historialCompleto } = data.resumen;
+                
                 container.innerHTML = `
-                    <h4 style="color:#1f6feb; margin-bottom:8px;">Resumen Financiero Global</h4>
-                    <div class="kpi-grid">
-                        <div class="kpi-box"><span>Volumen Total</span><h4>${(data.volumenTotal || 0).toFixed(2)} Pi</h4></div>
-                        <div class="kpi-box"><span>Comisiones (Fee)</span><h4>${(data.comisiones || 0).toFixed(2)} Pi</h4></div>
-                        <div class="kpi-box"><span>Depósitos Pi</span><h4>${(data.depositosTotales || 0).toFixed(2)} Pi</h4></div>
-                        <div class="kpi-box"><span>Retiros Pi</span><h4>${(data.retirosTotales || 0).toFixed(2)} Pi</h4></div>
+                    <h4 style="color:#1f6feb; margin-bottom:8px;">Control de Billetera y Flujo de Caja (Pi)</h4>
+                    
+                    <!-- Selector de Período -->
+                    <div class="clob-tabs" style="margin-bottom: 12px;">
+                        <div class="clob-tab activo" id="tab-fin-diario" onclick="cambiarFiltroFinanzas('diario')">Diario</div>
+                        <div class="clob-tab" id="tab-fin-semanal" onclick="cambiarFiltroFinanzas('semanal')">Semanal</div>
+                        <div class="clob-tab" id="tab-fin-mensual" onclick="cambiarFiltroFinanzas('mensual')">Mensual</div>
+                    </div>
+
+                    <!-- Panel de Métricas Dinámicas -->
+                    <div id="panel-metricas-tiempo" class="kpi-grid">
+                        <div class="kpi-box">
+                            <span>Entradas (Depósitos)</span>
+                            <h4 id="fin-entradas" style="color: #3fb950;">${diario.entradas.toFixed(2)} Pi</h4>
+                        </div>
+                        <div class="kpi-box">
+                            <span>Salidas (Retiros)</span>
+                            <h4 id="fin-salidas" style="color: #da3633;">${diario.salidas.toFixed(2)} Pi</h4>
+                        </div>
+                        <div class="kpi-box">
+                            <span>Comisiones (Ganancias)</span>
+                            <h4 id="fin-comisiones" style="color: #8957e5;">${diario.comisiones.toFixed(2)} Pi</h4>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 15px; background: var(--card-bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border-color);">
+                        <span style="font-size: 11px; color: var(--subtext);">Acumulado Histórico de Comisiones Netas:</span>
+                        <h3 style="color: #3fb950; margin-top: 4px;">${totalComisiones.toFixed(2)} Pi</h3>
+                    </div>
+
+                    <h4 style="color:#58a6ff; margin: 15px 0 8px 0;">Registro de Movimientos en la Billetera</h4>
+                    <div style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+                        ${historialCompleto.map(tx => `
+                            <div class="historial-item" style="font-size: 11px; padding: 6px;">
+                                <span><b>@${tx.username || 'sistema'}</b> - ${tx.tipo.toUpperCase()}</span>
+                                <span style="color: ${tx.tipo === 'retiro' ? '#da3633' : '#3fb950'};">${tx.monto} Pi</span>
+                            </div>
+                        `).join('') || '<span style="color:var(--subtext); font-size:11px;">Sin movimientos registrados.</span>'}
                     </div>
                 `;
+                
+                window._cacheFinanzas = { diario, semanal, mensual };
             }
         } catch (e) {
-            console.error("Error finanzas:", e);
+            console.error("Error cargando finanzas detalladas:", e);
+        }
+    }
+
+    function cambiarFiltroFinanzas(periodo) {
+        document.getElementById('tab-fin-diario').classList.remove('activo');
+        document.getElementById('tab-fin-semanal').classList.remove('activo');
+        document.getElementById('tab-fin-mensual').classList.remove('activo');
+        
+        document.getElementById(`tab-fin-${periodo}`).classList.add('activo');
+        
+        const datos = window._cacheFinanzas && window._cacheFinanzas[periodo];
+        if (datos) {
+            document.getElementById('fin-entradas').innerText = datos.entradas.toFixed(2) + " Pi";
+            document.getElementById('fin-salidas').innerText = datos.salidas.toFixed(2) + " Pi";
+            document.getElementById('fin-comisiones').innerText = datos.comisiones.toFixed(2) + " Pi";
         }
     }
 
