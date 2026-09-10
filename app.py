@@ -1073,7 +1073,6 @@ def admin_finanzas():
     c.execute("SELECT SUM(saldo_disponible) as total_saldo, COUNT(*) as total_usuarios FROM usuarios")
     res_usuarios = c.fetchone()
     
-    # Agrupación segura universal
     c.execute("SELECT tipo, SUM(monto) as suma_monto FROM transacciones GROUP BY tipo")
     res_transacciones = [dict(row) for row in c.fetchall()]
     
