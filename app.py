@@ -524,7 +524,7 @@ def completar_pago():
             if DATABASE_URL:
                 c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
             else:
-                c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
+                c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (username, nuevo_saldo))
         
         fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
         if DATABASE_URL:
@@ -729,6 +729,17 @@ def admin_login():
     
     registrar_log_admin("LOGIN_FALLIDO", "Intento fallido de acceso al panel de administración")
     return jsonify({"success": False, "error": "Credenciales inválidas"}), 401
+
+@app.route("/api/admin/logout", methods=["POST"])
+def admin_logout():
+    session.pop('is_admin', None)
+    return jsonify({"success": True, "message": "Sesión de administrador cerrada correctamente"})
+
+@app.route("/api/admin/verificar-sesion", methods=["GET"])
+def admin_verificar_sesion():
+    if session.get('is_admin'):
+        return jsonify({"success": True, "is_admin": True})
+    return jsonify({"success": True, "is_admin": False}), 403
 
 @app.route("/api/admin/pendientes", methods=["GET"])
 def admin_pendientes():
