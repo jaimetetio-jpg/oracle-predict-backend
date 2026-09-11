@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2Ppredict</title>
+    <title>P2Ppredict - Order Book & Prediction Markets</title>
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
     <script>
         Pi.init({ version: "2.0", sandbox: true });
@@ -22,7 +22,6 @@
             --success: #16a34a;
             --shadow-3d: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
             --shadow-btn: 0 4px 12px rgba(37, 99, 235, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-            --shadow-card-hover: 0 14px 30px -5px rgba(37, 99, 235, 0.2), 0 10px 15px -5px rgba(0, 0, 0, 0.4);
         }
 
         [data-theme="light"] {
@@ -38,7 +37,6 @@
             --success: #16a34a;
             --shadow-3d: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.8);
             --shadow-btn: 0 4px 12px rgba(37, 99, 235, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-            --shadow-card-hover: 0 14px 30px -5px rgba(37, 99, 235, 0.15), 0 10px 15px -5px rgba(0, 0, 0, 0.05);
         }
 
         body {
@@ -89,10 +87,6 @@
             cursor: pointer;
             font-size: 0.8rem;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            transition: transform 0.1s ease;
-        }
-        .theme-btn:active {
-            transform: scale(0.95);
         }
 
         .nav-tabs {
@@ -138,12 +132,6 @@
             margin-bottom: 12px;
             box-sizing: border-box;
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .search-box:focus {
-            outline: none;
-            border-color: var(--accent);
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1), 0 0 0 3px rgba(37, 99, 235, 0.2);
         }
 
         .filter-pills {
@@ -164,16 +152,12 @@
             font-weight: 500;
             cursor: pointer;
             white-space: nowrap;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
-            transition: all 0.2s ease;
         }
 
         .pill.active {
             background: var(--accent);
             color: #fff;
             border-color: var(--accent);
-            box-shadow: var(--shadow-btn);
-            transform: translateY(-1px);
         }
 
         .accordion-card {
@@ -183,10 +167,6 @@
             margin-bottom: 14px;
             overflow: hidden;
             box-shadow: var(--shadow-3d);
-            transition: box-shadow 0.3s ease;
-        }
-        .accordion-card:hover {
-            box-shadow: var(--shadow-card-hover);
         }
 
         .accordion-header {
@@ -224,11 +204,6 @@
             padding: 14px;
             margin-bottom: 14px;
             box-shadow: var(--shadow-3d);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        .market-card:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-card-hover);
         }
 
         .market-title {
@@ -248,98 +223,6 @@
             font-weight: 600;
             cursor: pointer;
             box-shadow: var(--shadow-btn);
-            transition: all 0.2s ease;
-        }
-
-        .action-btn:hover {
-            background: var(--accent-hover);
-            transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-        }
-        .action-btn:active {
-            transform: translateY(1px);
-        }
-
-        .support-card {
-            border: 1px solid #7c3aed;
-            border-radius: 12px;
-            background: var(--card-bg-gradient);
-            margin-top: 18px;
-            overflow: hidden;
-            box-shadow: var(--shadow-3d);
-        }
-
-        .support-header {
-            background: transparent;
-            border: none;
-            width: 100%;
-            padding: 14px 16px;
-            color: #a78bfa;
-            font-weight: 600;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-
-        .support-body {
-            padding: 0 14px 14px 14px;
-            display: none;
-            border-top: 1px solid rgba(124, 58, 237, 0.2);
-        }
-
-        .support-card.open .support-body {
-            display: block;
-        }
-
-        .chat-messages {
-            background: var(--bg-color);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            height: 130px;
-            padding: 10px;
-            overflow-y: auto;
-            font-size: 0.8rem;
-            margin-bottom: 10px;
-            color: var(--text-muted);
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .chat-input-area {
-            display: flex;
-            gap: 8px;
-        }
-
-        .chat-input {
-            flex: 1;
-            background: var(--bg-color);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 8px 12px;
-            color: var(--text-color);
-            font-size: 0.8rem;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .chat-input:focus {
-            outline: none;
-            border-color: #7c3aed;
-        }
-
-        .chat-send-btn {
-            background: #7c3aed;
-            color: white;
-            border: none;
-            padding: 8px 14px;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-            transition: transform 0.1s ease;
-        }
-        .chat-send-btn:active {
-            transform: scale(0.95);
         }
 
         .section-view {
@@ -347,12 +230,6 @@
         }
         .section-view.active {
             display: block;
-            animation: fadeIn 0.3s ease-in-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(4px); }
-            to { opacity: 1; transform: translateY(0); }
         }
 
         .form-group {
@@ -363,7 +240,6 @@
             font-size: 0.8rem;
             color: var(--text-muted);
             margin-bottom: 6px;
-            font-weight: 500;
         }
         .form-control {
             width: 100%;
@@ -374,15 +250,8 @@
             color: var(--text-color);
             font-size: 0.85rem;
             box-sizing: border-box;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-            transition: border-color 0.2s;
-        }
-        .form-control:focus {
-            outline: none;
-            border-color: var(--accent);
         }
 
-        /* Estilos del Modal / Panel Broker Interactivo */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -399,35 +268,9 @@
             border: 1px solid var(--border-color);
             border-radius: 14px;
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
             padding: 18px;
             box-shadow: var(--shadow-3d);
-            box-sizing: border-box;
-        }
-        .broker-tabs {
-            display: flex;
-            gap: 6px;
-            margin-bottom: 12px;
-            background: var(--bg-color);
-            padding: 4px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-        }
-        .broker-tab {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: var(--text-muted);
-            padding: 6px;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-align: center;
-        }
-        .broker-tab.active {
-            background: var(--accent);
-            color: #fff;
         }
     </style>
 </head>
@@ -439,15 +282,14 @@
         </div>
         <div class="user-info">
             <span id="user-handle">@jaimetetio</span>
-            <span id="user-balance" style="color: #38bdf8; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">0.10 Pi</span>
+            <span id="user-balance" style="color: #38bdf8; font-weight: 700;">0.00 Pi</span>
             <button class="theme-btn" onclick="toggleTheme()">🌗 Tema</button>
         </div>
     </header>
 
-    <!-- Pestañas de Navegación -->
     <div class="nav-tabs">
         <button class="nav-tab active" onclick="switchTab('mercados', this)">Mercados</button>
-        <button class="nav-tab" onclick="switchTab('crear', this)">Crear</button>
+        <button class="nav-tab" onclick="switchTab('clob', this)">Order Book</button>
         <button class="nav-tab" onclick="switchTab('ranking', this)">Ranking</button>
         <button class="nav-tab" onclick="switchTab('admin', this)">Admin</button>
     </div>
@@ -459,106 +301,94 @@
         <div class="filter-pills">
             <button class="pill active" onclick="setCategory('Todos', this)">Todos</button>
             <button class="pill" onclick="setCategory('Crypto', this)">Crypto</button>
-            <button class="pill" onclick="setCategory('Deportes', this)">Deportes</button>
-            <button class="pill" onclick="setCategory('Política', this)">Política</button>
+            <button class="pill" onclick="setCategory('Pi Ecosystem', this)">Pi Ecosystem</button>
         </div>
 
         <div id="markets-container">
-            <!-- Los mercados se renderizan dinámicamente -->
+            Cargando mercados del servidor...
         </div>
 
-        <!-- ACORDEÓN: Gestión de billetera Pi Network -->
+        <!-- GESTIÓN DE BILLETERA PI NETWORK -->
         <div class="accordion-card" id="acc-wallet">
             <button class="accordion-header" onclick="toggleAccordion('acc-wallet')">
-                <span>💳 Gestión de billetera Pi Network</span>
+                <span>💳 Gestión de Billetera y Blockchain Pi</span>
                 <span>▾</span>
             </button>
             <div class="accordion-content" style="padding-top: 12px;">
                 <div style="margin-bottom: 10px;">
-                    <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Monto de Depósito / Retiro (Pi)</label>
-                    <input type="number" id="wallet-amount" class="form-control" placeholder="0.00" min="0.1" step="0.1" style="margin-bottom: 10px;">
-                    <div style="display: flex; gap: 8px;">
-                        <button class="action-btn" style="flex:1; background: var(--success);" onclick="depositarConPiNetwork()">Recargar</button>
+                    <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Monto (Pi)</label>
+                    <input type="number" id="wallet-amount" class="form-control" placeholder="1.0" min="0.1" step="0.1" style="margin-bottom: 10px;">
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                        <button class="action-btn" style="flex:1; background: var(--success);" onclick="depositarConPiNetwork()">Recargar Pi</button>
                         <button class="action-btn" style="flex:1; background: var(--danger);" onclick="retirarBilletera()">Retirar Pi</button>
                     </div>
                 </div>
-                <div id="wallet-history" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">Billetera vinculada para @jaimetetio. Balance activo garantizado.</div>
+                <div id="wallet-history" style="font-size: 0.75rem; color: var(--text-muted);">Conectado con SDK oficial de Pi Network.</div>
             </div>
         </div>
 
-        <!-- ACORDEÓN: Mis Apuestas Realizadas -->
+        <!-- HISTORIAL DE APUESTAS -->
         <div class="accordion-card" id="acc-apuestas">
             <button class="accordion-header" onclick="toggleAccordion('acc-apuestas')">
-                <span>📦 Mis Apuestas Realizadas</span>
+                <span>📦 Mis Apuestas Registradas</span>
                 <span>▾</span>
             </button>
             <div class="accordion-content" style="padding-top: 12px;">
-                <div id="my-bets-content">No tienes apuestas activas registradas en este momento.</div>
+                <div id="my-bets-content">Cargando historial de apuestas...</div>
             </div>
         </div>
 
-        <!-- ACORDEÓN: Órdenes limit activa -->
-        <div class="accordion-card" id="acc-limit">
-            <button class="accordion-header" onclick="toggleAccordion('acc-limit')">
-                <span>⚡ Órdenes limit activa</span>
-                <span>▾</span>
-            </button>
-            <div class="accordion-content" style="padding-top: 12px;">
-                <div style="margin-bottom: 10px;">
-                    <button class="action-btn" style="font-size: 0.75rem; padding: 6px 12px; margin-bottom: 10px;" onclick="crearOrdenLimitDemo()">+ Crear Orden Limit de Prueba</button>
-                </div>
-                <div id="limit-content">Sin órdenes limit abiertas en el libro de órdenes.</div>
-            </div>
-        </div>
-
-        <!-- ACORDEÓN: Historial de Trades Ejecutados -->
+        <!-- HISTORIAL DE TRANSACCIONES -->
         <div class="accordion-card" id="acc-trades">
             <button class="accordion-header" onclick="toggleAccordion('acc-trades')">
-                <span>🔄 Historial de Trades Ejecutados</span>
+                <span>🔄 Historial Financiero y Transacciones</span>
                 <span>▾</span>
             </button>
             <div class="accordion-content" style="padding-top: 12px;">
-                <div id="trades-content">No se registran transacciones previas en tu historial de trades.</div>
-            </div>
-        </div>
-
-        <!-- SOPORTE DIRECTO -->
-        <div class="support-card" id="support-box">
-            <button class="support-header" onclick="toggleSupport()">
-                <span>💬 Soporte Directo P2Ppredict</span>
-                <span>▾</span>
-            </button>
-            <div class="support-body" style="padding-top: 12px;">
-                <div class="chat-messages" id="chat-messages"></div>
-                <div class="chat-input-area">
-                    <input type="text" class="chat-input" id="chat-input" placeholder="Escribe tu duda...">
-                    <button class="chat-send-btn" onclick="enviarMensajeSoporte()">Enviar</button>
-                </div>
+                <div id="trades-content">Sin registros financieros recientes.</div>
             </div>
         </div>
     </div>
 
-    <!-- VISTA: CREAR MERCADO -->
-    <div id="view-crear" class="section-view">
+    <!-- VISTA: ORDER BOOK (CLOB) -->
+    <div id="view-clob" class="section-view">
         <div class="market-card">
-            <div class="market-title" style="margin-bottom: 12px;">Crear Nuevo Mercado Descentralizado</div>
+            <div class="market-title">📈 Libro de Órdenes P2P (CLOB)</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Coloca órdenes de compra o venta a precio límite con otros usuarios.</p>
+            
             <div class="form-group">
-                <label>Pregunta del Evento</label>
-                <input type="text" class="form-control" id="new-question" placeholder="Ej: ¿Lanzarán cohete exitoso mañana?">
-            </div>
-            <div class="form-group">
-                <label>Categoría</label>
-                <select class="form-control" id="new-category">
-                    <option value="Crypto">Crypto</option>
-                    <option value="Deportes">Deportes</option>
-                    <option value="Política">Política</option>
+                <label>Seleccionar Evento / Mercado</label>
+                <select id="clob-event-select" class="form-control" onchange="cargarOrdenesCLOBBackend()">
+                    <option value="">-- Selecciona un mercado --</option>
                 </select>
             </div>
             <div class="form-group">
-                <label>Monto a Invertir / Apostar en el Mercado (Pi)</label>
-                <input type="number" class="form-control" id="new-stake" placeholder="Ej: 1" min="1" step="0.1" value="1">
+                <label>Opción</label>
+                <select id="clob-option-select" class="form-control">
+                    <option value="">-- Selecciona opción --</option>
+                </select>
             </div>
-            <button class="action-btn" onclick="crearMercado()" style="width: 100%; margin-top: 6px;">Publicar Mercado</button>
+            <div style="display: flex; gap: 8px;">
+                <div class="form-group" style="flex:1;">
+                    <label>Precio (0.01 - 0.99 Pi)</label>
+                    <input type="number" id="clob-price" class="form-control" value="0.50" min="0.01" max="0.99" step="0.01">
+                </div>
+                <div class="form-group" style="flex:1;">
+                    <label>Cantidad (Contratos)</label>
+                    <input type="number" id="clob-amount" class="form-control" value="10" min="1" step="1">
+                </div>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 4px;">
+                <button class="action-btn" style="flex:1; background: var(--success);" onclick="crearOrdenCLOB('comprar')">Comprar / Pujar</button>
+                <button class="action-btn" style="flex:1; background: var(--danger);" onclick="crearOrdenCLOB('vender')">Vender</button>
+            </div>
+        </div>
+
+        <div class="market-card">
+            <div class="market-title" style="font-size: 0.85rem;">Órdenes Activas en el Mercado</div>
+            <div id="clob-orders-container" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;">
+                Selecciona un mercado para ver el Order Book.
+            </div>
         </div>
     </div>
 
@@ -576,7 +406,7 @@
     <div id="view-admin" class="section-view">
         <div id="admin-login-card" class="market-card">
             <div class="market-title" style="color: #f87171;">🔐 Acceso Restringido - Administrador</div>
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Introduce la clave maestra para acceder a las herramientas de control.</p>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Introduce la clave maestra.</p>
             <div class="form-group">
                 <label>Contraseña</label>
                 <input type="password" class="form-control" id="admin-password-input" placeholder="••••••••••">
@@ -586,139 +416,104 @@
 
         <div id="admin-dashboard-card" style="display: none;">
             <div class="market-card" style="border-color: #38bdf8;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div class="market-title" style="margin-bottom: 2px;">Treasury / Liquidez Total</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted);">Total de Pi dentro de la app</div>
-                    </div>
-                    <div id="admin-treasury" style="font-size: 1.2rem; font-weight: bold; color: #38bdf8;">0.00 Pi</div>
-                </div>
-            </div>
-
-            <div class="market-card">
-                <div class="market-title" style="margin-bottom: 10px;">⚡ Gestión y Moderación de Mercados</div>
-                <div id="admin-markets-list" style="font-size: 0.85rem; color: var(--text-muted);">
-                    Cargando mercados activos...
-                </div>
-            </div>
-
-            <div class="support-card" style="display: block; margin-top: 0;">
-                <div class="support-header" style="cursor: default; color: #a78bfa;">
-                    <span>💬 Bandeja de Soporte a Usuarios</span>
-                </div>
-                <div class="support-body" style="display: block; padding-top: 12px;">
-                    <div class="chat-messages" id="admin-support-box" style="height: 140px;"></div>
-                    <div class="chat-input-area">
-                        <input type="text" class="chat-input" id="admin-chat-reply" placeholder="Escribe respuesta como Admin...">
-                        <button class="chat-send-btn" onclick="enviarRespuestaAdmin()">Responder</button>
-                    </div>
-                </div>
+                <div class="market-title" style="margin-bottom: 2px;">Panel de Control Seguro Activo</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Sesión de administrador validada mediante backend seguro.</div>
             </div>
         </div>
     </div>
 
-    <!-- MODAL ESTILO BROKER PARA APUESTAS (MERCADO / LIMIT) -->
+    <!-- MODAL DE APUESTA -->
     <div id="broker-modal" class="modal-overlay">
         <div class="modal-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <div id="broker-modal-title" style="font-weight: 700; font-size: 0.95rem; color: #38bdf8;">Operar Opción</div>
+                <div id="broker-modal-title" style="font-weight: 700; font-size: 0.95rem; color: #38bdf8;">Confirmar Apuesta</div>
                 <button onclick="cerrarBrokerModal()" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.1rem; cursor: pointer;">✕</button>
             </div>
-            
-            <div class="broker-tabs">
-                <button class="broker-tab active" id="btn-type-market" onclick="setOrderType('market')">A Mercado</button>
-                <button class="broker-tab" id="btn-type-limit" onclick="setOrderType('limit')">Orden Limit</button>
-            </div>
-
-            <div class="form-group" id="group-limit-price" style="display: none;">
-                <label>Precio Objetivo Limit (Pi)</label>
-                <input type="number" id="broker-limit-price" class="form-control" value="0.50" min="0.01" max="0.99" step="0.01" oninput="calcularRetornoBroker()">
-            </div>
-
             <div class="form-group">
                 <label>Monto a Invertir (Pi)</label>
-                <input type="number" id="broker-stake" class="form-control" value="1.0" min="0.1" step="0.1" oninput="calcularRetornoBroker()">
+                <input type="number" id="broker-stake" class="form-control" value="1.0" min="0.1" step="0.1">
             </div>
-
-            <div style="background: var(--bg-color); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 12px; font-size: 0.8rem;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                    <span style="color: var(--text-muted);">Dividendo Actual (Prob):</span>
-                    <span id="broker-odds" style="font-weight: 600; color: var(--text-color);">0.00x</span>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                    <span style="color: var(--text-muted);">Ganancia Estimada:</span>
-                    <span id="broker-estimated-profit" style="font-weight: 700; color: var(--success);">+0.00 Pi</span>
-                </div>
-            </div>
-
-            <button class="action-btn" style="width: 100%;" onclick="ejecutarOperacionBroker()">Confirmar Orden</button>
+            <button class="action-btn" style="width: 100%;" onclick="ejecutarApuestaBackend()">Confirmar Operación</button>
         </div>
     </div>
 
     <script>
-        const CLAVE_ADMIN = "Anthony*2023";
-        let isAdminLoggedIn = false;
-        let saldoUsuario = 0.10; 
+        let usernameGlobal = "@jaimetetio";
+        let mercadosGlobales = [];
         let categoriaFiltroActual = 'Todos';
         let textoBusquedaActual = '';
+        let apuestaActivaState = { eventoId: null, opcionId: null };
 
-        let mercados = [
-            { id: 1, pregunta: '¿Bitcoin superará los $100,000 antes de finalizar este mes?', categoria: 'Crypto', siPool: 145.5, noPool: 82.0, creadoPor: '@satoshi', estado: 'activo' },
-            { id: 2, pregunta: '¿Ganará la selección local el próximo partido oficial de eliminatorias?', categoria: 'Deportes', siPool: 50.0, noPool: 65.0, creadoPor: '@cancha', estado: 'activo' },
-            { id: 3, pregunta: '¿Se aprobará la nueva ley de regulación cripto en la región este año?', categoria: 'Política', siPool: 30.0, noPool: 120.0, creadoPor: '@govwatch', estado: 'activo' }
-        ];
+        async function inicializarApp() {
+            try {
+                if (typeof Pi !== 'undefined') {
+                    const auth = await Pi.authenticate(['username', 'payments', 'wallet_address'], (payment) => {});
+                    if (auth && auth.user && auth.user.username) {
+                        usernameGlobal = '@' + auth.user.username;
+                        document.getElementById('user-handle').innerText = usernameGlobal;
+                    }
+                }
+            } catch (e) {
+                console.log("Modo navegador web estándar detectado.");
+            }
+            await sincronizarDatosUsuario();
+            await cargarMercadosBackend();
+        }
 
-        let misApuestas = [];
-        let ordenesLimit = [
-            { id: 101, mercado: 'Bitcoin superará $100k', tipo: 'LIMIT SÍ', precio: '0.65 Pi', monto: '5.0 Pi' }
-        ];
-        let historialTrades = [];
-        let historialChat = [
-            { remitente: 'soporte', texto: 'Hola, ¿en qué podemos ayudarte hoy?' }
-        ];
+        async function sincronizarDatosUsuario() {
+            try {
+                const res = await fetch(`/api/saldo/${encodeURIComponent(usernameGlobal)}`);
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('user-balance').innerText = data.saldo_disponible.toFixed(2) + ' Pi';
+                    renderizarHistorialApuestas(data.historial);
+                    renderizarTransacciones(data.transacciones);
+                }
+            } catch (err) {
+                console.error("Error sincronizando saldo:", err);
+            }
+        }
 
-        // Estado temporal del Modal Broker activo
-        let brokerState = {
-            marketId: null,
-            option: null, // 'SI' o 'NO'
-            orderType: 'market' // 'market' o 'limit'
-        };
-
-        function actualizarBalanceUI() {
-            document.getElementById('user-balance').innerText = saldoUsuario.toFixed(2) + ' Pi';
+        async function cargarMercadosBackend() {
+            try {
+                const res = await fetch('/api/eventos');
+                mercadosGlobales = await res.json();
+                renderizarMercados();
+                poblarSelectoresCLOB();
+            } catch (err) {
+                document.getElementById('markets-container').innerHTML = `<div class="market-card">Error al conectar con el servidor backend.</div>`;
+            }
         }
 
         function renderizarMercados() {
             const container = document.getElementById('markets-container');
-            const filtrados = mercados.filter(m => {
+            const filtrados = mercadosGlobales.filter(m => {
                 const coincideCat = categoriaFiltroActual === 'Todos' || m.categoria === categoriaFiltroActual;
-                const coincideTexto = m.pregunta.toLowerCase().includes(textoBusquedaActual.toLowerCase());
+                const coincideTexto = m.titulo.toLowerCase().includes(textoBusquedaActual.toLowerCase());
                 return coincideCat && coincideTexto && m.estado === 'activo';
             });
 
             if (filtrados.length === 0) {
-                container.innerHTML = `<div class="market-card"><div class="market-title" style="color: var(--text-muted); text-align: center;">No se encontraron mercados activos.</div></div>`;
+                container.innerHTML = `<div class="market-card"><div class="market-title" style="text-align: center; color: var(--text-muted);">No hay mercados activos disponibles.</div></div>`;
                 return;
             }
 
             container.innerHTML = filtrados.map(m => {
-                const totalPool = m.siPool + m.noPool;
-                const probSi = totalPool > 0 ? Math.round((m.siPool / totalPool) * 100) : 50;
-                const probNo = 100 - probSi;
+                const totalPozo = m.opciones.reduce((acc, o) => acc + o.pozo, 0);
+                const botonesOpciones = m.opciones.map(op => `
+                    <button class="action-btn" style="flex: 1;" onclick="abrirModalApuesta(${m.id}, ${op.id}, '${op.nombre}')">${op.nombre} (Pozo: ${op.pozo.toFixed(1)} Pi)</button>
+                `).join('');
 
                 return `
                     <div class="market-card">
                         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">
                             <span>🏷️ ${m.categoria}</span>
-                            <span>Creador: ${m.creadoPor}</span>
+                            <span>Cierre: ${m.fecha_cierre}</span>
                         </div>
-                        <div class="market-title">${m.pregunta}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">
-                            Probabilidad SÍ: <b style="color: var(--success);">${probSi}%</b> | NO: <b style="color: var(--danger);">${probNo}%</b> (Pool: ${totalPool.toFixed(1)} Pi)
-                        </div>
+                        <div class="market-title">${m.titulo}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Pozo Total Acumulado: <b>${totalPozo.toFixed(1)} Pi</b></div>
                         <div style="display: flex; gap: 8px;">
-                            <button class="action-btn" style="flex: 1; background: var(--success);" onclick="abrirBrokerModal(${m.id}, 'SI')">Apostar SÍ</button>
-                            <button class="action-btn" style="flex: 1; background: var(--danger);" onclick="abrirBrokerModal(${m.id}, 'NO')">Apostar NO</button>
+                            ${botonesOpciones}
                         </div>
                     </div>
                 `;
@@ -737,397 +532,255 @@
             renderizarMercados();
         }
 
-        // Lógica del Panel Estilo Broker
-        function abrirBrokerModal(idMercado, opcion) {
-            const mercado = mercados.find(m => m.id === idMercado);
-            if (!mercado) return;
-
-            brokerState.marketId = idMercado;
-            brokerState.option = opcion;
-            brokerState.orderType = 'market';
-
-            document.getElementById('btn-type-market').classList.add('active');
-            document.getElementById('btn-type-limit').classList.remove('active');
-            document.getElementById('group-limit-price').style.display = 'none';
+        function abrirModalApuesta(eventoId, opcionId, opcionNombre) {
+            apuestaActivaState = { eventoId, opcionId };
+            document.getElementById('broker-modal-title').innerText = `Apostar a: ${opcionNombre}`;
             document.getElementById('broker-stake').value = '1.0';
-
-            document.getElementById('broker-modal-title').innerText = `Operar [${opcion}] en: ${mercado.pregunta.substring(0, 35)}...`;
             document.getElementById('broker-modal').style.display = 'flex';
-            calcularRetornoBroker();
         }
 
         function cerrarBrokerModal() {
             document.getElementById('broker-modal').style.display = 'none';
         }
 
-        function setOrderType(type) {
-            brokerState.orderType = type;
-            if (type === 'market') {
-                document.getElementById('btn-type-market').classList.add('active');
-                document.getElementById('btn-type-limit').classList.remove('active');
-                document.getElementById('group-limit-price').style.display = 'none';
-            } else {
-                document.getElementById('btn-type-limit').classList.add('active');
-                document.getElementById('btn-type-market').classList.remove('active');
-                document.getElementById('group-limit-price').style.display = 'block';
-            }
-            calcularRetornoBroker();
-        }
-
-        function calcularRetornoBroker() {
-            const mercado = mercados.find(m => m.id === brokerState.marketId);
-            if (!mercado) return;
-
-            const totalPool = mercado.siPool + mercado.noPool;
-            let prob = 0.5;
-            if (totalPool > 0) {
-                prob = brokerState.option === 'SI' ? (mercado.siPool / totalPool) : (mercado.noPool / totalPool);
-            }
-            // Dividendo estilo inversor/pari-mutuel o cuota broker inversa al porcentaje
-            let odds = prob > 0 ? (1 / prob) : 2.0;
-            if (brokerState.orderType === 'limit') {
-                const limitPrice = parseFloat(document.getElementById('broker-limit-price').value) || 0.5;
-                odds = limitPrice > 0 ? (1 / limitPrice) : odds;
-            }
-
-            const stake = parseFloat(document.getElementById('broker-stake').value) || 0;
-            const gananciaEstimada = stake * odds;
-
-            document.getElementById('broker-odds').innerText = odds.toFixed(2) + 'x';
-            document.getElementById('broker-estimated-profit').innerText = `+${gananciaEstimada.toFixed(2)} Pi`;
-        }
-
-        function ejecutarOperacionBroker() {
-            const mercado = mercados.find(m => m.id === brokerState.marketId);
-            if (!mercado) return;
-
-            const stake = parseFloat(document.getElementById('broker-stake').value);
-            if (isNaN(stake) || stake <= 0) {
-                alert("Por favor ingresa un monto válido a invertir.");
+        async function ejecutarApuestaBackend() {
+            const monto = parseFloat(document.getElementById('broker-stake').value);
+            if (isNaN(monto) || monto <= 0) {
+                alert("Introduce un monto válido.");
                 return;
             }
 
-            if (saldoUsuario < stake) {
-                alert("Saldo insuficiente en tu cuenta. Realiza un depósito previo en Gestión de billetera Pi Network.");
-                return;
-            }
-
-            saldoUsuario -= stake;
-            actualizarBalanceUI();
-
-            if (brokerState.orderType === 'market') {
-                if (brokerState.option === 'SI') {
-                    mercado.siPool += stake;
+            try {
+                const res = await fetch('/api/participar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: usernameGlobal,
+                        evento_id: apuestaActivaState.eventoId,
+                        opcion_id: apuestaActivaState.opcionId,
+                        monto: monto
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.mensaje);
+                    cerrarBrokerModal();
+                    await sincronizarDatosUsuario();
+                    await cargarMercadosBackend();
                 } else {
-                    mercado.noPool += stake;
+                    alert("Error: " + data.error);
                 }
-
-                misApuestas.push({
-                    id: Date.now(),
-                    pregunta: mercado.pregunta,
-                    opcion: brokerState.option,
-                    monto: stake,
-                    fecha: new Date().toLocaleTimeString()
-                });
-
-                historialTrades.push({
-                    texto: `Apuesta de ${stake.toFixed(2)} Pi a [${brokerState.option}] (Mercado)`,
-                    fecha: new Date().toLocaleTimeString()
-                });
-
-                actualizarMisApuestasUI();
-                alert(`¡Orden a mercado ejecutada con éxito por ${stake.toFixed(2)} Pi!`);
-            } else {
-                // Tipo Limit
-                const limitPrice = document.getElementById('broker-limit-price').value;
-                ordenesLimit.push({
-                    id: Date.now(),
-                    mercado: mercado.pregunta.substring(0, 25) + '...',
-                    tipo: `LIMIT ${brokerState.option}`,
-                    precio: limitPrice + ' Pi',
-                    monto: stake.toFixed(1) + ' Pi'
-                });
-
-                historialTrades.push({
-                    texto: `Orden Limit [${brokerState.option}] fijada a ${limitPrice} Pi por ${stake.toFixed(2)} Pi`,
-                    fecha: new Date().toLocaleTimeString()
-                });
-
-                actualizarLimitUI();
-                alert(`¡Orden Limit registrada exitosamente en el libro!`);
+            } catch (err) {
+                alert("Error de red procesando la apuesta.");
             }
-
-            actualizarHistorialTradesUI();
-            renderizarMercados();
-            cerrarBrokerModal();
         }
 
-        function actualizarMisApuestasUI() {
-            const container = document.getElementById('my-bets-content');
-            if (misApuestas.length === 0) {
-                container.innerHTML = "No tienes apuestas activas registradas en este momento.";
+        function poblarSelectoresCLOB() {
+            const selectEv = document.getElementById('clob-event-select');
+            selectEv.innerHTML = '<option value="">-- Selecciona un mercado --</option>' + mercadosGlobales.map(m => `
+                <option value="${m.id}">${m.titulo}</option>
+            `).join('');
+            selectEv.onchange = function() {
+                actualizarOpcionesCLOB();
+                cargarOrdenesCLOBBackend();
+            };
+        }
+
+        function actualizarOpcionesCLOB() {
+            const eventoId = document.getElementById('clob-event-select').value;
+            const selectOpt = document.getElementById('clob-option-select');
+            const mercado = mercadosGlobales.find(m => m.id == eventoId);
+            if (!mercado) {
+                selectOpt.innerHTML = '<option value="">-- Selecciona opción --</option>';
                 return;
             }
-            container.innerHTML = misApuestas.map(a => `
+            selectOpt.innerHTML = mercado.opciones.map(op => `
+                <option value="${op.id}">${op.nombre}</option>
+            `).join('');
+        }
+
+        async function cargarOrdenesCLOBBackend() {
+            const eventoId = document.getElementById('clob-event-select').value;
+            if (!eventoId) return;
+            try {
+                const res = await fetch(`/api/clob/ordenes?evento_id=${eventoId}`);
+                const data = await res.json();
+                const container = document.getElementById('clob-orders-container');
+                if (!data.success || data.ordenes.length === 0) {
+                    container.innerHTML = "No hay órdenes activas en el Order Book para este mercado.";
+                    return;
+                }
+                container.innerHTML = data.ordenes.map(o => `
+                    <div style="background: var(--bg-color); padding: 6px 8px; border-radius: 6px; margin-bottom: 4px; display: flex; justify-content: space-between; border: 1px solid var(--border-color);">
+                        <span><b>${o.accion.toUpperCase()}</b> | Precio: ${o.precio} Pi</span>
+                        <span>Cant: ${o.cantidad} | <i>${o.username}</i></span>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error("Error cargando órdenes CLOB");
+            }
+        }
+
+        async function crearOrdenCLOB(accion) {
+            const eventoId = document.getElementById('clob-event-select').value;
+            const opcionId = document.getElementById('clob-option-select').value;
+            const precio = parseFloat(document.getElementById('clob-price').value);
+            const cantidad = parseFloat(document.getElementById('clob-amount').value);
+
+            if (!eventoId || !opcionId) {
+                alert("Selecciona un mercado y una opción.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/clob/orden', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: usernameGlobal, evento_id: eventoId, opcion_id: opcionId, tipo_orden: 'limit', accion, precio, cantidad })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.mensaje);
+                    await sincronizarDatosUsuario();
+                    await cargarOrdenesCLOBBackend();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (err) {
+                alert("Error de red al crear la orden.");
+            }
+        }
+
+        async function depositarConPiNetwork() {
+            const monto = parseFloat(document.getElementById('wallet-amount').value);
+            if (isNaN(monto) || monto <= 0) {
+                alert("Ingresa un monto válido para recargar.");
+                return;
+            }
+
+            if (typeof Pi === 'undefined') {
+                alert("El SDK de Pi Network solo está disponible dentro del Pi Browser.");
+                return;
+            }
+
+            try {
+                const paymentData = {
+                    amount: monto,
+                    memo: `Recarga de saldo en P2Ppredict para ${usernameGlobal}`,
+                    metadata: { app: "P2Ppredict", username: usernameGlobal }
+                };
+
+                const callbacks = {
+                    onReadyForServerApproval: async function(paymentId) {
+                        await fetch('/api/pi/aprobar-pago', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ paymentId })
+                        });
+                    },
+                    onReadyForServerCompletion: async function(paymentId, txid) {
+                        const res = await fetch('/api/pi/completar-pago', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username: usernameGlobal, monto, paymentId, txid })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            alert(data.mensaje);
+                            document.getElementById('wallet-amount').value = '';
+                            await sincronizarDatosUsuario();
+                        } else {
+                            alert("Error completando pago: " + data.error);
+                        }
+                    },
+                    onCancel: function(paymentId) { alert("Pago cancelado por el usuario."); },
+                    onError: function(error, payment) { alert("Error en pasarela Pi: " + (error.message || error)); }
+                };
+
+                Pi.createPayment(paymentData, callbacks);
+            } catch (err) {
+                alert("Error conectando con la pasarela de pagos Pi.");
+            }
+        }
+
+        async function retirarBilletera() {
+            const montoStr = prompt("¿Cuántos Pi deseas retirar a tu billetera externa?", "1.0");
+            if (!montoStr) return;
+            const monto = parseFloat(montoStr);
+            const walletDestino = prompt("Introduce tu dirección de billetera Pi de destino:", "");
+
+            if (isNaN(monto) || monto < 1.0 || !walletDestino) {
+                alert("Datos inválidos. El retiro mínimo es de 1.0 Pi.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/pi/retirar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: usernameGlobal, monto, wallet_address: walletDestino })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.mensaje);
+                    await sincronizarDatosUsuario();
+                } else {
+                    alert("Error en el retiro: " + data.error);
+                }
+            } catch (err) {
+                alert("Error de red procesando el retiro.");
+            }
+        }
+
+        function renderizarHistorialApuestas(historial) {
+            const container = document.getElementById('my-bets-content');
+            if (!historial || historial.length === 0) {
+                container.innerHTML = "No tienes apuestas registradas.";
+                return;
+            }
+            container.innerHTML = historial.map(a => `
                 <div style="background: var(--bg-color); padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; border: 1px solid var(--border-color);">
-                    <div><b>${a.pregunta}</b></div>
+                    <div><b>${a.titulo_evento}</b></div>
                     <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.8rem;">
-                        <span>Opción: <b style="color: ${a.opcion === 'SI' ? 'var(--success)' : 'var(--danger)'};">${a.opcion}</b></span>
+                        <span>Opción: <b style="color: var(--success);">${a.opcion_elegida}</b></span>
                         <span>Monto: ${a.monto.toFixed(2)} Pi</span>
                     </div>
                 </div>
             `).join('');
         }
 
-        function actualizarLimitUI() {
-            const container = document.getElementById('limit-content');
-            if (ordenesLimit.length === 0) {
-                container.innerHTML = "Sin órdenes limit abiertas en el libro de órdenes.";
-                return;
-            }
-            container.innerHTML = ordenesLimit.map(o => `
-                <div style="background: var(--bg-color); padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="font-weight: 600;">${o.mercado}</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted);">${o.tipo} @ ${o.precio} | Monto: ${o.monto}</div>
-                    </div>
-                    <button class="action-btn" style="background: var(--danger); font-size: 0.75rem; padding: 4px 8px;" onclick="cancelarOrdenLimit(${o.id})">Cancelar</button>
-                </div>
-            `).join('');
-        }
-
-        function crearOrdenLimitDemo() {
-            const nueva = {
-                id: Date.now(),
-                mercado: 'Elección local ganadores',
-                tipo: 'LIMIT NO',
-                precio: '0.40 Pi',
-                monto: '2.0 Pi'
-            };
-            ordenesLimit.push(nueva);
-            actualizarLimitUI();
-            alert("Orden limit añadida al libro de órdenes.");
-        }
-
-        function cancelarOrdenLimit(id) {
-            ordenesLimit = ordenesLimit.filter(o => o.id !== id);
-            actualizarLimitUI();
-        }
-
-        function actualizarHistorialTradesUI() {
+        function renderizarTransacciones(transacciones) {
             const container = document.getElementById('trades-content');
-            if (historialTrades.length === 0) {
-                container.innerHTML = "No se registran transacciones previas en tu historial de trades.";
+            if (!transacciones || transacciones.length === 0) {
+                container.innerHTML = "Sin registros financieros recientes.";
                 return;
             }
-            container.innerHTML = historialTrades.map(t => `
+            container.innerHTML = transacciones.map(t => `
                 <div style="padding: 4px 0; border-bottom: 1px solid var(--border-color); font-size: 0.75rem;">
-                    <span>⏱️ [${t.fecha}]</span> ${t.texto}
+                    <span>⏱️ [${t.fecha}]</span> <b>${t.tipo}</b>: ${t.monto > 0 ? '+' : ''}${t.monto.toFixed(2)} Pi
                 </div>
             `).join('');
         }
 
-        function crearMercado() {
-            const pregunta = document.getElementById('new-question').value.trim();
-            const categoria = document.getElementById('new-category').value;
-            const stake = parseFloat(document.getElementById('new-stake').value);
-
-            if (!pregunta) {
-                alert("Por favor escribe la pregunta del evento.");
-                return;
-            }
-            if (isNaN(stake) || stake <= 0) {
-                alert("Introduce un monto válido de stake inicial.");
-                return;
-            }
-            if (saldoUsuario < stake) {
-                alert("No tienes suficiente saldo para cubrir el stake inicial de creación.");
-                return;
-            }
-
-            saldoUsuario -= stake;
-            actualizarBalanceUI();
-
-            const nuevo = {
-                id: Date.now(),
-                pregunta: pregunta,
-                categoria: categoria,
-                siPool: stake / 2,
-                noPool: stake / 2,
-                creadoPor: document.getElementById('user-handle').innerText,
-                estado: 'activo'
-            };
-
-            mercados.unshift(nuevo);
-            document.getElementById('new-question').value = '';
-            document.getElementById('new-stake').value = '1';
-            
-            renderizarMercados();
-            switchTab('mercados', document.querySelector('.nav-tab'));
-            alert("¡Mercado creado y publicado exitosamente!");
-        }
-
-        async function depositarConPiNetwork() {
-            const input = document.getElementById('wallet-amount');
-            const monto = parseFloat(input.value);
-            
-            if (isNaN(monto) || monto <= 0) {
-                alert("Por favor ingresa un monto válido en Pi para depositar.");
-                return;
-            }
-
-            if (typeof Pi === 'undefined') {
-                alert("La aplicación no se encuentra dentro del navegador oficial.");
-                return;
-            }
-
+        async function verificarLoginAdmin() {
+            const password = document.getElementById('admin-password-input').value;
             try {
-                const authResult = await Pi.authenticate(['username', 'payments', 'wallet_address'], (payment) => {});
-                document.getElementById('user-handle').innerText = '@' + authResult.user.username;
-
-                const paymentData = {
-                    amount: monto,
-                    memo: `Depósito de ${monto} Pi a P2Ppredict`,
-                    metadata: { app: "P2Ppredict", user: authResult.user.username },
-                };
-
-                const callbacks = {
-                    onReadyForServerApproval: async function(paymentId) {},
-                    onReadyForServerCompletion: async function(paymentId, txid) {
-                        saldoUsuario += monto;
-                        actualizarBalanceUI();
-                        document.getElementById('wallet-history').innerHTML = `Depósito real exitoso: +${monto.toFixed(2)} Pi (TX: ${txid.substring(0,8)}...)`;
-                        input.value = '';
-                        alert(`¡Pago verificado por la blockchain! Se han acreditado ${monto.toFixed(2)} Pi.`);
-                    },
-                    onCancel: function(paymentId) {
-                        alert("El pago fue cancelado.");
-                    },
-                    onError: function(error, payment) {
-                        alert("Error en el proceso de pago: " + (error.message || JSON.stringify(error)));
-                    }
-                };
-
-                Pi.createPayment(paymentData, callbacks);
+                const res = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('admin-login-card').style.display = 'none';
+                    document.getElementById('admin-dashboard-card').style.display = 'block';
+                    alert("Acceso de administrador autorizado con éxito.");
+                } else {
+                    alert("Contraseña de administrador incorrecta.");
+                }
             } catch (err) {
-                alert("Error de conexión con la billetera: " + (err.message || err));
+                alert("Error validando el acceso administrativo.");
             }
-        }
-
-        function retirarBilletera() {
-            const montoStr = prompt("¿Cuántos Pi deseas retirar a tu billetera?", "1");
-            if (!montoStr) return;
-            const monto = parseFloat(montoStr);
-
-            if (isNaN(monto) || monto <= 0 || saldoUsuario < monto) {
-                alert("Monto inválido o saldo insuficiente.");
-                return;
-            }
-
-            saldoUsuario -= monto;
-            actualizarBalanceUI();
-            document.getElementById('wallet-history').innerHTML = `Retiro procesado: -${monto.toFixed(2)} Pi a billetera de usuario.`;
-            alert(`Solicitud de retiro de ${monto.toFixed(2)} Pi procesada.`);
-        }
-
-        function enviarMensajeSoporte() {
-            const input = document.getElementById('chat-input');
-            const texto = input.value.trim();
-            if(!texto) return;
-
-            historialChat.push({ remitente: 'usuario', texto });
-            input.value = '';
-            renderChat();
-
-            setTimeout(() => {
-                historialChat.push({ remitente: 'soporte', texto: 'Gracias por tu consulta. Un moderador te atenderá en breve.' });
-                renderChat();
-            }, 1000);
-        }
-
-        function renderChat() {
-            const box = document.getElementById('chat-messages');
-            box.innerHTML = historialChat.map(m => `
-                <div style="margin-bottom: 6px;">
-                    <b style="color: ${m.remitente === 'usuario' ? '#38bdf8' : '#a78bfa'};">${m.remitente === 'usuario' ? 'Tú' : 'Soporte'}:</b> ${m.texto}
-                </div>
-            `).join('');
-            box.scrollTop = box.scrollHeight;
-
-            if (isAdminLoggedIn) {
-                const adminBox = document.getElementById('admin-support-box');
-                adminBox.innerHTML = historialChat.map(m => `
-                    <div style="margin-bottom: 6px;">
-                        <b style="color: ${m.remitente === 'usuario' ? '#38bdf8' : '#a78bfa'};">${m.remitente}:</b> ${m.texto}
-                    </div>
-                `).join('');
-                adminBox.scrollTop = adminBox.scrollHeight;
-            }
-        }
-
-        function enviarRespuestaAdmin() {
-            const input = document.getElementById('admin-chat-reply');
-            const texto = input.value.trim();
-            if (!texto) return;
-            historialChat.push({ remitente: 'soporte (Admin)', texto });
-            input.value = '';
-            renderChat();
-        }
-
-        function verificarLoginAdmin() {
-            const pass = document.getElementById('admin-password-input').value;
-            if (pass === CLAVE_ADMIN) {
-                isAdminLoggedIn = true;
-                document.getElementById('admin-login-card').style.display = 'none';
-                document.getElementById('admin-dashboard-card').style.display = 'block';
-                actualizarPanelAdmin();
-            } else {
-                alert("Contraseña incorrecta");
-            }
-        }
-
-        function actualizarPanelAdmin() {
-            let totalTreasury = mercados.reduce((acc, m) => acc + m.siPool + m.noPool, 0);
-            document.getElementById('admin-treasury').innerText = totalTreasury.toFixed(2) + ' Pi';
-
-            const listContainer = document.getElementById('admin-markets-list');
-            listContainer.innerHTML = mercados.map(m => `
-                <div style="background: var(--bg-color); padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="font-weight: 600; color: var(--text-color);">${m.pregunta}</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted);">Pool: SÍ (${m.siPool.toFixed(1)}) / NO (${m.noPool.toFixed(1)})</div>
-                    </div>
-                    <button class="action-btn" style="background: var(--danger); font-size: 0.75rem; padding: 4px 8px;" onclick="eliminarMercadoAdmin(${m.id})">Cerrar</button>
-                </div>
-            `).join('');
-            renderChat();
-        }
-
-        function eliminarMercadoAdmin(id) {
-            mercados = mercados.filter(m => m.id !== id);
-            renderizarMercados();
-            actualizarPanelAdmin();
-            alert("Mercado cerrado por el administrador.");
-        }
-
-        function actualizarRanking() {
-            const container = document.getElementById('ranking-content');
-            const ranking = [
-                { puesto: 1, usuario: '@cryptoking', ganancias: '1,420.50 Pi', aciertos: '92%' },
-                { puesto: 2, usuario: '@jaimetetio', ganancias: saldoUsuario.toFixed(2) + ' Pi', aciertos: '85%' },
-                { puesto: 3, usuario: '@oracle_pi', ganancias: '840.00 Pi', aciertos: '78%' },
-                { puesto: 4, usuario: '@satoshi', ganancias: '510.20 Pi', aciertos: '71%' }
-            ];
-
-            container.innerHTML = ranking.map(r => `
-                <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-color); padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; border: 1px solid var(--border-color);">
-                    <div>
-                        <b>#${r.puesto} ${r.usuario}</b>
-                        <div style="font-size: 0.75rem; color: var(--text-muted);">Aciertos: ${r.aciertos}</div>
-                    </div>
-                    <div style="color: #38bdf8; font-weight: bold;">${r.ganancias}</div>
-                </div>
-            `).join('');
         }
 
         function toggleTheme() {
@@ -1141,27 +794,20 @@
             document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
             document.getElementById('view-' + tabId).classList.add('active');
             btn.classList.add('active');
-
             if (tabId === 'ranking') {
-                actualizarRanking();
+                document.getElementById('ranking-content').innerHTML = `
+                    <div style="display: flex; justify-content: space-between; background: var(--bg-color); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <b>#1 ${usernameGlobal}</b>
+                        <span style="color: #38bdf8; font-weight: bold;">${document.getElementById('user-balance').innerText}</span>
+                    </div>`;
             }
         }
 
         function toggleAccordion(id) {
-            const card = document.getElementById(id);
-            card.classList.toggle('open');
+            document.getElementById(id).classList.toggle('open');
         }
 
-        function toggleSupport() {
-            const card = document.getElementById('support-box');
-            card.classList.toggle('open');
-        }
-
-        // Inicialización
-        renderizarMercados();
-        actualizarLimitUI();
-        renderChat();
-        actualizarBalanceUI();
+        inicializarApp();
     </script>
 </body>
 </html>
