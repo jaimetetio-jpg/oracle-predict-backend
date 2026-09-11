@@ -346,21 +346,21 @@
             </div>
         </div>
 
-        <!-- HISTORIAL DEL USUARIO -->
-        <div class="accordion-card" id="acc-apuestas">
+        <!-- POSICIONES Y PORTAFOLIO -->
+        <div class="accordion-card open" id="acc-apuestas">
             <button class="accordion-header" onclick="toggleAccordion('acc-apuestas')">
-                <span>📦 Historial de Apuestas y Posiciones (Order Book)</span>
+                <span>📦 Posiciones Abiertas y Portafolio (Order Book)</span>
                 <span>▾</span>
             </button>
-            <div class="accordion-content" style="padding-top: 12px;">
-                <div style="font-size: 0.8rem; font-weight: bold; color: var(--text-color); margin-bottom: 6px;">🟢 Posiciones Activas / Tickets</div>
+            <div class="accordion-content" style="padding-top: 12px; display: block;">
+                <div style="font-size: 0.8rem; font-weight: bold; color: var(--text-color); margin-bottom: 6px;">🟢 Posiciones Activas / Contratos</div>
                 <div id="my-positions-content" style="margin-bottom: 14px;">
                     <p style="font-size: 0.8rem; color: var(--text-muted);">No tienes posiciones activas.</p>
                 </div>
 
-                <div style="font-size: 0.8rem; font-weight: bold; color: var(--text-color); margin-bottom: 6px; border-top: 1px solid var(--border-color); padding-top: 10px;">📜 Historial de Transacciones</div>
+                <div style="font-size: 0.8rem; font-weight: bold; color: var(--text-color); margin-bottom: 6px; border-top: 1px solid var(--border-color); padding-top: 10px;">📜 Registro de Ejecuciones y Órdenes (Historial Cerrado)</div>
                 <div id="my-history-content">
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">No hay transacciones registradas aún.</p>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">No hay transacciones liquidadas aún.</p>
                 </div>
             </div>
         </div>
@@ -411,6 +411,8 @@
 
     <script>
         let balanceUsuario = 150.00;
+        let posicionesActivas = [];
+        let historialTransacciones = [];
 
         function toggleTheme() {
             const body = document.body;
@@ -463,74 +465,4 @@
 
         function abrirTerminalTrading(id, titulo, opcion, precio) {
             switchTab('clob', document.querySelectorAll('.nav-tab')[1]);
-            document.getElementById('clob-event-select').value = id;
-            document.getElementById('clob-option-select').value = opcion;
-            document.getElementById('clob-price').value = precio;
-            calcularTotalCLOB();
-        }
-
-        function calcularTotalCLOB() {
-            const price = parseFloat(document.getElementById('clob-price').value) || 0;
-            const amount = parseInt(document.getElementById('clob-amount').value) || 0;
-            const total = price * amount;
-            document.getElementById('clob-total-display').textContent = total.toFixed(2) + ' Pi';
-        }
-
-        function depositarConPiNetwork() {
-            const monto = parseFloat(document.getElementById('wallet-amount').value);
-            if (!monto || monto <= 0) {
-                alert('Por favor ingresa un monto válido.');
-                return;
-            }
-            balanceUsuario += monto;
-            document.getElementById('user-balance').textContent = balanceUsuario.toFixed(2) + ' Pi';
-            document.getElementById('wallet-history').textContent = `Recarga real procesada de ${monto} Pi vía Pi SDK.`;
-            alert(`¡Recarga de ${monto} Pi acreditada con éxito!`);
-        }
-
-        function retirarBilletera() {
-            const monto = parseFloat(document.getElementById('wallet-amount').value);
-            if (!monto || monto <= 0) {
-                alert('Por favor ingresa un monto válido para retirar.');
-                return;
-            }
-            if (monto > balanceUsuario) {
-                alert('Fondos insuficientes en tu balance.');
-                return;
-            }
-            balanceUsuario -= monto;
-            document.getElementById('user-balance').textContent = balanceUsuario.toFixed(2) + ' Pi';
-            document.getElementById('wallet-history').textContent = `Retiro real procesado de ${monto} Pi.`;
-            alert(`¡Retiro de ${monto} Pi procesado con éxito!`);
-        }
-
-        function ejecutarOrdenCLOB(tipo) {
-            const price = parseFloat(document.getElementById('clob-price').value);
-            const amount = parseInt(document.getElementById('clob-amount').value);
-            const total = price * amount;
-
-            if (total > balanceUsuario) {
-                alert('No tienes suficiente balance para ejecutar esta orden.');
-                return;
-            }
-
-            balanceUsuario -= total;
-            document.getElementById('user-balance').textContent = balanceUsuario.toFixed(2) + ' Pi';
-
-            const historyContent = document.getElementById('my-history-content');
-            if (historyContent.querySelector('p')) {
-                historyContent.innerHTML = '';
-            }
-
-            const item = document.createElement('div');
-            item.style.cssText = 'background:var(--card-bg); border:1px solid var(--border-color); padding:8px; border-radius:6px; margin-bottom:6px; font-size:0.75rem;';
-            item.innerHTML = `<b>${tipo}</b> | ${amount} contratos @ ${price} Pi (Total: ${total.toFixed(2)} Pi)`;
-            historyContent.prepend(item);
-
-            alert(`Orden ${tipo} ejecutada exitosamente por ${total.toFixed(2)} Pi.`);
-            switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
-            toggleAccordion('acc-apuestas');
-        }
-    </script>
-</body>
-</html>
+            document.getElementById('clob-event-selec
