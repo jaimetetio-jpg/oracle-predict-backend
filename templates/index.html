@@ -5,8 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>P2Ppredict - Order Book</title>
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+    <!-- SDK de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         Pi.init({ version: "2.0", sandbox: true });
+
+        // Configuración de Supabase (Reemplaza con tus credenciales reales o variables de entorno)
+        const SUPABASE_URL = 'TU_SUPABASE_URL_AQUI';
+        const SUPABASE_ANON_KEY = 'TU_SUPABASE_ANON_KEY_AQUI';
+        const supabaseClient = (SUPABASE_URL && SUPABASE_URL !== 'TU_SUPABASE_URL_AQUI') 
+            ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
+            : null;
     </script>
     <style>
         :root {
@@ -425,7 +434,7 @@
                         <button class="action-btn" style="flex:1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="retirarBilletera()">Retirar Pi</button>
                     </div>
                 </div>
-                <div id="wallet-history" style="font-size: 0.75rem; color: var(--text-muted);">Conectado con SDK oficial de Pi Network.</div>
+                <div id="wallet-history" style="font-size: 0.75rem; color: var(--text-muted);">Conectado con SDK oficial de Pi Network y Supabase.</div>
             </div>
         </div>
 
@@ -557,7 +566,7 @@
     </div>
 
     <script>
-        // Cargar estado inicial desde localStorage o usar valores por defecto
+        // Estado local de respaldo para funcionamiento offline o dual con Supabase
         let usuarioActual = JSON.parse(localStorage.getItem('p2p_usuario')) || { handle: "@jaimetetio", balance: 150.00 };
         let posicionesActivas = JSON.parse(localStorage.getItem('p2p_posiciones')) || [];
         let historialTransacciones = JSON.parse(localStorage.getItem('p2p_historial_transacciones')) || []; 
@@ -575,7 +584,8 @@
 
         let ordenActivaModal = null;
 
-        window.onload = function() {
+        window.onload = async function() {
+            await sincronizarConSupabase();
             sincronizarPersistencia();
             actualizarUIBalance();
             actualizarPreciosVisuales();
@@ -583,6 +593,35 @@
             cargarHistorialDesdeDB();
             renderizarOrderBookVisible();
         };
+
+        // --- FUNCIONES DE INTEGRACIÓN CON SUPABASE ---
+        async function sincronizarConSupabase() {
+            if (!supabaseClient) return;
+            try {
+                // Cargar órdenes globales desde Supabase (tabla 'ordenes_clob' o similar)
+                let { data: ordenes, error: errOrd } = await supabaseClient.from('ordenes_clob').select('*');
+                if (!errOrd && ordenes && ordenes.length > 0) {
+                    ordenesGlobales = ordenes;
+                }
+
+                // Cargar transacciones desde Supabase (tabla 'historial_transacciones')
+                let { data: txs, error: errTx } = await supabaseClient.from('historial_transacciones').select('*');
+                if (!errTx && txs && txs.length > 0) {
+                    historialTransacciones = txs;
+                }
+            } catch (e) {
+                console.warn("Aviso: No se pudo conectar con Supabase en tiempo de ejecución, usando almacenamiento local.", e);
+            }
+        }
+
+        async function guardarEnSupabaseTabla(tabla, objetoDatos) {
+            if (!supabaseClient) return;
+            try {
+                await supabaseClient.from(tabla).insert([objetoDatos]);
+            } catch (e) {
+                console.error("Error guardando en Supabase:", e);
+            }
+        }
 
         function guardarTodoEnStorage() {
             localStorage.setItem('p2p_usuario', JSON.stringify(usuarioActual));
@@ -745,14 +784,17 @@
 
             posicionesActivas.push(nuevaPosicion);
             
-            ordenesGlobales.push({
+            const nuevaOrdenGlobal = {
                 marketId: idM,
                 tipo: 'COMPRA (Bid)',
                 opcion: opM,
                 contratos: cantidad,
                 precio: precioFinalUnitario,
                 trader: usuarioActual.handle
-            });
+            };
+
+            ordenesGlobales.push(nuevaOrdenGlobal);
+            guardarEnSupabaseTabla('ordenes_clob', nuevaOrdenGlobal);
 
             guardarTodoEnStorage();
             actualizarUIBalance();
@@ -886,6 +928,7 @@
 
         function registrarTransaccionEnDB(tx) {
             historialTransacciones.unshift(tx);
+            guardarEnSupabaseTabla('historial_transacciones', tx);
             guardarTodoEnStorage();
         }
 
