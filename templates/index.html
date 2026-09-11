@@ -382,15 +382,15 @@
             </div>
         </div>
 
-        <!-- POSICIONES ACTIVAS Y VENTA DE CONTRATOS -->
+        <!-- HISTORIAL DE APUESTAS, POSICIONES ACTIVAS Y BOTÓN DE COBRO -->
         <div class="accordion-card" id="acc-apuestas">
             <button class="accordion-header" onclick="toggleAccordion('acc-apuestas')">
-                <span>📦 Mis Posiciones Abiertas (Order Book)</span>
+                <span>📦 Historial de Apuestas y Posiciones (Order Book)</span>
                 <span>▾</span>
             </button>
             <div class="accordion-content" style="padding-top: 12px;">
                 <div id="my-positions-content">
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">No tienes posiciones de trading abiertas.</p>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">No tienes posiciones ni historial registrado.</p>
                 </div>
             </div>
         </div>
@@ -592,7 +592,7 @@
                 contratos: contracts,
                 precioEntrada: price,
                 inversion: inversion,
-                valorActualMercado: inversion // valor inicial en el order book
+                estado: 'activo' // activo, ganador, perdedor
             };
 
             misPosiciones.push(nuevaPosicion);
@@ -604,26 +604,37 @@
         function renderizarPosiciones() {
             const container = document.getElementById('my-positions-content');
             if (misPosiciones.length === 0) {
-                container.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-muted);">No tienes posiciones de trading abiertas.</p>`;
+                container.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-muted);">No tienes posiciones ni historial registrado.</p>`;
                 return;
             }
 
             let html = '';
             misPosiciones.forEach((pos, index) => {
                 const retornoPotencial = pos.contratos * 1.0;
+                let estadoBadge = `<span style="color: #38bdf8;">En Curso (Order Book)</span>`;
+                let botonAccion = `<button class="action-btn" style="padding: 5px 12px; font-size: 0.75rem; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="venderPosicionOrderBook(${index})">Vender en Libro</button>`;
+
+                if (pos.estado === 'ganador') {
+                    estadoBadge = `<span style="color: #4ade80; font-weight: bold;">🎉 ¡Ganador / Settlement Listo!</span>`;
+                    botonAccion = `<button class="action-btn" style="padding: 6px 14px; font-size: 0.8rem; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="cobrarPrediccion(${index})">Cobrar Prediccion</button>`;
+                } else if (pos.estado === 'perdedor') {
+                    estadoBadge = `<span style="color: #f87171;">❌ Cerrado (Sin Payout)</span>`;
+                    botonAccion = `<span style="font-size: 0.75rem; color: var(--text-muted);">Expirado</span>`;
+                }
+
                 html += `
                     <div style="background: var(--card-bg); border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; margin-bottom: 8px;">
                         <div style="font-weight: 600; font-size: 0.82rem; margin-bottom: 4px; color: var(--text-color);">${pos.titulo}</div>
                         <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px;">
                             <span>Contratos: <b style="color: ${pos.opcion === 'SÍ' ? '#4ade80' : '#f87171'}">${pos.contratos} (${pos.opcion})</b></span>
-                            <span>Precio Prom: ${pos.precioEntrada.toFixed(2)} Pi</span>
+                            <span>${estadoBadge}</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px;">
                             <span>Invertido: ${pos.inversion.toFixed(2)} Pi</span>
-                            <span style="color: #38bdf8;">Payout Máx: ${retornoPotencial.toFixed(2)} Pi</span>
+                            <span style="color: #38bdf8;">Payout: ${retornoPotencial.toFixed(2)} Pi</span>
                         </div>
-                        <div style="display: flex; justify-content: flex-end;">
-                            <button class="action-btn" style="padding: 5px 12px; font-size: 0.75rem; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="venderPosicionOrderBook(${index})">Vender en Order Book</button>
+                        <div style="display: flex; justify-content: flex-end; gap: 6px;">
+                            ${botonAccion}
                         </div>
                     </div>
                 `;
@@ -633,8 +644,16 @@
 
         function venderPosicionOrderBook(index) {
             const pos = misPosiciones[index];
-            const precioVentaLiquidez = pos.inversion * 0.96; // pequeña comisión de salida en libro de órdenes
+            const precioVentaLiquidez = pos.inversion * 0.96; 
             alert(`¡Posición liquidada en el Order Book! Recibidos ${precioVentaLiquidez.toFixed(2)} Pi en tu balance.`);
+            misPosiciones.splice(index, 1);
+            renderizarPosiciones();
+        }
+
+        function cobrarPrediccion(index) {
+            const pos = misPosiciones[index];
+            const premio = pos.contratos * 1.0;
+            alert(`¡Cobro exitoso! Se han acreditado ${premio.toFixed(2)} Pi directamente a tu balance por la predicción ganadora.`);
             misPosiciones.splice(index, 1);
             renderizarPosiciones();
         }
