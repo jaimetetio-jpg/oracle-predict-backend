@@ -728,11 +728,7 @@
                     const mercadoResuelto = resultadoOficial !== undefined;
                     const esGanadora = mercadoResuelto && (pos.opcion === resultadoOficial);
                     
-                    // Lógica del botón "Cobrar Predicción":
-                    // Verde traslúcido mientras está en curso o no se gana.
-                    // Verde sólido y activo solo si el mercado está resuelto y se gana la predicción.
                     let watermarkText = "EN CURSO";
-                    let cobrarBtnClass = "";
                     let cobrarBtnStyle = "background: rgba(22, 163, 74, 0.3); border-color: rgba(34, 197, 94, 0.4); color: #86efac;";
                     let cobrarBtnDisabled = true;
 
@@ -1020,7 +1016,7 @@
                 html += `
                     <div style="background: var(--card-bg); border: 1px solid var(--border-color); padding: 8px 10px; border-radius: 6px; margin-bottom: 6px; font-size: 0.78rem;">
                         <div style="display: flex; justify-content: space-between; color: #38bdf8; font-weight: bold; margin-bottom: 2px;">
-                            <span>${log.usuario} - [${log.tipo}]</span>
+                            <span>${log.usuario} - [${log.tipo}]*/span>
                             <span style="color: var(--text-muted); font-size: 0.7rem;">${log.hora}</span>
                         </div>
                         <div style="color: var(--text-color);">${log.detalles}</div>
