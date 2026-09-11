@@ -728,24 +728,23 @@
                     const mercadoResuelto = resultadoOficial !== undefined;
                     const esGanadora = mercadoResuelto && (pos.opcion === resultadoOficial);
                     
-                    // Marca de agua y botones según estado
+                    // Lógica del botón "Cobrar Predicción":
+                    // Verde traslúcido mientras está en curso o no se gana.
+                    // Verde sólido y activo solo si el mercado está resuelto y se gana la predicción.
                     let watermarkText = "EN CURSO";
-                    let btnText = "Vender / Cerrar Posición";
-                    let btnAction = `venderPosicion(${index})`;
-                    let btnBg = "background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;";
-                    let btnDisabled = false;
+                    let cobrarBtnClass = "";
+                    let cobrarBtnStyle = "background: rgba(22, 163, 74, 0.3); border-color: rgba(34, 197, 94, 0.4); color: #86efac;";
+                    let cobrarBtnDisabled = true;
 
                     if (mercadoResuelto) {
                         if (esGanadora) {
-                            watermarkText = "¡COBRAR PREDICCIÓN!";
-                            btnText = "🏆 Cobrar Predicción";
-                            btnAction = `cobrarPrediccionGanadora(${index})`;
-                            btnBg = "background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;";
+                            watermarkText = "¡GANADA!";
+                            cobrarBtnStyle = "background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e; color: #ffffff;";
+                            cobrarBtnDisabled = false;
                         } else {
                             watermarkText = "PERDIDA";
-                            btnText = "Predicción Fallida";
-                            btnDisabled = true;
-                            btnBg = "";
+                            cobrarBtnStyle = "background: rgba(220, 38, 38, 0.3); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5;";
+                            cobrarBtnDisabled = true;
                         }
                     }
 
@@ -762,8 +761,9 @@
                                 <span>Invertido: ${pos.inversion.toFixed(2)} Pi</span>
                                 <span style="color: #38bdf8;">Payout: ${retornoPotencial.toFixed(2)} Pi</span>
                             </div>
-                            <div style="display: flex; justify-content: flex-end; gap: 6px;">
-                                <button class="action-btn" style="padding: 6px 14px; font-size: 0.78rem; width: 100%; ${btnBg}" ${btnDisabled ? 'disabled' : ''} onclick="${btnAction}">${btnText}</button>
+                            <div style="display: flex; gap: 6px;">
+                                <button class="action-btn" style="flex: 1; padding: 6px 10px; font-size: 0.75rem; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="venderPosicion(${index})">Vender / Cerrar</button>
+                                <button class="action-btn" style="flex: 1; padding: 6px 10px; font-size: 0.75rem; ${cobrarBtnStyle}" ${cobrarBtnDisabled ? 'disabled' : ''} onclick="cobrarPrediccionGanadora(${index})">Cobrar Predicción</button>
                             </div>
                         </div>
                     `;
@@ -785,7 +785,7 @@
                             </div>
                             <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted);">
                                 <span>Invertido: ${op.inversion.toFixed(2)} Pi</span>
-                                <span style="color: #4ade80;">Retorno: +${op.recompensa.toFixed(2)} Pi</span>
+                                <span style="color: #4ade80;">Retorno: ${op.recompensa.toFixed(2)} Pi</span>
                             </div>
                         </div>
                     `;
@@ -796,7 +796,6 @@
 
         function venderPosicion(index) {
             const pos = misPosiciones[index];
-            // Reembolso del 90% al vender de forma anticipada en el Order Book secundario
             const valorVenta = pos.inversion * 0.90; 
             
             saldoUsuarioPi += valorVenta;
@@ -809,7 +808,7 @@
                 inversion: pos.inversion,
                 recompensa: valorVenta,
                 tipoWatermark: "VENDIDA",
-                estadoTexto: "Venta Anticipada"
+                estadoTexto: "Vendida"
             });
 
             registrarAccionAdmin("VENTA DE POSICIÓN", `Vendió anticipadamente ${pos.contratos} contratos [${pos.opcion}] por ${valorVenta.toFixed(2)} Pi`);
@@ -832,8 +831,8 @@
                 contratos: pos.contratos,
                 inversion: pos.inversion,
                 recompensa: recompensaTotal,
-                tipoWatermark: "COBRADA",
-                estadoTexto: "Cobrado con Éxito"
+                tipoWatermark: "GANADA",
+                estadoTexto: "Ganada"
             });
 
             registrarAccionAdmin("COBRO DE PREDICCIÓN", `Cobró ${recompensaTotal.toFixed(2)} Pi por predicción ganadora [${pos.opcion}]`);
