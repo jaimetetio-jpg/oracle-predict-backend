@@ -336,7 +336,7 @@
 
         <div id="markets-container">
             <!-- Mercados Interactivos con Order Book integrados -->
-            <div class="market-card" data-id="1">
+            <div class="market-card" data-id="1" data-category="Crypto">
                 <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">
                     <span>🏷️ Crypto</span>
                     <span>Creador: @satoshi</span>
@@ -349,7 +349,7 @@
                 </div>
             </div>
 
-            <div class="market-card" data-id="2">
+            <div class="market-card" data-id="2" data-category="Pi Ecosystem">
                 <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">
                     <span>🏷️ Pi Ecosystem</span>
                     <span>Creador: @picoin</span>
@@ -419,7 +419,7 @@
             <div style="display: flex; gap: 8px;">
                 <div class="form-group" style="flex:1;">
                     <label>Precio por Contrato (Pi)</label>
-                    <input type="number" id="clob-price" class="form-control" value="0.50" min="0.01" max="0.99" step="0.01">
+                    <input type="number" id="clob-price" class="form-control" value="0.50" min="0.01" max="0.99" step="0.01" oninput="calcularTotalCLOB()">
                 </div>
                 <div class="form-group" style="flex:1;">
                     <label>Cantidad de Contratos</label>
@@ -520,6 +520,7 @@
         let usernameGlobal = "@jaimetetio";
         let misPosiciones = [];
         let tradeState = { mercadoId: null, titulo: '', opcion: '', precioUnitario: 0.5 };
+        let saldoUsuarioPi = 150.00;
 
         async function inicializarApp() {
             try {
@@ -533,8 +534,13 @@
             } catch (e) {
                 console.log("Modo navegador web estándar detectado.");
             }
+            actualizarUIBalance();
             renderizarPosiciones();
             actualizarOrderBookView();
+        }
+
+        function actualizarUIBalance() {
+            document.getElementById('user-balance').innerText = saldoUsuarioPi.toFixed(2) + ' Pi';
         }
 
         function switchTab(tabId, el) {
@@ -569,7 +575,7 @@
             const contracts = parseInt(document.getElementById('trade-contracts').value) || 0;
             const price = tradeState.precioUnitario;
             const cost = contracts * price;
-            const payout = contracts * 1.0; // Cada contrato ganador paga exactamente 1 Pi en settlement
+            const payout = contracts * 1.0; 
 
             document.getElementById('modal-price-display').innerText = price.toFixed(2) + ' Pi';
             document.getElementById('modal-cost-display').innerText = cost.toFixed(2) + ' Pi';
@@ -585,6 +591,14 @@
             const price = tradeState.precioUnitario;
             const inversion = contracts * price;
 
+            if (inversion > saldoUsuarioPi) {
+                alert('Saldo insuficiente en tu balance de Pi para ejecutar esta orden.');
+                return;
+            }
+
+            saldoUsuarioPi -= inversion;
+            actualizarUIBalance();
+
             const nuevaPosicion = {
                 id: Date.now(),
                 titulo: tradeState.titulo,
@@ -592,7 +606,7 @@
                 contratos: contracts,
                 precioEntrada: price,
                 inversion: inversion,
-                estado: 'activo' // activo, ganador, perdedor
+                estado: 'activo'
             };
 
             misPosiciones.push(nuevaPosicion);
@@ -645,6 +659,8 @@
         function venderPosicionOrderBook(index) {
             const pos = misPosiciones[index];
             const precioVentaLiquidez = pos.inversion * 0.96; 
+            saldoUsuarioPi += precioVentaLiquidez;
+            actualizarUIBalance();
             alert(`¡Posición liquidada en el Order Book! Recibidos ${precioVentaLiquidez.toFixed(2)} Pi en tu balance.`);
             misPosiciones.splice(index, 1);
             renderizarPosiciones();
@@ -653,6 +669,8 @@
         function cobrarPrediccion(index) {
             const pos = misPosiciones[index];
             const premio = pos.contratos * 1.0;
+            saldoUsuarioPi += premio;
+            actualizarUIBalance();
             alert(`¡Cobro exitoso! Se han acreditado ${premio.toFixed(2)} Pi directamente a tu balance por la predicción ganadora.`);
             misPosiciones.splice(index, 1);
             renderizarPosiciones();
@@ -690,18 +708,61 @@
         }
 
         function ejecutarOrdenCLOB(tipo) {
-            const price = document.getElementById('clob-price').value;
-            const amount = document.getElementById('clob-amount').value;
+            const price = parseFloat(document.getElementById('clob-price').value) || 0;
+            const amount = parseInt(document.getElementById('clob-amount').value) || 0;
             const opcion = document.getElementById('clob-option-select').value;
-            alert(`Orden Limit [${tipo}] enviada al Order Book: ${amount} contratos de [${opcion}] a ${price} Pi.`);
+            const totalInversion = price * amount;
+
+            if (tipo.includes('COMPRA') && totalInversion > saldoUsuarioPi) {
+                alert('Saldo insuficiente en tu balance de Pi para colocar esta orden de compra.');
+                return;
+            }
+
+            if (tipo.includes('COMPRA')) {
+                saldoUsuarioPi -= totalInversion;
+                actualizarUIBalance();
+                misPosiciones.push({
+                    id: Date.now(),
+                    titulo: document.getElementById('clob-event-select').options[document.getElementById('clob-event-select').selectedIndex].text,
+                    opcion: opcion,
+                    contratos: amount,
+                    precioEntrada: price,
+                    inversion: totalInversion,
+                    estado: 'activo'
+                });
+                renderizarPosiciones();
+            }
+
+            alert(`Orden Limit [${tipo}] enviada y registrada en el Order Book: ${amount} contratos de [${opcion}] a ${price} Pi.`);
         }
 
         function setCategory(cat, el) {
             document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
             el.classList.add('active');
+
+            const cards = document.querySelectorAll('#markets-container .market-card');
+            cards.forEach(card => {
+                const cardCat = card.getAttribute('data-category');
+                if (cat === 'Todos' || cardCat === cat) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
         }
 
-        function filtrarMercados() {}
+        function filtrarMercados() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const cards = document.querySelectorAll('#markets-container .market-card');
+            cards.forEach(card => {
+                const title = card.querySelector('.market-title').innerText.toLowerCase();
+                if (title.includes(query)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
 
         function depositarConPiNetwork() {
             const monto = parseFloat(document.getElementById('wallet-amount').value || 1);
@@ -712,17 +773,31 @@
                     metadata: { user: usernameGlobal }
                 }, {
                     onReadyForServerApproval: (paymentId) => {},
-                    onReadyForServerCompletion: (paymentId, txid) => { alert('¡Recarga completada con éxito!'); },
+                    onReadyForServerCompletion: (paymentId, txid) => {
+                        saldoUsuarioPi += monto;
+                        actualizarUIBalance();
+                        alert('¡Recarga completada con éxito!');
+                    },
                     onCancel: (paymentId) => {},
                     onError: (error) => { alert('Error en pago Pi: ' + error); }
                 });
             } else {
-                alert('SDK de Pi no disponible en este navegador simulado.');
+                // Simulación en entorno web estándar
+                saldoUsuarioPi += monto;
+                actualizarUIBalance();
+                alert(`[Simulación Web] Recarga de ${monto.toFixed(2)} Pi completada con éxito.`);
             }
         }
 
         function retirarBilletera() {
-            alert('Solicitud de retiro enviada al contrato de Pi Network.');
+            const monto = parseFloat(document.getElementById('wallet-amount').value || 1);
+            if (monto > saldoUsuarioPi) {
+                alert('No tienes suficiente saldo para retirar esa cantidad.');
+                return;
+            }
+            saldoUsuarioPi -= monto;
+            actualizarUIBalance();
+            alert(`Solicitud de retiro de ${monto.toFixed(2)} Pi procesada y enviada a la blockchain de Pi Network.`);
         }
 
         function verificarLoginAdmin() {
