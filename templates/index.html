@@ -319,6 +319,7 @@
             z-index: 1;
         }
 
+        /* Estilos para la tabla del Order Book visible */
         .orderbook-table {
             width: 100%;
             border-collapse: collapse;
@@ -367,7 +368,7 @@
 
     <div class="nav-tabs">
         <button class="nav-tab active" onclick="switchTab('mercados', this)">Mercados</button>
-        <button class="nav-tab" onclick="switchTab('clob', this)">Ordenes</button>
+        <button class="nav-tab" onclick="switchTab('clob', this)">Order Book</button>
         <button class="nav-tab" onclick="switchTab('ranking', this)">Ranking</button>
         <button class="nav-tab" onclick="switchTab('admin', this)">Admin</button>
     </div>
@@ -389,7 +390,7 @@
                     <span id="estado-mercado-1" style="color: #eab308; font-weight: bold;">● Abierto</span>
                 </div>
                 <div class="market-title">¿Bitcoin superará los $100,000 antes de finalizar este mes?</div>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Compra SÍ: <span style="color: #4ade80; font-weight: bold;">0.64 Pi</span> | Compra NO: <span style="color: #f87171; font-weight: bold;">0.36 Pi</span></p>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span style="color: #4ade80; font-weight: bold;">0.64 Pi</span> | Ask NO: <span style="color: #f87171; font-weight: bold;">0.36 Pi</span></p>
                 <div style="display: flex; gap: 8px;">
                     <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'SÍ', 0.64)">Comprar SÍ</button>
                     <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'NO', 0.36)">Comprar NO</button>
@@ -402,7 +403,7 @@
                     <span id="estado-mercado-2" style="color: #eab308; font-weight: bold;">● Abierto</span>
                 </div>
                 <div class="market-title">¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?</div>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Compra SÍ: <span style="color: #4ade80; font-weight: bold;">0.81 Pi</span> | Compra NO: <span style="color: #f87171; font-weight: bold;">0.19 Pi</span></p>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span style="color: #4ade80; font-weight: bold;">0.81 Pi</span> | Ask NO: <span style="color: #f87171; font-weight: bold;">0.19 Pi</span></p>
                 <div style="display: flex; gap: 8px;">
                     <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'SÍ', 0.81)">Comprar SÍ</button>
                     <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'NO', 0.19)">Comprar NO</button>
@@ -432,7 +433,7 @@
         <!-- HISTORIAL DEL USUARIO -->
         <div class="accordion-card open" id="acc-apuestas">
             <button class="accordion-header" onclick="toggleAccordion('acc-apuestas')">
-                <span>📦 Historial de Apuestas y Posiciones</span>
+                <span>📦 Historial de Apuestas y Posiciones (Order Book)</span>
                 <span>▾</span>
             </button>
             <div class="accordion-content" style="padding-top: 12px; display: block;">
@@ -449,11 +450,11 @@
         </div>
     </div>
 
-    <!-- VISTA: ORDENES VISIBLE -->
+    <!-- VISTA: ORDER BOOK P2P VISIBLE -->
     <div id="view-clob" class="section-view">
         <div class="market-card">
-            <div class="market-title">📊 Registro de Órdenes</div>
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Listado general de operaciones de compra registradas en el mercado.</p>
+            <div class="market-title">📊 Order Book P2P en Vivo</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Listado general de ofertas de compra (Bid) y venta (Ask) registradas en el mercado.</p>
             
             <div class="form-group">
                 <label>Filtrar por Mercado</label>
@@ -466,7 +467,7 @@
             <table class="orderbook-table">
                 <thead>
                     <tr>
-                        <th>Operación</th>
+                        <th>Tipo</th>
                         <th>Opción</th>
                         <th>Contratos</th>
                         <th>Precio (Pi)</th>
@@ -475,7 +476,7 @@
                 </thead>
                 <tbody id="orderbook-table-body">
                     <tr>
-                        <td colspan="5" style="text-align: center; color: var(--text-muted);">No hay órdenes en el registro actualmente.</td>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted);">No hay órdenes en el libro actualmente.</td>
                     </tr>
                 </tbody>
             </table>
@@ -542,12 +543,12 @@
             </div>
 
             <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
-                <div>Precio unitario: <span id="modal-price-unit" style="color: #38bdf8;">0.00</span> Pi</div>
+                <div>Precio unitario (Ask): <span id="modal-price-unit" style="color: #38bdf8;">0.00</span> Pi</div>
                 <div>Inversión Total Requerida: <span id="modal-total-req" style="color: #f59e0b; font-weight: bold;">0.00</span> Pi</div>
                 <div>Payout si se acierta (1 Pi c/u): <span id="modal-payout" style="color: #4ade80; font-weight: bold;">0.00</span> Pi</div>
             </div>
 
-            <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #2563eb, #1d4ed8);" onclick="confirmarCompraRapida()">Confirmar Compra</button>
+            <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #2563eb, #1d4ed8);" onclick="confirmarCompraRapida()">Confirmar Orden al Order Book</button>
         </div>
     </div>
 
@@ -560,7 +561,7 @@
         let usuarioActual = { handle: "@jaimetetio", balance: 150.00 };
         let posicionesActivas = [];
         let historialTransacciones = []; 
-        let ordenesGlobales = []; 
+        let ordenesGlobales = []; // Registro general para el Order Book visible
         let ordenActivaModal = null;
         
         let estadosMercados = {
@@ -633,15 +634,15 @@
             renderizarHistorial();
         }
 
-        function abrirTerminalTrading(idMercado, tituloMercado, opcion, precioCompra) {
+        function abrirTerminalTrading(idMercado, tituloMercado, opcion, precioAsk) {
             if (estadosMercados[idMercado] !== null) {
                 alert("Este mercado ya se encuentra cerrado o resuelto.");
                 return;
             }
-            ordenActivaModal = { idMercado, tituloMercado, opcion, precioCompra };
+            ordenActivaModal = { idMercado, tituloMercado, opcion, precioAsk };
             document.getElementById('modal-title').innerText = `Comprar Contratos [${opcion}]`;
             document.getElementById('modal-market-text').innerText = tituloMercado;
-            document.getElementById('modal-price-unit').innerText = precioCompra.toFixed(2);
+            document.getElementById('modal-price-unit').innerText = precioAsk.toFixed(2);
             document.getElementById('modal-amount').value = 1;
             calcularModalTotal();
             document.getElementById('trading-modal').style.display = 'flex';
@@ -653,7 +654,7 @@
 
         function calcularModalTotal() {
             const cantidad = parseInt(document.getElementById('modal-amount').value) || 1;
-            const totalReq = cantidad * ordenActivaModal.precioCompra;
+            const totalReq = cantidad * ordenActivaModal.precioAsk;
             const payout = cantidad * 1.00; 
             document.getElementById('modal-total-req').innerText = totalReq.toFixed(2);
             document.getElementById('modal-payout').innerText = payout.toFixed(2);
@@ -661,7 +662,7 @@
 
         function confirmarCompraRapida() {
             const cantidad = parseInt(document.getElementById('modal-amount').value) || 1;
-            const totalReq = cantidad * ordenActivaModal.precioCompra;
+            const totalReq = cantidad * ordenActivaModal.precioAsk;
 
             if (estadosMercados[ordenActivaModal.idMercado] !== null) {
                 alert("Este mercado ya se encuentra cerrado.");
@@ -689,19 +690,20 @@
 
             posicionesActivas.push(nuevaPosicion);
             
+            // Agregar al Order Book visible
             ordenesGlobales.push({
                 marketId: ordenActivaModal.idMercado,
-                tipo: 'Compra',
+                tipo: 'COMPRA (Bid)',
                 opcion: ordenActivaModal.opcion,
                 contratos: cantidad,
-                precio: ordenActivaModal.precioCompra,
+                precio: ordenActivaModal.precioAsk,
                 trader: usuarioActual.handle
             });
 
             renderizarPosiciones();
             renderizarOrderBookVisible();
             cerrarTerminalTrading();
-            alert("¡Compra realizada y registrada con éxito!");
+            alert("¡Orden ejecutada y registrada en el Order Book con éxito!");
         }
 
         function renderizarOrderBookVisible() {
@@ -711,7 +713,7 @@
             const filtradas = ordenesGlobales.filter(o => o.marketId == marketIdFiltro);
 
             if (filtradas.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 12px;">No hay órdenes registradas para este mercado.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 12px;">No hay órdenes en el libro para este mercado.</td></tr>';
                 return;
             }
 
@@ -794,13 +796,13 @@
                 titulo: pos.titulo,
                 tipo: 'Venta Anticipada',
                 monto: retornoVenta,
-                detalle: `${pos.contratos} contratos (${pos.opcion}) vendidos`
+                detalle: `${pos.contratos} contratos (${pos.opcion}) vendidos antes de tiempo`
             });
 
             posicionesActivas.splice(idx, 1);
             renderizarPosiciones();
             renderizarHistorial();
-            alert(`¡Has vendido tus contratos! Se han acreditado ${retornoVenta.toFixed(2)} Pi a tu balance.`);
+            alert(`¡Has vendido tus contratos anticipadamente! Se han acreditado ${retornoVenta.toFixed(2)} Pi a tu balance.`);
         }
 
         function cobrarPrediccion(idx) {
@@ -866,7 +868,7 @@
                 detalle: 'Recarga procesada mediante Blockchain Pi'
             });
             renderizarHistorial();
-            alert(`¡Depósito de ${monto} Pi realizado correctamente!`);
+            alert(`¡Depósito de ${monto} Pi realizado correctamente mediante Pi SDK!`);
         }
 
         function retirarBilletera() {
@@ -905,7 +907,7 @@
             }
 
             renderizarPosiciones();
-            alert(`¡El administrador ha declarado a "${ganador}" como ganador oficial del mercado #${marketId}!`);
+            alert(`¡El administrador ha declarado a "${ganador}" como ganador oficial del mercado #${marketId}! Los usuarios ganadores ya pueden cobrar sus premios.`);
             switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
         }
 
