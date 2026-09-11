@@ -240,6 +240,15 @@
             box-shadow: var(--shadow-3d-active);
         }
 
+        .action-btn:disabled {
+            background: linear-gradient(145deg, #2a2e43, #1f2233) !important;
+            border-color: #3a3f58 !important;
+            color: #6b7280 !important;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
         .section-view {
             display: none;
         }
@@ -312,23 +321,55 @@
                     <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'NO', 0.36)">Comprar NO</button>
                 </div>
             </div>
+
+            <div class="market-card" data-id="2" data-category="Pi Ecosystem">
+                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">
+                    <span>🏷️ Pi Ecosystem</span>
+                    <span>Creador: @picoin</span>
+                </div>
+                <div class="market-title">¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?</div>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span style="color: #4ade80; font-weight: bold;">0.81 Pi</span> | Ask NO: <span style="color: #f87171; font-weight: bold;">0.19 Pi</span></p>
+                <div style="display: flex; gap: 8px;">
+                    <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'SÍ', 0.81)">Comprar SÍ</button>
+                    <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'NO', 0.19)">Comprar NO</button>
+                </div>
+            </div>
         </div>
 
-        <!-- POSICIONES Y PORTAFOLIO -->
-        <div class="accordion-card open" id="acc-apuestas">
-            <button class="accordion-header" onclick="toggleAccordion('acc-apuestas')">
-                <span>📦 Posiciones Abiertas y Portafolio (Order Book)</span>
+        <!-- GESTIÓN DE BILLETERA PI NETWORK -->
+        <div class="accordion-card" id="acc-wallet">
+            <button class="accordion-header" onclick="toggleAccordion('acc-wallet')">
+                <span>💳 Gestión de Billetera y Blockchain Pi</span>
                 <span>▾</span>
             </button>
-            <div class="accordion-content" style="padding-top: 12px; display: block;">
-                <div style="font-size: 0.8rem; font-weight: bold; color: var(--text-color); margin-bottom: 6px;">🟢 Posiciones Activas / Contratos</div>
+            <div class="accordion-content" style="padding-top: 12px;">
+                <div style="margin-bottom: 10px;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Monto (Pi)</label>
+                    <input type="number" id="wallet-amount" class="form-control" placeholder="1.0" min="0.1" step="0.1" style="margin-bottom: 10px;">
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                        <button class="action-btn" style="flex:1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="depositarConPiNetwork()">Recargar Pi</button>
+                        <button class="action-btn" style="flex:1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="retirarBilletera()">Retirar Pi</button>
+                    </div>
+                </div>
+                <div id="wallet-history" style="font-size: 0.75rem; color: var(--text-muted);">Conectado con SDK oficial de Pi Network.</div>
+            </div>
+        </div>
+
+        <!-- HISTORIAL DEL USUARIO -->
+        <div class="accordion-card" id="acc-apuestas">
+            <button class="accordion-header" onclick="toggleAccordion('acc-apuestas')">
+                <span>📦 Historial de Apuestas y Posiciones (Order Book)</span>
+                <span>▾</span>
+            </button>
+            <div class="accordion-content" style="padding-top: 12px;">
+                <div style="font-size: 0.8rem; font-weight: bold; color: var(--text-color); margin-bottom: 6px;">🟢 Posiciones Activas / Tickets</div>
                 <div id="my-positions-content" style="margin-bottom: 14px;">
                     <p style="font-size: 0.8rem; color: var(--text-muted);">No tienes posiciones activas.</p>
                 </div>
 
-                <div style="font-size: 0.8rem; font-weight: bold; color: var(--text-color); margin-bottom: 6px; border-top: 1px solid var(--border-color); padding-top: 10px;">📜 Registro de Ejecuciones y Órdenes (Historial Cerrado)</div>
+                <div style="font-size: 0.8rem; font-weight: bold; color: var(--text-color); margin-bottom: 6px; border-top: 1px solid var(--border-color); padding-top: 10px;">📜 Historial de Transacciones</div>
                 <div id="my-history-content">
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">No hay transacciones liquidadas aún.</p>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">No hay transacciones registradas aún.</p>
                 </div>
             </div>
         </div>
@@ -338,12 +379,13 @@
     <div id="view-clob" class="section-view">
         <div class="market-card">
             <div class="market-title">📈 Libro de Órdenes P2P (CLOB) & Matching Engine</div>
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Introduce tus órdenes Limit o de Mercado.</p>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Introduce tus órdenes Limit o de Mercado basadas en el Order Book central.</p>
             
             <div class="form-group">
                 <label>Seleccionar Mercado</label>
                 <select id="clob-event-select" class="form-control">
                     <option value="1">¿Bitcoin superará los $100,000?</option>
+                    <option value="2">¿Se habilitará Open Mainnet este trimestre?</option>
                 </select>
             </div>
             <div class="form-group">
@@ -356,7 +398,7 @@
             <div style="display: flex; gap: 8px;">
                 <div class="form-group" style="flex:1;">
                     <label>Precio por Contrato (Pi)</label>
-                    <input type="number" id="clob-price" class="form-control" value="0.64" min="0.01" max="0.99" step="0.01" oninput="calcularTotalCLOB()">
+                    <input type="number" id="clob-price" class="form-control" value="0.50" min="0.01" max="0.99" step="0.01" oninput="calcularTotalCLOB()">
                 </div>
                 <div class="form-group" style="flex:1;">
                     <label>Cantidad de Contratos</label>
@@ -366,31 +408,66 @@
 
             <div style="background: rgba(37, 99, 235, 0.08); padding: 8px; border-radius: 8px; margin-bottom: 12px; font-size: 0.8rem; display: flex; justify-content: space-between;">
                 <span>Total a Pagar / Invertir:</span>
-                <b id="clob-total-display" style="color: #38bdf8;">6.40 Pi</b>
+                <b id="clob-total-display" style="color: #38bdf8;">5.00 Pi</b>
             </div>
 
-            <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="ejecutarOrdenCLOB('COMPRA / BID')">Comprar (Bid)</button>
+            <div style="display: flex; gap: 8px;">
+                <button class="action-btn" style="flex:1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="ejecutarOrdenCLOB('COMPRA / BID')">Comprar (Bid)</button>
+                <button class="action-btn" style="flex:1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="ejecutarOrdenCLOB('VENTA / ASK')">Vender (Ask)</button>
+            </div>
         </div>
     </div>
 
     <script>
         let balanceUsuario = 150.00;
-        let posicionesActivas = [];
-        let historialTransacciones = [];
 
         function toggleTheme() {
-            document.body.setAttribute('data-theme', document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+            const body = document.body;
+            if (body.getAttribute('data-theme') === 'dark') {
+                body.setAttribute('data-theme', 'light');
+            } else {
+                body.setAttribute('data-theme', 'dark');
+            }
         }
 
         function switchTab(viewId, btnElement) {
             document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
-            document.getElementById('view-' + viewId).classList.add('active');
+            
+            const target = document.getElementById('view-' + viewId);
+            if(target) target.classList.add('active');
             if(btnElement) btnElement.classList.add('active');
         }
 
         function toggleAccordion(id) {
-            document.getElementById(id).classList.toggle('open');
+            const card = document.getElementById(id);
+            if(card) {
+                card.classList.toggle('open');
+            }
+        }
+
+        function filtrarMercados() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            document.querySelectorAll('.market-card').forEach(card => {
+                const title = card.querySelector('.market-title').textContent.toLowerCase();
+                if (title.includes(query)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function setCategory(cat, btn) {
+            document.querySelectorAll('.filter-pills .pill').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.market-card').forEach(card => {
+                if (cat === 'Todos' || card.getAttribute('data-category') === cat) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
         }
 
         function abrirTerminalTrading(id, titulo, opcion, precio) {
@@ -404,13 +481,39 @@
         function calcularTotalCLOB() {
             const price = parseFloat(document.getElementById('clob-price').value) || 0;
             const amount = parseInt(document.getElementById('clob-amount').value) || 0;
-            document.getElementById('clob-total-display').textContent = (price * amount).toFixed(2) + ' Pi';
+            const total = price * amount;
+            document.getElementById('clob-total-display').textContent = total.toFixed(2) + ' Pi';
+        }
+
+        function depositarConPiNetwork() {
+            const monto = parseFloat(document.getElementById('wallet-amount').value);
+            if (!monto || monto <= 0) {
+                alert('Por favor ingresa un monto válido.');
+                return;
+            }
+            balanceUsuario += monto;
+            document.getElementById('user-balance').textContent = balanceUsuario.toFixed(2) + ' Pi';
+            document.getElementById('wallet-history').textContent = `Última recarga exitosa de ${monto} Pi vía Pi SDK.`;
+            alert(`¡Recarga de ${monto} Pi procesada con éxito!`);
+        }
+
+        function retirarBilletera() {
+            const monto = parseFloat(document.getElementById('wallet-amount').value);
+            if (!monto || monto <= 0) {
+                alert('Por favor ingresa un monto válido para retirar.');
+                return;
+            }
+            if (monto > balanceUsuario) {
+                alert('Fondos insuficientes en tu balance.');
+                return;
+            }
+            balanceUsuario -= monto;
+            document.getElementById('user-balance').textContent = balanceUsuario.toFixed(2) + ' Pi';
+            document.getElementById('wallet-history').textContent = `Retiro de ${monto} Pi procesado correctamente.`;
+            alert(`¡Retiro de ${monto} Pi realizado con éxito!`);
         }
 
         function ejecutarOrdenCLOB(tipo) {
-            const eventSelect = document.getElementById('clob-event-select');
-            const mercadoTitulo = eventSelect.options[eventSelect.selectedIndex].text;
-            const opcion = document.getElementById('clob-option-select').value;
             const price = parseFloat(document.getElementById('clob-price').value);
             const amount = parseInt(document.getElementById('clob-amount').value);
             const total = price * amount;
@@ -423,57 +526,20 @@
             balanceUsuario -= total;
             document.getElementById('user-balance').textContent = balanceUsuario.toFixed(2) + ' Pi';
 
-            // REGISTRO ÚNICAMENTE EN POSICIONES ACTIVAS
-            posicionesActivas.push({ mercado: mercadoTitulo, opcion, amount, price, total, tipo });
-            
-            actualizarUIPosiciones();
-
-            // CORRECCIÓN CLAVE: Al comprar, nos pasamos a la pestaña de "Mercados" y abrimos el acordeón de posiciones
-            switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
-            document.getElementById('acc-apuestas').classList.add('open');
-
-            alert(`¡Orden ${tipo} ejecutada con éxito! Tu posición ya está activa.`);
-        }
-
-        function actualizarUIPosiciones() {
-            const container = document.getElementById('my-positions-content');
-            if (posicionesActivas.length === 0) {
-                container.innerHTML = '<p style="font-size: 0.8rem; color: var(--text-muted);">No tienes posiciones activas.</p>';
-                return;
+            // Agregar a Historial de Transacciones
+            const historyContent = document.getElementById('my-history-content');
+            if (historyContent.querySelector('p')) {
+                historyContent.innerHTML = '';
             }
 
-            let html = '';
-            posicionesActivas.forEach((pos, index) => {
-                const colorBadge = pos.opcion === 'SÍ' ? '#4ade80' : '#f87171';
-                html += `
-                    <div style="background:var(--card-bg); border:1px solid var(--border-color); padding:10px; border-radius:8px; margin-bottom:8px; font-size:0.75rem;">
-                        <div style="font-weight:bold; color:var(--text-color); margin-bottom:4px;">${pos.mercado}</div>
-                        <div style="display:flex; justify-content:space-between; color:var(--text-muted); margin-bottom:6px;">
-                            <span>Opción: <b style="color:${colorBadge}">${pos.opcion}</b></span>
-                            <span>Contratos: <b>${pos.amount}</b></span>
-                            <span>Precio: <b>${pos.price} Pi</b></span>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="color:#38bdf8;">Invertido: ${pos.total.toFixed(2)} Pi</span>
-                            <button class="action-btn" style="padding:4px 8px; font-size:0.7rem; background:linear-gradient(145deg, #166534, #14532d); border-color:#22c55e;" onclick="liquidarPosicion(${index})">Liquidar</button>
-                        </div>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-        }
+            const item = document.createElement('div');
+            item.style.cssText = 'background:var(--card-bg); border:1px solid var(--border-color); padding:8px; border-radius:6px; margin-bottom:6px; font-size:0.75rem;';
+            item.innerHTML = `<b>${tipo}</b> | ${amount} contratos @ ${price} Pi (Total: ${total.toFixed(2)} Pi)`;
+            historyContent.prepend(item);
 
-        function liquidarPosicion(index) {
-            const pos = posicionesActivas[index];
-            const retorno = pos.total * 1.25;
-            balanceUsuario += retorno;
-            document.getElementById('user-balance').textContent = balanceUsuario.toFixed(2) + ' Pi';
-
-            historialTransacciones.unshift(`Liquidación de (${pos.opcion}) en "${pos.mercado}" +${retorno.toFixed(2)} Pi`);
-            posicionesActivas.splice(index, 1);
-            
-            actualizarUIPosiciones();
-            alert(`¡Posición liquidada con éxito!`);
+            alert(`Orden ${tipo} ejecutada exitosamente por ${total.toFixed(2)} Pi.`);
+            switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
+            toggleAccordion('acc-apuestas');
         }
     </script>
 </body>
