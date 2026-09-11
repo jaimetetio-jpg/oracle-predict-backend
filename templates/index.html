@@ -10,9 +10,10 @@
     <script>
         Pi.init({ version: "2.0", sandbox: true });
 
-        // Configuración de Supabase (Reemplaza con tus credenciales reales o variables de entorno)
-        const SUPABASE_URL = 'TU_SUPABASE_URL_AQUI';
-        const SUPABASE_ANON_KEY = 'TU_SUPABASE_ANON_KEY_AQUI';
+        // Configuración de Supabase (Credenciales integradas correctamente)
+        const SUPABASE_URL = 'https://uwrqtuxzycduakqftvjx.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3cnF0dXh6eWNkdWFrcWZ0dmp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NDg5MjcsImV4cCI6MjEwNDUyNDkyN30.7r8AYXSYOml1Ub68INeXXZKTIrqXbCpD-V9oAvFldZU';
+        
         const supabaseClient = (SUPABASE_URL && SUPABASE_URL !== 'TU_SUPABASE_URL_AQUI') 
             ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
             : null;
