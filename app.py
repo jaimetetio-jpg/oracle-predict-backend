@@ -158,7 +158,6 @@ def inicializar_bd():
     
     conn.commit()
 
-    # Sembrar eventos iniciales si la tabla está vacía
     c.execute("SELECT COUNT(*) as total FROM eventos")
     row = c.fetchone()
     total_evs = row["total"] if row else 0
@@ -392,7 +391,7 @@ def participar():
     finally:
         conn.close()
 
-# ================= RUTAS DEL ORDER BOOK / CLOB =================
+# ================= RUTAS DEL ORDER BOOK / CLOB CON MOTOR DE MATCHING =================
 @app.route("/api/clob/ordenes", methods=["GET"])
 def obtener_ordenes_clob():
     evento_id = request.args.get("evento_id")
@@ -416,7 +415,7 @@ def crear_orden_clob():
     evento_id = data.get("evento_id")
     opcion_id = data.get("opcion_id")
     tipo_orden = data.get("tipo_orden", "limit")
-    accion = data.get("accion") # 'comprar' o 'vender'
+    accion = data.get("accion")  # 'comprar' o 'vender'
     
     try:
         precio = float(data.get("precio", 0))
@@ -427,38 +426,150 @@ def crear_orden_clob():
     if precio <= 0 or cantidad <= 0 or accion not in ["comprar", "vender"]:
         return jsonify({"success": False, "error": "Parámetros de orden incorrectos"}), 400
 
-    costo_total = precio * cantidad if accion == "comprar" else cantidad
-
     conn = obtener_conexion()
     c = conn.cursor()
     try:
+        costo_inicial = precio * cantidad if accion == "comprar" else cantidad
         if DATABASE_URL:
             c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
         else:
             c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
-        row = c.fetchone()
+        row_user = c.fetchone()
         
-        if not row or row["saldo_disponible"] < costo_total:
+        if not row_user or row_user["saldo_disponible"] < costo_inicial:
             conn.rollback()
             conn.close()
-            return jsonify({"success": False, "error": "Saldo insuficiente para colocar esta orden en el Order Book"})
+            return jsonify({"success": False, "error": "Saldo insuficiente para colocar la orden"})
 
-        nuevo_saldo = row["saldo_disponible"] - costo_total
+        nuevo_saldo_creador = row_user["saldo_disponible"] - costo_inicial
         if DATABASE_URL:
-            c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
-            c.execute("INSERT INTO ordenes_clob (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, estado, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s, 'activa', %s)",
-                      (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, datetime.now().strftime("%Y-%m-%d %H:%M")))
-            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
-                      (username, f"Orden CLOB ({accion})", -costo_total, f"CLOB_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
+            c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo_creador, username))
         else:
-            c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
-            c.execute("INSERT INTO ordenes_clob (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, estado, fecha) VALUES (?, ?, ?, ?, ?, ?, ?, 'activa', ?)",
-                      (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, datetime.now().strftime("%Y-%m-%d %H:%M")))
+            c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo_creador, username))
+
+        cantidad_restante = cantidad
+        fecha_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+        # ================= MOTOR DE MATCHING (CRUCE DE ÓRDENES) =================
+        if accion == "comprar":
+            if DATABASE_URL:
+                c.execute("""SELECT * FROM ordenes_clob WHERE evento_id = %s AND opcion_id = %s AND accion = 'vender' AND estado = 'activa' AND precio <= %s ORDER BY precio ASC, id ASC FOR UPDATE""", (evento_id, opcion_id, precio))
+            else:
+                c.execute("""SELECT * FROM ordenes_clob WHERE evento_id = %s AND opcion_id = %s AND accion = 'vender' AND estado = 'activa' AND precio <= %s ORDER BY precio ASC, id ASC""", (evento_id, opcion_id, precio))
+            contra_ordenes = c.fetchall()
+
+            for contra in contra_ordenes:
+                if cantidad_restante <= 0:
+                    break
+                
+                match_cant = min(cantidad_restante, contra["cantidad"])
+                match_precio = contra["precio"]
+                
+                diferencia_precio = (precio - match_precio) * match_cant
+                if diferencia_precio > 0:
+                    nuevo_saldo_creador += diferencia_precio
+                    if DATABASE_URL:
+                        c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo_creador, username))
+                    else:
+                        c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo_creador, username))
+
+                monto_vendedor = match_precio * match_cant
+                if DATABASE_URL:
+                    c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (contra["username"],))
+                else:
+                    c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (contra["username"],))
+                v_row = c.fetchone()
+                if v_row:
+                    nuevo_saldo_vendedor = v_row["saldo_disponible"] + monto_vendedor
+                    if DATABASE_URL:
+                        c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo_vendedor, contra["username"]))
+                    else:
+                        c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo_vendedor, contra["username"]))
+
+                if DATABASE_URL:
+                    c.execute("SELECT titulo FROM eventos WHERE id = %s", (evento_id,))
+                    ev_row = c.fetchone()
+                    c.execute("SELECT nombre FROM opciones_evento WHERE id = %s", (opcion_id,))
+                    op_row = c.fetchone()
+                    titulo_ev = ev_row["titulo"] if ev_row else "Mercado P2P"
+                    nombre_op = op_row["nombre"] if op_row else "Opción"
+                    
+                    c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (%s, %s, %s, %s, %s)",
+                              (username, titulo_ev, nombre_op, match_precio * match_cant, "Activo"))
+                
+                nueva_contra_cant = contra["cantidad"] - match_cant
+                nuevo_estado_contra = 'completada' if nueva_contra_cant <= 0 else 'activa'
+                if DATABASE_URL:
+                    c.execute("UPDATE ordenes_clob SET cantidad = %s, estado = %s WHERE id = %s", (nueva_contra_cant, nuevo_estado_contra, contra["id"]))
+                else:
+                    c.execute("UPDATE ordenes_clob SET cantidad = ?, estado = ? WHERE id = ?", (nueva_contra_cant, nuevo_estado_contra, contra["id"]))
+
+                cantidad_restante -= match_cant
+
+        else:
+            if DATABASE_URL:
+                c.execute("""SELECT * FROM ordenes_clob WHERE evento_id = %s AND opcion_id = %s AND accion = 'comprar' AND estado = 'activa' AND precio >= %s ORDER BY precio DESC, id ASC FOR UPDATE""", (evento_id, opcion_id, precio))
+            else:
+                c.execute("""SELECT * FROM ordenes_clob WHERE evento_id = %s AND opcion_id = %s AND accion = 'comprar' AND estado = 'activa' AND precio >= %s ORDER BY precio DESC, id ASC""", (evento_id, opcion_id, precio))
+            contra_ordenes = c.fetchall()
+
+            for contra in contra_ordenes:
+                if cantidad_restante <= 0:
+                    break
+                
+                match_cant = min(cantidad_restante, contra["cantidad"])
+                match_precio = contra["precio"]
+                
+                monto_venta = match_precio * match_cant
+
+                nuevo_saldo_creador += monto_venta
+                if DATABASE_URL:
+                    c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo_creador, username))
+                else:
+                    c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo_creador, username))
+
+                if DATABASE_URL:
+                    c.execute("SELECT titulo FROM eventos WHERE id = %s", (evento_id,))
+                    ev_row = c.fetchone()
+                    c.execute("SELECT nombre FROM opciones_evento WHERE id = %s", (opcion_id,))
+                    op_row = c.fetchone()
+                    titulo_ev = ev_row["titulo"] if ev_row else "Mercado P2P"
+                    nombre_op = op_row["nombre"] if op_row else "Opción"
+                    
+                    c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (%s, %s, %s, %s, %s)",
+                              (contra["username"], titulo_ev, nombre_op, match_precio * match_cant, "Activo"))
+
+                nueva_contra_cant = contra["cantidad"] - match_cant
+                nuevo_estado_contra = 'completada' if nueva_contra_cant <= 0 else 'activa'
+                if DATABASE_URL:
+                    c.execute("UPDATE ordenes_clob SET cantidad = %s, estado = %s WHERE id = %s", (nueva_contra_cant, nuevo_estado_contra, contra["id"]))
+                else:
+                    c.execute("UPDATE ordenes_clob SET cantidad = ?, estado = ? WHERE id = ?", (nueva_contra_cant, nuevo_estado_contra, contra["id"]))
+
+                cantidad_restante -= match_cant
+
+        estado_final_orden = 'activa' if cantidad_restante > 0 else 'completada'
+        if cantidad_restante > 0:
+            if DATABASE_URL:
+                c.execute("INSERT INTO ordenes_clob (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, estado, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                          (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad_restante, estado_final_orden, fecha_str))
+            else:
+                c.execute("INSERT INTO ordenes_clob (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, estado, fecha) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                          (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad_restante, estado_final_orden, fecha_str))
+
+        if DATABASE_URL:
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                      (username, f"CLOB Match/Orden ({accion})", -costo_inicial + (precio * (cantidad - cantidad_restante)), f"CLOB_{datetime.now().strftime('%Y%m%d%H%M%S')}", fecha_str))
+        else:
             c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
-                      (username, f"Orden CLOB ({accion})", -costo_total, f"CLOB_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
+                      (username, f"CLOB Match/Orden ({accion})", -costo_inicial + (precio * (cantidad - cantidad_restante)), f"CLOB_{datetime.now().strftime('%Y%m%d%H%M%S')}", fecha_str))
 
         conn.commit()
-        return jsonify({"success": True, "nuevo_saldo": nuevo_saldo, "mensaje": "Orden colocada en el Order Book exitosamente."})
+        return jsonify({
+            "success": True, 
+            "nuevo_saldo": nuevo_saldo_creador, 
+            "mensaje": f"Orden procesada. Ejecutado: {cantidad - cantidad_restante} / Colocado en libro: {cantidad_restante}"
+        })
     except Exception as e:
         conn.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
