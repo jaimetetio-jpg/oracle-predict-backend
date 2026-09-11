@@ -298,7 +298,7 @@
             box-shadow: var(--shadow-3d);
         }
 
-        /* Estilos para la Tarjeta de Posición con Marca de Agua */
+        /* Estilos para la Tarjeta de Posición con Marca de Agua de Cobro */
         .position-ticket {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -313,14 +313,15 @@
             content: attr(data-watermark);
             position: absolute;
             right: 10px;
-            bottom: 5px;
-            font-size: 2.2rem;
+            bottom: 2px;
+            font-size: 1.6rem;
             font-weight: 900;
-            color: rgba(255, 255, 255, 0.03);
+            color: rgba(255, 255, 255, 0.04);
             pointer-events: none;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             z-index: 0;
+            white-space: nowrap;
         }
 
         .position-ticket > * {
@@ -516,7 +517,7 @@
         <div id="admin-dashboard-card" style="display: none;">
             <div class="market-card" style="border-color: #38bdf8; margin-bottom: 14px;">
                 <div class="market-title" style="margin-bottom: 2px;">🏆 Resolución de Mercados (Declarar Ganadores)</div>
-                <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 10px;">Define qué opción ganó para habilitar los botones de "Cobrar Predicción" en los tickets de los usuarios.</p>
+                <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 10px;">Define qué opción ganó para cambiar el estado de cobro en los tickets.</p>
                 
                 <div class="form-group">
                     <label>Mercado</label>
@@ -590,7 +591,7 @@
         let misPosiciones = [];
         let historialOperaciones = [];
         let registroGlobalAdmin = [];
-        let mercadosResoluciones = {}; // Almacena el resultado oficial por ID de mercado: { "1": "SÍ", "2": "NO" }
+        let mercadosResoluciones = {}; 
         let tradeState = { mercadoId: null, titulo: '', opcion: '', precioUnitario: 0.5 };
         let saldoUsuarioPi = 150.00;
 
@@ -711,7 +712,7 @@
             registrarAccionAdmin("RESOLUCIÓN DE MERCADO", `El admin definió que en "${mercadoTitulo}" la opción ganadora es: [${resultadoGanador}]`);
             
             renderizarPosiciones();
-            alert(`¡Mercado resuelto con éxito! Se ha establecido que la opción ganadora es [${resultadoGanador}]. Los botones de cobro se han habilitado en los tickets ganadores.`);
+            alert(`¡Mercado resuelto con éxito! Se ha establecido que la opción ganadora es [${resultadoGanador}]. Los tickets ganadores ya pueden cobrarse.`);
         }
 
         function renderizarPosiciones() {
@@ -727,24 +728,25 @@
                     const mercadoResuelto = resultadoOficial !== undefined;
                     const esGanadora = mercadoResuelto && (pos.opcion === resultadoOficial);
                     
-                    // Definir marca de agua y estado del botón
-                    let watermarkText = "PENDIENTE";
-                    let btnDisabled = true;
-                    let btnText = "Esperando Resultado";
-                    let btnBg = "";
+                    // Marca de agua y botones según estado
+                    let watermarkText = "EN CURSO";
+                    let btnText = "Vender / Cerrar Posición";
+                    let btnAction = `venderPosicion(${index})`;
+                    let btnBg = "background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;";
+                    let btnDisabled = false;
 
-                    if (!mercadoResuelto) {
-                        watermarkText = "EN CURSO";
-                        btnText = "Mercado Abierto";
-                    } else if (esGanadora) {
-                        watermarkText = "¡GANADORA!";
-                        btnDisabled = false;
-                        btnText = "🏆 Cobrar Predicción";
-                        btnBg = "background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;";
-                    } else {
-                        watermarkText = "PERDIDA";
-                        btnText = "Predicción Fallida";
-                        btnBg = "background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;";
+                    if (mercadoResuelto) {
+                        if (esGanadora) {
+                            watermarkText = "¡COBRAR PREDICCIÓN!";
+                            btnText = "🏆 Cobrar Predicción";
+                            btnAction = `cobrarPrediccionGanadora(${index})`;
+                            btnBg = "background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;";
+                        } else {
+                            watermarkText = "PERDIDA";
+                            btnText = "Predicción Fallida";
+                            btnDisabled = true;
+                            btnBg = "";
+                        }
                     }
 
                     const retornoPotencial = pos.contratos * 1.0;
@@ -754,14 +756,14 @@
                             <div style="font-weight: 600; font-size: 0.82rem; margin-bottom: 4px; color: var(--text-color);">${pos.titulo}</div>
                             <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px;">
                                 <span>Contratos: <b style="color: ${pos.opcion === 'SÍ' ? '#4ade80' : '#f87171'}">${pos.contratos} (${pos.opcion})</b></span>
-                                <span style="color: ${esGanadora ? '#4ade80' : (mercadoResuelto ? '#f87171' : '#38bdf8')}">${watermarkText}</span>
+                                <span style="color: ${esGanadora ? '#4ade80' : '#38bdf8'}">${watermarkText}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px;">
                                 <span>Invertido: ${pos.inversion.toFixed(2)} Pi</span>
                                 <span style="color: #38bdf8;">Payout: ${retornoPotencial.toFixed(2)} Pi</span>
                             </div>
                             <div style="display: flex; justify-content: flex-end; gap: 6px;">
-                                <button class="action-btn" style="padding: 6px 14px; font-size: 0.78rem; width: 100%; ${btnBg}" ${btnDisabled ? 'disabled' : ''} onclick="cobrarPrediccionGanadora(${index})">${btnText}</button>
+                                <button class="action-btn" style="padding: 6px 14px; font-size: 0.78rem; width: 100%; ${btnBg}" ${btnDisabled ? 'disabled' : ''} onclick="${btnAction}">${btnText}</button>
                             </div>
                         </div>
                     `;
@@ -770,20 +772,20 @@
             }
 
             if (historialOperaciones.length === 0) {
-                containerHistorial.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-muted);">No hay operaciones cobradas aún.</p>`;
+                containerHistorial.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-muted);">No hay operaciones cobradas o cerradas aún.</p>`;
             } else {
                 let htmlHistorial = '';
                 historialOperaciones.forEach((op) => {
                     htmlHistorial += `
-                        <div class="position-ticket" data-watermark="COBRADA" style="opacity: 0.85;">
+                        <div class="position-ticket" data-watermark="${op.tipoWatermark || 'COBRADA'}" style="opacity: 0.85;">
                             <div style="font-weight: 600; font-size: 0.82rem; margin-bottom: 4px; color: var(--text-color);">${op.titulo}</div>
                             <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px;">
-                                <span>Contratos: <b style="color: ${op.opcion === 'SÍ' ? '#4ade80' : '#f87171'}">${op.contratos} (${opcion = op.opcion})</b></span>
-                                <span style="color: #4ade80;">Cobrado con Éxito</span>
+                                <span>Contratos: <b style="color: ${op.opcion === 'SÍ' ? '#4ade80' : '#f87171'}">${op.contratos} (${op.opcion})</b></span>
+                                <span style="color: #4ade80;">${op.estadoTexto}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted);">
                                 <span>Invertido: ${op.inversion.toFixed(2)} Pi</span>
-                                <span style="color: #4ade80;">Recompensa: +${op.recompensa.toFixed(2)} Pi</span>
+                                <span style="color: #4ade80;">Retorno: +${op.recompensa.toFixed(2)} Pi</span>
                             </div>
                         </div>
                     `;
@@ -792,9 +794,34 @@
             }
         }
 
+        function venderPosicion(index) {
+            const pos = misPosiciones[index];
+            // Reembolso del 90% al vender de forma anticipada en el Order Book secundario
+            const valorVenta = pos.inversion * 0.90; 
+            
+            saldoUsuarioPi += valorVenta;
+            actualizarUIBalance();
+
+            historialOperaciones.unshift({
+                titulo: pos.titulo,
+                opcion: pos.opcion,
+                contratos: pos.contratos,
+                inversion: pos.inversion,
+                recompensa: valorVenta,
+                tipoWatermark: "VENDIDA",
+                estadoTexto: "Venta Anticipada"
+            });
+
+            registrarAccionAdmin("VENTA DE POSICIÓN", `Vendió anticipadamente ${pos.contratos} contratos [${pos.opcion}] por ${valorVenta.toFixed(2)} Pi`);
+
+            misPosiciones.splice(index, 1);
+            renderizarPosiciones();
+            alert(`📉 Posición vendida con éxito en el Order Book. Se han devuelto ${valorVenta.toFixed(2)} Pi a tu balance.`);
+        }
+
         function cobrarPrediccionGanadora(index) {
             const pos = misPosiciones[index];
-            const recompensaTotal = pos.contratos * 1.0; // 1 Pi por contrato acertado
+            const recompensaTotal = pos.contratos * 1.0; 
             
             saldoUsuarioPi += recompensaTotal;
             actualizarUIBalance();
@@ -804,10 +831,12 @@
                 opcion: pos.opcion,
                 contratos: pos.contratos,
                 inversion: pos.inversion,
-                recompensa: recompensaTotal
+                recompensa: recompensaTotal,
+                tipoWatermark: "COBRADA",
+                estadoTexto: "Cobrado con Éxito"
             });
 
-            registrarAccionAdmin("COBRO DE PREDICCIÓN", `El usuario cobró ${recompensaTotal.toFixed(2)} Pi por acertar la opción [${pos.opcion}] en "${pos.titulo}"`);
+            registrarAccionAdmin("COBRO DE PREDICCIÓN", `Cobró ${recompensaTotal.toFixed(2)} Pi por predicción ganadora [${pos.opcion}]`);
 
             misPosiciones.splice(index, 1);
             renderizarPosiciones();
