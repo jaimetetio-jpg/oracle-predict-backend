@@ -450,7 +450,6 @@ def crear_orden_clob():
         cantidad_restante = cantidad
         fecha_str = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-        # Obtener nombres para registrar en historial de apuestas y transacciones
         if DATABASE_URL:
             c.execute("SELECT titulo FROM eventos WHERE id = %s", (evento_id,))
             ev_row = c.fetchone()
@@ -564,15 +563,14 @@ def crear_orden_clob():
                 c.execute("INSERT INTO ordenes_clob (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, estado, fecha) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                           (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad_restante, estado_final_orden, fecha_str))
 
-        # Registrar siempre la operación en el historial de apuestas general o transacciones del usuario
         if DATABASE_URL:
             c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (%s, %s, %s, %s, %s)",
-                      (username, titulo_ev, f"CLOB {accion.capitalize()} ({cantidad} a {precio})", costo_inicial, "Completada/Ordenada"))
+                      (username, titulo_ev, f"CLOB {accion.capitalize()} ({cantidad} a {precio})", costo_inicial, "Vendida" if accion == "vender" else "Completada/Ordenada"))
             c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
                       (username, f"CLOB Orden ({accion})", -costo_inicial + (precio * (cantidad - cantidad_restante)), f"CLOB_{datetime.now().strftime('%Y%m%d%H%M%S')}", fecha_str))
         else:
             c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (?, ?, ?, ?, ?)",
-                      (username, titulo_ev, f"CLOB {accion.capitalize()} ({cantidad} a {precio})", costo_inicial, "Completada/Ordenada"))
+                      (username, titulo_ev, f"CLOB {accion.capitalize()} ({cantidad} a {precio})", costo_inicial, "Vendida" if accion == "vender" else "Completada/Ordenada"))
             c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
                       (username, f"CLOB Orden ({accion})", -costo_inicial + (precio * (cantidad - cantidad_restante)), f"CLOB_{datetime.now().strftime('%Y%m%d%H%M%S')}", fecha_str))
 
@@ -780,7 +778,6 @@ def obtener_ranking():
     conn.close()
     return jsonify({"success": True, "ranking": ranking})
 
-# ================= ENDPOINT PARA COBRAR PREDICCIÓN GANADA =================
 @app.route("/api/cobrar/<int:apuesta_id>", methods=["POST"])
 def cobrar_prediccion(apuesta_id):
     data = request.json or {}
@@ -808,7 +805,6 @@ def cobrar_prediccion(apuesta_id):
             conn.close()
             return jsonify({"success": False, "error": "Esta apuesta no está marcada como ganadora o ya fue cobrada"}), 400
 
-        # Calcular premio (ej: 2x del monto apostado)
         premio = apuesta["monto"] * 2.0
 
         if DATABASE_URL:
