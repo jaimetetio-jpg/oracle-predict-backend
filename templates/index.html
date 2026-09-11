@@ -599,7 +599,7 @@
         async function sincronizarConSupabase() {
             if (!supabaseClient) return;
             try {
-                // Cargar órdenes globales desde Supabase (tabla 'ordenes_clob' o similar)
+                // Cargar órdenes globales desde Supabase (tabla 'ordenes_clob')
                 let { data: ordenes, error: errOrd } = await supabaseClient.from('ordenes_clob').select('*');
                 if (!errOrd && ordenes && ordenes.length > 0) {
                     ordenesGlobales = ordenes;
@@ -609,6 +609,22 @@
                 let { data: txs, error: errTx } = await supabaseClient.from('historial_transacciones').select('*');
                 if (!errTx && txs && txs.length > 0) {
                     historialTransacciones = txs;
+                }
+
+                // Sincronizar también las posiciones activas desde Supabase para mantener persistencia completa en la nube
+                let { data: pos, error: errPos } = await supabaseClient.from('posiciones_activas').select('*');
+                if (!errPos && pos && pos.length > 0) {
+                    // Mapear nombres de columnas de Supabase al formato interno si es necesario
+                    posicionesActivas = pos.map(p => ({
+                        id: p.id,
+                        marketId: p.market_id,
+                        handle: p.handle,
+                        titulo: p.titulo,
+                        opcion: p.opcion,
+                        contratos: p.contratos,
+                        invertido: Number(p.invertido),
+                        payout: Number(p.payout)
+                    }));
                 }
             } catch (e) {
                 console.warn("Aviso: No se pudo conectar con Supabase en tiempo de ejecución, usando almacenamiento local.", e);
@@ -621,6 +637,15 @@
                 await supabaseClient.from(tabla).insert([objetoDatos]);
             } catch (e) {
                 console.error("Error guardando en Supabase:", e);
+            }
+        }
+
+        async function eliminarDeSupabaseTabla(tabla, idCondicion) {
+            if (!supabaseClient) return;
+            try {
+                await supabaseClient.from(tabla).delete().eq('id', idCondicion);
+            } catch (e) {
+                console.error("Error eliminando en Supabase:", e);
             }
         }
 
@@ -785,6 +810,18 @@
 
             posicionesActivas.push(nuevaPosicion);
             
+            // Sincronizar inserción en la tabla 'posiciones_activas' de Supabase
+            guardarEnSupabaseTabla('posiciones_activas', {
+                id: nuevaPosicion.id,
+                market_id: String(nuevaPosicion.marketId),
+                handle: usuarioActual.handle,
+                titulo: nuevaPosicion.titulo,
+                opcion: nuevaPosicion.opcion,
+                contratos: nuevaPosicion.contratos,
+                invertido: nuevaPosicion.invertido,
+                payout: nuevaPosicion.payout
+            });
+
             const nuevaOrdenGlobal = {
                 marketId: idM,
                 tipo: 'COMPRA (Bid)',
@@ -899,6 +936,7 @@
                 detalle: `${pos.contratos} contratos (${pos.opcion}) vendidos antes de tiempo`
             });
 
+            eliminarDeSupabaseTabla('posiciones_activas', pos.id);
             posicionesActivas.splice(idx, 1);
             guardarTodoEnStorage();
             actualizarUIBalance();
@@ -919,6 +957,7 @@
                 detalle: `${pos.contratos} contratos (${pos.opcion}) cobrados con éxito`
             });
 
+            eliminarDeSupabaseTabla('posiciones_activas', pos.id);
             posicionesActivas.splice(idx, 1);
             guardarTodoEnStorage();
             actualizarUIBalance();
@@ -1013,7 +1052,7 @@
             posicionesActivas.forEach(pos => {
                 if (pos.marketId == marketId) {
                     if (pos.opcion !== ganador) {
-                        // Posición perdedora: se archiva en el historial de transacciones con 0 Pi
+                        // Posición perdedora: se archiva en el historial de transacciones con 0 Pi y se elimina de Supabase
                         registrarTransaccionEnDB({
                             id: 'PERD-' + Date.now() + '-' + Math.floor(Math.random()*1000),
                             titulo: pos.titulo,
@@ -1021,6 +1060,7 @@
                             monto: 0.00,
                             detalle: `${pos.contratos} contratos (${pos.opcion}) cerrados sin premio (Ganador: ${ganador})`
                         });
+                        eliminarDeSupabaseTabla('posiciones_activas', pos.id);
                     } else {
                         // Posición ganadora: se mantiene en activas para cobrar premio
                         nuevasPosicionesActivas.push(pos);
