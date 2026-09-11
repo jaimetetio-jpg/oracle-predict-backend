@@ -220,26 +220,6 @@ def registrar_log_admin(accion, detalles):
     except Exception:
         pass
 
-def obtener_eventos_completos():
-    conn = obtener_conexion()
-    c = conn.cursor()
-    c.execute("SELECT * FROM eventos ORDER BY id ASC")
-    eventos_db = c.fetchall()
-    
-    lista_final = []
-    for ev in eventos_db:
-        ev_dict = dict(ev)
-        if DATABASE_URL:
-            c.execute("SELECT id, nombre, pozo FROM opciones_evento WHERE evento_id = %s", (ev_dict["id"],))
-        else:
-            c.execute("SELECT id, nombre, pozo FROM opciones_evento WHERE evento_id = ?", (ev_dict["id"],))
-        opciones = [dict(op) for op in c.fetchall()]
-        ev_dict["opciones"] = opciones
-        lista_final.append(ev_dict)
-    conn.close()
-    return lista_final
-
-# ================= MIDDLEWARE DE SEGURIDAD Y COMPATIBILIDAD CON PI BROWSER =================
 @app.after_request
 def agregar_cabeceras_seguridad(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -250,8 +230,6 @@ def agregar_cabeceras_seguridad(response):
     response.headers['Cross-Origin-Embedder-Policy'] = 'unsafe-none'
     response.headers['Cross-Origin-Opener-Policy'] = 'unsafe-none'
     return response
-
-# ================= RUTAS DE LA APLICACIÓN =================
 
 @app.route("/")
 def home():
@@ -273,7 +251,7 @@ def obtener_saldo(username):
     row = c.fetchone()
     
     if not row:
-        saldo_inicial = 0.01 if username.lower() in ["@jaimetetio", "jaimetetio"] else 0.0
+        saldo_inicial = 0.10 if username.lower() in ["@jaimetetio", "jaimetetio"] else 0.0
         if DATABASE_URL:
             c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (%s, %s)", (username, saldo_inicial))
             if saldo_inicial > 0:
@@ -292,21 +270,6 @@ def obtener_saldo(username):
         saldo = saldo_inicial
     else:
         saldo = row["saldo_disponible"]
-        if username.lower() in ["@jaimetetio", "jaimetetio"] and saldo == 0.0:
-            saldo = 0.01
-            if DATABASE_URL:
-                c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (saldo, username))
-                txid = f"RESTAURACION_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-                fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
-                c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
-                          (username, "Restauración Saldo", saldo, txid, fecha))
-            else:
-                c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (saldo, username))
-                txid = f"RESTAURACION_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-                fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
-                c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
-                          (username, "Restauración Saldo", saldo, txid, fecha))
-            conn.commit()
 
     if DATABASE_URL:
         c.execute("SELECT * FROM historial_apuestas WHERE username = %s ORDER BY id DESC LIMIT %s OFFSET %s", (username, limite, offset))
@@ -337,7 +300,23 @@ def obtener_saldo(username):
 
 @app.route("/api/eventos", methods=["GET"])
 def obtener_eventos():
-    return jsonify(obtener_eventos_completos())
+    conn = obtener_conexion()
+    c = conn.cursor()
+    c.execute("SELECT * FROM eventos ORDER BY id ASC")
+    eventos_db = c.fetchall()
+    
+    lista_final = []
+    for ev in eventos_db:
+        ev_dict = dict(ev)
+        if DATABASE_URL:
+            c.execute("SELECT id, nombre, pozo FROM opciones_evento WHERE evento_id = %s", (ev_dict["id"],))
+        else:
+            c.execute("SELECT id, nombre, pozo FROM opciones_evento WHERE evento_id = ?", (ev_dict["id"],))
+        opciones = [dict(op) for op in c.fetchall()]
+        ev_dict["opciones"] = opciones
+        lista_final.append(ev_dict)
+    conn.close()
+    return jsonify(lista_final)
 
 @app.route("/api/participar", methods=["POST"])
 def participar():
@@ -409,7 +388,7 @@ def participar():
             c.execute("UPDATE opciones_evento SET pozo = pozo + ? WHERE id = ?", (monto, opcion_id))
             c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (?, ?, ?, ?, ?)",
                       (username, evento["titulo"], opcion["nombre"], monto, "Activo"))
-            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
                       (username, "Apuesta", -monto, f"BET_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
         
         conn.commit()
@@ -571,62 +550,6 @@ def solicitar_retiro():
 
         conn.commit()
         return jsonify({"success": True, "nuevo_saldo": nuevo_saldo, "txid": txid, "mensaje": f"Retiro de {monto} Pi procesado con éxito."})
-    except Exception as e:
-        conn.rollback()
-        return jsonify({"success": False, "error": str(e)}), 500
-    finally:
-        conn.close()
-
-@app.route("/api/pi/webhook/payout", methods=["POST"])
-def webhook_payout_pi():
-    data = request.json or {}
-    payment_id = data.get("paymentId") or data.get("identifier")
-    status = data.get("status", {})
-    
-    completed = status.get("developer_completed", False) or status.get("completed", False)
-    cancelled = status.get("cancelled", False)
-    failed = status.get("failed", False)
-
-    if not payment_id:
-        return jsonify({"success": False, "error": "Falta el identificador de pago"}), 400
-
-    conn = obtener_conexion()
-    c = conn.cursor()
-
-    try:
-        if DATABASE_URL:
-            c.execute("SELECT * FROM transacciones WHERE txid = %s OR txid LIKE %s", (payment_id, f"%{payment_id}%"))
-        else:
-            c.execute("SELECT * FROM transacciones WHERE txid = ? OR txid LIKE ?", (payment_id, f"%{payment_id}%"))
-        
-        tx = c.fetchone()
-        if not tx:
-            conn.close()
-            return jsonify({"success": True, "mensaje": "Transacción no encontrada localmente, ignorada."})
-
-        username = tx["username"]
-        monto_absoluto = abs(tx["monto"])
-
-        if cancelled or failed:
-            if DATABASE_URL:
-                c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
-            else:
-                c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
-            
-            row_user = c.fetchone()
-            if row_user:
-                nuevo_saldo = row_user["saldo_disponible"] + monto_absoluto
-                if DATABASE_URL:
-                    c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
-                    c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
-                              (username, "Reverso Retiro Fallido", monto_absoluto, f"REVERSO_{payment_id}", datetime.now().strftime("%Y-%m-%d %H:%M")))
-                else:
-                    c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
-                    c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
-                              (username, "Reverso Retiro Fallido", monto_absoluto, f"REVERSO_{payment_id}", datetime.now().strftime("%Y-%m-%d %H:%M")))
-                conn.commit()
-
-        return jsonify({"success": True, "mensaje": "Webhook procesado correctamente"})
     except Exception as e:
         conn.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
