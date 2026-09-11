@@ -432,7 +432,7 @@
                     <p style="font-size: 0.8rem; color: var(--text-muted);">No tienes posiciones activas.</p>
                 </div>
 
-                <div style="font-size: 0.8rem; font-weight: bold; color: var(--text-color); margin-bottom: 6px; border-top: 1px solid var(--border-color); padding-top: 10px;">📜 Historial de Transacciones</div>
+                <div style="font-size: 0.8rem; font-weight: bold; color: var(--text-color); margin-bottom: 6px; border-top: 1px solid var(--border-color); padding-top: 10px;">📜 Historial de Transacciones (Permanente)</div>
                 <div id="my-history-content">
                     <p style="font-size: 0.8rem; color: var(--text-muted);">No hay transacciones registradas aún.</p>
                 </div>
@@ -563,13 +563,21 @@
         let historialTransacciones = []; 
         let ordenActivaModal = null;
         
-        // Estado de los mercados: null = Abierto, 'SÍ' o 'NO' = Ganador oficial declarado
         let estadosMercados = {
             1: null,
             2: null
         };
 
         window.onload = function() {
+            // Cargar historial permanente desde localStorage si existe
+            const historialGuardado = localStorage.getItem('p2p_historial_transacciones');
+            if (historialGuardado) {
+                try {
+                    historialTransacciones = JSON.parse(historialGuardado);
+                } catch(e) {
+                    historialTransacciones = [];
+                }
+            }
             actualizarUIBalance();
             cargarHistorialDesdeDB();
         };
@@ -700,12 +708,8 @@
                 const colorBadge = pos.opcion === 'SÍ' ? '#4ade80' : '#f87171';
                 const ganadorOficial = estadosMercados[pos.marketId];
                 
-                // LÓGICA DE LOS BOTONES:
-                // Si el mercado sigue abierto, mostramos el botón de "Vender Contratos (Cash Out)" activo junto con el estado indicativo.
-                // Si ya se declaró un ganador oficial, se habilita "Cobrar Premio" para el ganador o se marca como perdedora.
                 let botonesHtml = '';
                 if (ganadorOficial === null) {
-                    // Valor estimado de venta anticipada (ej. 80% de la inversión o basado en precio actual simulado)
                     const valorVentaAnticipada = (pos.invertido * 0.9).toFixed(2);
                     botonesHtml = `
                         <div style="display: flex; gap: 6px; margin-bottom: 4px;">
@@ -745,7 +749,6 @@
 
         function venderPosicionAnticipada(idx) {
             const pos = posicionesActivas[idx];
-            // Calculamos el retorno por venta anticipada (ej. 90% de la inversión)
             const retornoVenta = pos.invertido * 0.9;
             
             usuarioActual.balance += retornoVenta;
@@ -786,6 +789,8 @@
 
         function registrarTransaccionEnDB(tx) {
             historialTransacciones.unshift(tx);
+            // Guardar permanentemente en el navegador de por vida
+            localStorage.setItem('p2p_historial_transacciones', JSON.stringify(historialTransacciones));
         }
 
         function renderizarHistorial() {
