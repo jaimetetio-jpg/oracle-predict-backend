@@ -1004,12 +1004,41 @@
             const marketId = document.getElementById('admin-market-id').value;
             const ganador = document.getElementById('admin-result-select').value;
 
+            // 1. Guardar el estado ganador del mercado
             estadosMercados[marketId] = ganador;
+
+            // 2. Procesar las posiciones automáticamente (Mover perdedoras al historial y limpiar activas)
+            let nuevasPosicionesActivas = [];
+
+            posicionesActivas.forEach(pos => {
+                if (pos.marketId == marketId) {
+                    if (pos.opcion !== ganador) {
+                        // Posición perdedora: se archiva en el historial de transacciones con 0 Pi
+                        registrarTransaccionEnDB({
+                            id: 'PERD-' + Date.now() + '-' + Math.floor(Math.random()*1000),
+                            titulo: pos.titulo,
+                            tipo: 'Perdida / Cerrada',
+                            monto: 0.00,
+                            detalle: `${pos.contratos} contratos (${pos.opcion}) cerrados sin premio (Ganador: ${ganador})`
+                        });
+                    } else {
+                        // Posición ganadora: se mantiene en activas para cobrar premio
+                        nuevasPosicionesActivas.push(pos);
+                    }
+                } else {
+                    nuevasPosicionesActivas.push(pos);
+                }
+            });
+
+            posicionesActivas = nuevasPosicionesActivas;
+
+            // 3. Guardar cambios en persistencia y actualizar interfaz
             guardarTodoEnStorage();
             restaurarEstadosMercadosVisuales();
             renderizarPosiciones();
+            renderizarHistorial();
 
-            alert(`¡El administrador ha declarado a "${ganador}" como ganador oficial del mercado #${marketId}!`);
+            alert(`¡El administrador ha declarado a "${ganador}" como ganador oficial del mercado #${marketId}! Las posiciones perdedoras han sido archivadas.`);
             switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
         }
 
