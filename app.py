@@ -642,7 +642,7 @@ def completar_pago():
             c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
                       (username, "Recarga Pi Real", monto, txid or payment_id, fecha))
         else:
-            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
                       (username, "Recarga Pi Real", monto, txid or payment_id, fecha))
         
         conn.commit()
@@ -722,7 +722,7 @@ def solicitar_retiro():
             c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
                       (username, "Retiro Pi Blockchain", -monto, txid, fecha))
         else:
-            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
                       (username, "Retiro Pi Blockchain", -monto, txid, fecha))
 
         conn.commit()
@@ -755,6 +755,150 @@ def admin_verificar_sesion():
     if session.get('is_admin'):
         return jsonify({"success": True, "is_admin": True})
     return jsonify({"success": True, "is_admin": False}), 403
+
+# ================= NUEVOS ENDPOINTS DE ADMINISTRACIÓN Y RANKING =================
+
+@app.route("/api/ranking", methods=["GET"])
+def obtener_ranking():
+    conn = obtener_conexion()
+    c = conn.cursor()
+    if DATABASE_URL:
+        c.execute("SELECT username, saldo_disponible FROM usuarios ORDER BY saldo_disponible DESC LIMIT 10")
+    else:
+        c.execute("SELECT username, saldo_disponible FROM usuarios ORDER BY saldo_disponible DESC LIMIT 10")
+    ranking = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({"success": True, "ranking": ranking})
+
+@app.route("/api/admin/crear-evento", methods=["POST"])
+def admin_crear_evento():
+    if not session.get('is_admin'):
+        return jsonify({"success": False, "error": "No autorizado"}), 401
+
+    data = request.json or {}
+    titulo = data.get("titulo")
+    categoria = data.get("categoria", "General")
+    fecha_cierre = data.get("fecha_cierre", datetime.now().strftime("%Y-%m-%d"))
+    opciones = data.get("opciones", []) # Lista de strings ej: ["Sí", "No"]
+
+    if not titulo or not opciones or len(opciones) < 2:
+        return jsonify({"success": False, "error": "Título y al menos 2 opciones son obligatorios"}), 400
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        if DATABASE_URL:
+            c.execute("INSERT INTO eventos (titulo, categoria, estado, fecha_cierre) VALUES (%s, %s, 'activo', %s) RETURNING id",
+                      (titulo, categoria, fecha_cierre))
+            ev_id = c.fetchone()["id"]
+            for opt in opciones:
+                c.execute("INSERT INTO opciones_evento (evento_id, nombre, pozo) VALUES (%s, %s, 0.0)", (ev_id, opt))
+        else:
+            c.execute("INSERT INTO eventos (titulo, categoria, estado, fecha_cierre) VALUES (?, ?, 'activo', ?)",
+                      (titulo, categoria, fecha_cierre))
+            ev_id = c.lastrowid
+            for opt in opciones:
+                c.execute("INSERT INTO opciones_evento (evento_id, nombre, pozo) VALUES (?, ?, 0.0)", (ev_id, opt))
+        
+        conn.commit()
+        registrar_log_admin("CREAR_EVENTO", f"Creado evento ID {ev_id}: {titulo}")
+        return jsonify({"success": True, "mensaje": "Mercado/Evento creado con éxito"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route("/api/admin/cerrar-evento", methods=["POST"])
+def admin_cerrar_evento():
+    if not session.get('is_admin'):
+        return jsonify({"success": False, "error": "No autorizado"}), 401
+
+    data = request.json or {}
+    evento_id = data.get("evento_id")
+    ganador_id = data.get("ganador_id") # ID de la opción ganadora
+
+    if not evento_id or not ganador_id:
+        return jsonify({"success": False, "error": "Faltan parámetros de cierre"}), 400
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT * FROM eventos WHERE id = %s", (evento_id,))
+        else:
+            c.execute("SELECT * FROM eventos WHERE id = ?", (evento_id,))
+        evento = c.fetchone()
+
+        if not evento or evento["estado"] == "cerrado":
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "El evento no existe o ya está cerrado"})
+
+        if DATABASE_URL:
+            c.execute("SELECT nombre FROM opciones_evento WHERE id = %s", (ganador_id,))
+        else:
+            c.execute("SELECT * FROM opciones_evento WHERE id = ?", (ganador_id,))
+        opcion_ganadora = c.fetchone()
+
+        if not opcion_ganadora:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Opción ganadora inválida"})
+
+        nombre_ganador = opcion_ganadora["nombre"]
+        titulo_evento = evento["titulo"]
+
+        # Marcar evento como cerrado y asignar ganador
+        if DATABASE_URL:
+            c.execute("UPDATE eventos SET estado = 'cerrado', ganador_id = %s WHERE id = %s", (ganador_id, evento_id))
+            c.execute("SELECT username, monto FROM historial_apuestas WHERE titulo_evento = %s AND opcion_elegida = %s AND estado = 'Activo'", 
+                      (titulo_evento, nombre_ganador))
+        else:
+            c.execute("UPDATE eventos SET estado = 'cerrado', ganador_id = ? WHERE id = ?", (ganador_id, evento_id))
+            c.execute("SELECT username, monto FROM historial_apuestas WHERE titulo_evento = ? AND opcion_elegida = ? AND estado = 'Activo'", 
+                      (titulo_evento, nombre_ganador))
+        
+        apuestas_ganadoras = c.fetchall()
+
+        # Repartir premios de manera proporcional o 1:1 según pozo (en este modelo se devuelve el pozo proporcional o el pago exacto)
+        for apuesta in apuestas_ganadoras:
+            usr = apuesta["username"]
+            monto_apostado = apuesta["monto"]
+            premio = monto_apostado * 2.0 # Payout base estándar 2x por simplicidad y solidez en apuestas binarias
+
+            if DATABASE_URL:
+                c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (usr,))
+            else:
+                c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (usr,))
+            u_row = c.fetchone()
+            if u_row:
+                nuevo_s = u_row["saldo_disponible"] + premio
+                if DATABASE_URL:
+                    c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_s, usr))
+                    c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                              (usr, "Premio Mercado Cerrado", premio, f"WIN_{evento_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
+                else:
+                    c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_s, usr))
+                    c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
+                              (usr, "Premio Mercado Cerrado", premio, f"WIN_{evento_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
+
+        # Actualizar estado de las apuestas del evento
+        if DATABASE_URL:
+            c.execute("UPDATE historial_apuestas SET estado = 'Ganada' WHERE titulo_evento = %s AND opcion_elegida = %s", (titulo_evento, nombre_ganador))
+            c.execute("UPDATE historial_apuestas SET estado = 'Perdida' WHERE titulo_evento = %s AND opcion_elegida != %s", (titulo_evento, nombre_ganador))
+        else:
+            c.execute("UPDATE historial_apuestas SET estado = 'Ganada' WHERE titulo_evento = ? AND opcion_elegida = ?", (titulo_evento, nombre_ganador))
+            c.execute("UPDATE historial_apuestas SET estado = 'Perdida' WHERE titulo_evento = ? AND opcion_elegida != ?", (titulo_evento, nombre_ganador))
+
+        conn.commit()
+        registrar_log_admin("CERRAR_EVENTO", f"Cerrado evento ID {evento_id}. Ganador: {nombre_ganador}")
+        return jsonify({"success": True, "mensaje": f"Evento cerrado correctamente. Ganador: {nombre_ganador}"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
