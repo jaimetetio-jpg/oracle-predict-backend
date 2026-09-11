@@ -700,11 +700,31 @@
                 const colorBadge = pos.opcion === 'SÍ' ? '#4ade80' : '#f87171';
                 const ganadorOficial = estadosMercados[pos.marketId];
                 
-                // LÓGICA DE ACTIVACIÓN DEL BOTÓN:
-                // Si el mercado sigue abierto (ganadorOficial === null) o apostaste por la opción perdedora, el botón se deshabilita.
-                const esGanador = (ganadorOficial === pos.opcion);
-                const disabledAttr = esGanador ? '' : 'disabled';
-                const textoBoton = ganadorOficial === null ? 'Predicción Activa (Espera resultado)' : (esGanador ? '🎉 Cobrar Premio' : '❌ Perdedora');
+                // LÓGICA DE LOS BOTONES:
+                // Si el mercado sigue abierto, mostramos el botón de "Vender Contratos (Cash Out)" activo junto con el estado indicativo.
+                // Si ya se declaró un ganador oficial, se habilita "Cobrar Premio" para el ganador o se marca como perdedora.
+                let botonesHtml = '';
+                if (ganadorOficial === null) {
+                    // Valor estimado de venta anticipada (ej. 80% de la inversión o basado en precio actual simulado)
+                    const valorVentaAnticipada = (pos.invertido * 0.9).toFixed(2);
+                    botonesHtml = `
+                        <div style="display: flex; gap: 6px; margin-bottom: 4px;">
+                            <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #2a2e43, #1f2233); border-color: #3a3f58; color: #8c92ac; font-size: 0.75rem; padding: 7px; cursor: default;" disabled>Predicción Activa</button>
+                            <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #d97706, #b45309); border-color: #f59e0b; font-size: 0.75rem; padding: 7px;" onclick="venderPosicionAnticipada(${idx})">💸 Vender (${valorVentaAnticipada} Pi)</button>
+                        </div>
+                    `;
+                } else {
+                    const esGanador = (ganadorOficial === pos.opcion);
+                    const disabledAttr = esGanador ? '' : 'disabled';
+                    const textoBoton = esGanador ? '🎉 Cobrar Premio' : '❌ Perdedora';
+                    const estiloBoton = esGanador ? '' : 'background: linear-gradient(145deg, #2a2e43, #1f2233) !important; border-color: #3a3f58 !important; color: #6b7280 !important;';
+                    
+                    botonesHtml = `
+                        <div style="display: flex; gap: 6px;">
+                            <button class="action-btn" style="width: 100%; font-size: 0.75rem; padding: 7px; ${estiloBoton}" ${disabledAttr} onclick="cobrarPrediccion(${idx})">${textoBoton}</button>
+                        </div>
+                    `;
+                }
 
                 html += `
                     <div class="position-ticket" data-watermark="${pos.opcion}">
@@ -716,13 +736,33 @@
                             <span>Invertido: ${pos.invertido.toFixed(2)} Pi</span>
                             <span style="color: #4ade80;">Payout: ${pos.payout.toFixed(2)} Pi</span>
                         </div>
-                        <div style="display: flex; gap: 6px;">
-                            <button class="action-btn" style="width: 100%; font-size: 0.75rem; padding: 7px;" ${disabledAttr} onclick="cobrarPrediccion(${idx})">${textoBoton}</button>
-                        </div>
+                        ${botonesHtml}
                     </div>
                 `;
             });
             contenedor.innerHTML = html;
+        }
+
+        function venderPosicionAnticipada(idx) {
+            const pos = posicionesActivas[idx];
+            // Calculamos el retorno por venta anticipada (ej. 90% de la inversión)
+            const retornoVenta = pos.invertido * 0.9;
+            
+            usuarioActual.balance += retornoVenta;
+            actualizarUIBalance();
+
+            registrarTransaccionEnDB({
+                id: 'VEND-' + Date.now(),
+                titulo: pos.titulo,
+                tipo: 'Venta Anticipada',
+                monto: retornoVenta,
+                detalle: `${pos.contratos} contratos (${pos.opcion}) vendidos antes de tiempo`
+            });
+
+            posicionesActivas.splice(idx, 1);
+            renderizarPosiciones();
+            renderizarHistorial();
+            alert(`¡Has vendido tus contratos anticipadamente! Se han acreditado ${retornoVenta.toFixed(2)} Pi a tu balance.`);
         }
 
         function cobrarPrediccion(idx) {
