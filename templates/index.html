@@ -381,6 +381,54 @@
             outline: none;
             border-color: var(--accent);
         }
+
+        /* Estilos del Modal / Panel Broker Interactivo */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 12px;
+            box-sizing: border-box;
+        }
+        .modal-card {
+            background: var(--card-bg-gradient);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            width: 100%;
+            max-width: 400px;
+            padding: 18px;
+            box-shadow: var(--shadow-3d);
+            box-sizing: border-box;
+        }
+        .broker-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+            background: var(--bg-color);
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        .broker-tab {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 6px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+        }
+        .broker-tab.active {
+            background: var(--accent);
+            color: #fff;
+        }
     </style>
 </head>
 <body data-theme="dark">
@@ -569,6 +617,44 @@
         </div>
     </div>
 
+    <!-- MODAL ESTILO BROKER PARA APUESTAS (MERCADO / LIMIT) -->
+    <div id="broker-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div id="broker-modal-title" style="font-weight: 700; font-size: 0.95rem; color: #38bdf8;">Operar Opción</div>
+                <button onclick="cerrarBrokerModal()" style="background: transparent; border: none; color: var(--text-muted); font-size: 1.1rem; cursor: pointer;">✕</button>
+            </div>
+            
+            <div class="broker-tabs">
+                <button class="broker-tab active" id="btn-type-market" onclick="setOrderType('market')">A Mercado</button>
+                <button class="broker-tab" id="btn-type-limit" onclick="setOrderType('limit')">Orden Limit</button>
+            </div>
+
+            <div class="form-group" id="group-limit-price" style="display: none;">
+                <label>Precio Objetivo Limit (Pi)</label>
+                <input type="number" id="broker-limit-price" class="form-control" value="0.50" min="0.01" max="0.99" step="0.01" oninput="calcularRetornoBroker()">
+            </div>
+
+            <div class="form-group">
+                <label>Monto a Invertir (Pi)</label>
+                <input type="number" id="broker-stake" class="form-control" value="1.0" min="0.1" step="0.1" oninput="calcularRetornoBroker()">
+            </div>
+
+            <div style="background: var(--bg-color); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 12px; font-size: 0.8rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span style="color: var(--text-muted);">Dividendo Actual (Prob):</span>
+                    <span id="broker-odds" style="font-weight: 600; color: var(--text-color);">0.00x</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Ganancia Estimada:</span>
+                    <span id="broker-estimated-profit" style="font-weight: 700; color: var(--success);">+0.00 Pi</span>
+                </div>
+            </div>
+
+            <button class="action-btn" style="width: 100%;" onclick="ejecutarOperacionBroker()">Confirmar Orden</button>
+        </div>
+    </div>
+
     <script>
         const CLAVE_ADMIN = "Anthony*2023";
         let isAdminLoggedIn = false;
@@ -590,6 +676,13 @@
         let historialChat = [
             { remitente: 'soporte', texto: 'Hola, ¿en qué podemos ayudarte hoy?' }
         ];
+
+        // Estado temporal del Modal Broker activo
+        let brokerState = {
+            marketId: null,
+            option: null, // 'SI' o 'NO'
+            orderType: 'market' // 'market' o 'limit'
+        };
 
         function actualizarBalanceUI() {
             document.getElementById('user-balance').innerText = saldoUsuario.toFixed(2) + ' Pi';
@@ -624,8 +717,8 @@
                             Probabilidad SÍ: <b style="color: var(--success);">${probSi}%</b> | NO: <b style="color: var(--danger);">${probNo}%</b> (Pool: ${totalPool.toFixed(1)} Pi)
                         </div>
                         <div style="display: flex; gap: 8px;">
-                            <button class="action-btn" style="flex: 1; background: var(--success);" onclick="apostarEnMercado(${m.id}, 'SI')">Apostar SÍ</button>
-                            <button class="action-btn" style="flex: 1; background: var(--danger);" onclick="apostarEnMercado(${m.id}, 'NO')">Apostar NO</button>
+                            <button class="action-btn" style="flex: 1; background: var(--success);" onclick="abrirBrokerModal(${m.id}, 'SI')">Apostar SÍ</button>
+                            <button class="action-btn" style="flex: 1; background: var(--danger);" onclick="abrirBrokerModal(${m.id}, 'NO')">Apostar NO</button>
                         </div>
                     </div>
                 `;
@@ -644,50 +737,129 @@
             renderizarMercados();
         }
 
-        function apostarEnMercado(idMercado, opcion) {
+        // Lógica del Panel Estilo Broker
+        function abrirBrokerModal(idMercado, opcion) {
             const mercado = mercados.find(m => m.id === idMercado);
             if (!mercado) return;
 
-            const montoStr = prompt(`¿Cuántos Pi deseas apostar a [${opcion}] en: "${mercado.pregunta}"?`, "1");
-            if (!montoStr) return;
-            const monto = parseFloat(montoStr);
+            brokerState.marketId = idMercado;
+            brokerState.option = opcion;
+            brokerState.orderType = 'market';
 
-            if (isNaN(monto) || monto <= 0) {
-                alert("Por favor ingresa un monto válido.");
+            document.getElementById('btn-type-market').classList.add('active');
+            document.getElementById('btn-type-limit').classList.remove('active');
+            document.getElementById('group-limit-price').style.display = 'none';
+            document.getElementById('broker-stake').value = '1.0';
+
+            document.getElementById('broker-modal-title').innerText = `Operar [${opcion}] en: ${mercado.pregunta.substring(0, 35)}...`;
+            document.getElementById('broker-modal').style.display = 'flex';
+            calcularRetornoBroker();
+        }
+
+        function cerrarBrokerModal() {
+            document.getElementById('broker-modal').style.display = 'none';
+        }
+
+        function setOrderType(type) {
+            brokerState.orderType = type;
+            if (type === 'market') {
+                document.getElementById('btn-type-market').classList.add('active');
+                document.getElementById('btn-type-limit').classList.remove('active');
+                document.getElementById('group-limit-price').style.display = 'none';
+            } else {
+                document.getElementById('btn-type-limit').classList.add('active');
+                document.getElementById('btn-type-market').classList.remove('active');
+                document.getElementById('group-limit-price').style.display = 'block';
+            }
+            calcularRetornoBroker();
+        }
+
+        function calcularRetornoBroker() {
+            const mercado = mercados.find(m => m.id === brokerState.marketId);
+            if (!mercado) return;
+
+            const totalPool = mercado.siPool + mercado.noPool;
+            let prob = 0.5;
+            if (totalPool > 0) {
+                prob = brokerState.option === 'SI' ? (mercado.siPool / totalPool) : (mercado.noPool / totalPool);
+            }
+            // Dividendo estilo inversor/pari-mutuel o cuota broker inversa al porcentaje
+            let odds = prob > 0 ? (1 / prob) : 2.0;
+            if (brokerState.orderType === 'limit') {
+                const limitPrice = parseFloat(document.getElementById('broker-limit-price').value) || 0.5;
+                odds = limitPrice > 0 ? (1 / limitPrice) : odds;
+            }
+
+            const stake = parseFloat(document.getElementById('broker-stake').value) || 0;
+            const gananciaEstimada = stake * odds;
+
+            document.getElementById('broker-odds').innerText = odds.toFixed(2) + 'x';
+            document.getElementById('broker-estimated-profit').innerText = `+${gananciaEstimada.toFixed(2)} Pi`;
+        }
+
+        function ejecutarOperacionBroker() {
+            const mercado = mercados.find(m => m.id === brokerState.marketId);
+            if (!mercado) return;
+
+            const stake = parseFloat(document.getElementById('broker-stake').value);
+            if (isNaN(stake) || stake <= 0) {
+                alert("Por favor ingresa un monto válido a invertir.");
                 return;
             }
 
-            if (saldoUsuario < monto) {
+            if (saldoUsuario < stake) {
                 alert("Saldo insuficiente en tu cuenta. Realiza un depósito previo en Gestión de billetera Pi Network.");
                 return;
             }
 
-            saldoUsuario -= monto;
+            saldoUsuario -= stake;
             actualizarBalanceUI();
 
-            if (opcion === 'SI') {
-                mercado.siPool += monto;
+            if (brokerState.orderType === 'market') {
+                if (brokerState.option === 'SI') {
+                    mercado.siPool += stake;
+                } else {
+                    mercado.noPool += stake;
+                }
+
+                misApuestas.push({
+                    id: Date.now(),
+                    pregunta: mercado.pregunta,
+                    opcion: brokerState.option,
+                    monto: stake,
+                    fecha: new Date().toLocaleTimeString()
+                });
+
+                historialTrades.push({
+                    texto: `Apuesta de ${stake.toFixed(2)} Pi a [${brokerState.option}] (Mercado)`,
+                    fecha: new Date().toLocaleTimeString()
+                });
+
+                actualizarMisApuestasUI();
+                alert(`¡Orden a mercado ejecutada con éxito por ${stake.toFixed(2)} Pi!`);
             } else {
-                mercado.noPool += monto;
+                // Tipo Limit
+                const limitPrice = document.getElementById('broker-limit-price').value;
+                ordenesLimit.push({
+                    id: Date.now(),
+                    mercado: mercado.pregunta.substring(0, 25) + '...',
+                    tipo: `LIMIT ${brokerState.option}`,
+                    precio: limitPrice + ' Pi',
+                    monto: stake.toFixed(1) + ' Pi'
+                });
+
+                historialTrades.push({
+                    texto: `Orden Limit [${brokerState.option}] fijada a ${limitPrice} Pi por ${stake.toFixed(2)} Pi`,
+                    fecha: new Date().toLocaleTimeString()
+                });
+
+                actualizarLimitUI();
+                alert(`¡Orden Limit registrada exitosamente en el libro!`);
             }
 
-            misApuestas.push({
-                id: Date.now(),
-                pregunta: mercado.pregunta,
-                opcion: opcion,
-                monto: monto,
-                fecha: new Date().toLocaleTimeString()
-            });
-
-            historialTrades.push({
-                texto: `Apuesta de ${monto.toFixed(2)} Pi a [${opcion}] en "${mercado.pregunta.substring(0, 30)}..."`,
-                fecha: new Date().toLocaleTimeString()
-            });
-
-            actualizarMisApuestasUI();
             actualizarHistorialTradesUI();
             renderizarMercados();
-            alert(`¡Apuesta de ${monto.toFixed(2)} Pi a [${opcion}] registrada con éxito!`);
+            cerrarBrokerModal();
         }
 
         function actualizarMisApuestasUI() {
