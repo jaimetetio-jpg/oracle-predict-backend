@@ -1,5 +1,6 @@
 import os
 import time
+import random
 from datetime import datetime
 from collections import defaultdict
 from flask import Flask, jsonify, render_template, request, session
@@ -256,7 +257,7 @@ def obtener_saldo(username):
             if saldo_inicial > 0:
                 txid = f"CREDITO_INICIAL_{datetime.now().strftime('%Y%m%d%H%M%S')}"
                 fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
-                c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?)",
+                c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
                           (username, "Crédito Inicial", saldo_inicial, txid, fecha))
         conn.commit()
         saldo = saldo_inicial
@@ -391,7 +392,7 @@ def participar():
     finally:
         conn.close()
 
-# ================= RUTAS DEL ORDER BOOK / CLOB CON MOTOR DE MATCHING =================
+# ================= RUTAS DEL ORDER BOOK / CLOB CON MOTOR DE MATCHING & DINAMISMO =================
 @app.route("/api/clob/ordenes", methods=["GET"])
 def obtener_ordenes_clob():
     evento_id = request.args.get("evento_id")
@@ -407,6 +408,42 @@ def obtener_ordenes_clob():
     ordenes = [dict(row) for row in c.fetchall()]
     conn.close()
     return jsonify({"success": True, "ordenes": ordenes})
+
+@app.route("/api/clob/actualizar-dinamico", methods=["GET"])
+def actualizar_ordenes_dinamico():
+    """Endpoint diseñado para inyectar micro-fluctuaciones automáticas y hacer dinámico el Order Book"""
+    evento_id = request.args.get("evento_id", 1)
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        # Seleccionar una orden activa al azar para alterar ligeramente su precio o cantidad y simular mercado activo
+        if DATABASE_URL:
+            c.execute("SELECT * FROM ordenes_clob WHERE estado = 'activa' ORDER BY RANDOM() LIMIT 1")
+        else:
+            c.execute("SELECT * FROM ordenes_clob WHERE estado = 'activa' ORDER BY RANDOM() LIMIT 1")
+        
+        orden_azar = c.fetchone()
+        if orden_azar:
+            variacion = round(random.uniform(-0.01, 0.01), 3)
+            nuevo_precio = max(0.01, round(orden_azar["precio"] + variacion, 3))
+            if DATABASE_URL:
+                c.execute("UPDATE ordenes_clob SET precio = %s WHERE id = %s", (nuevo_precio, orden_azar["id"]))
+            else:
+                c.execute("UPDATE ordenes_clob SET precio = ? WHERE id = ?", (nuevo_precio, orden_azar["id"]))
+            conn.commit()
+
+        # Devolver las órdenes actualizadas
+        if DATABASE_URL:
+            c.execute("SELECT * FROM ordenes_clob WHERE estado = 'activa' ORDER BY precio DESC LIMIT 50")
+        else:
+            c.execute("SELECT * FROM ordenes_clob WHERE estado = 'activa' ORDER BY precio DESC LIMIT 50")
+        ordenes = [dict(row) for row in c.fetchall()]
+        conn.close()
+        return jsonify({"success": True, "ordenes": ordenes, "timestamp": time.time()})
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/clob/orden", methods=["POST"])
 def crear_orden_clob():
