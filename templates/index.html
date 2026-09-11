@@ -580,7 +580,23 @@
             actualizarUIBalance();
             cargarHistorialDesdeDB();
             renderizarOrderBookVisible();
+
+            // Sincronización automática de datos cada 3 segundos sin borrar nada
+            setInterval(actualizarDatosAutomaticos, 3000);
         };
+
+        // Función encargada de refrescar la data visualmente cada 3s
+        function actualizarDatosAutomaticos() {
+            const historialGuardado = localStorage.getItem('p2p_historial_transacciones');
+            if (historialGuardado) {
+                try {
+                    historialTransacciones = JSON.parse(historialGuardado);
+                } catch(e) {}
+            }
+            actualizarUIBalance();
+            cargarHistorialDesdeDB();
+            renderizarOrderBookVisible();
+        }
 
         function toggleTheme() {
             const body = document.body;
