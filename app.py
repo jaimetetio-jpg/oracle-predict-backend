@@ -24,7 +24,7 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 # ================= SISTEMA DE RATE LIMITING EN MEMORIA =================
 request_records = defaultdict(list)
 
-def check_rate_limit(limit=15, window=60):
+def check_rate_limit(limit=25, window=60):
     ip = request.remote_addr or "127.0.0.1"
     now = time.time()
     request_records[ip] = [t for t in request_records[ip] if now - t < window]
@@ -147,13 +147,6 @@ def inicializar_bd():
                         detalles TEXT,
                         fecha TEXT
                     )''')
-        c.execute('''CREATE TABLE IF NOT EXISTS soporte_mensajes (
-                        id SERIAL PRIMARY KEY,
-                        username TEXT,
-                        remitente TEXT,
-                        texto TEXT,
-                        fecha TEXT
-                    )''')
     else:
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (username TEXT PRIMARY KEY, saldo_disponible REAL DEFAULT 0.0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS transacciones (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, tipo TEXT, monto REAL, txid TEXT, fecha TEXT)''')
@@ -162,10 +155,10 @@ def inicializar_bd():
         c.execute('''CREATE TABLE IF NOT EXISTS eventos (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT, categoria TEXT, estado TEXT DEFAULT 'activo', fecha_cierre TEXT, ganador_id INTEGER)''')
         c.execute('''CREATE TABLE IF NOT EXISTS opciones_evento (id INTEGER PRIMARY KEY AUTOINCREMENT, evento_id INTEGER, nombre TEXT, pozo REAL DEFAULT 0.0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS admin_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, accion TEXT, detalles TEXT, fecha TEXT)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS soporte_mensajes (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, remitente TEXT, texto TEXT, fecha TEXT)''')
     
     conn.commit()
 
+    # Sembrar eventos iniciales si la tabla está vacía
     c.execute("SELECT COUNT(*) as total FROM eventos")
     row = c.fetchone()
     total_evs = row["total"] if row else 0
@@ -393,6 +386,79 @@ def participar():
         
         conn.commit()
         return jsonify({"success": True, "nuevo_saldo": nuevo_saldo, "mensaje": "¡Apuesta registrada con éxito!"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
+
+# ================= RUTAS DEL ORDER BOOK / CLOB =================
+@app.route("/api/clob/ordenes", methods=["GET"])
+def obtener_ordenes_clob():
+    evento_id = request.args.get("evento_id")
+    conn = obtener_conexion()
+    c = conn.cursor()
+    if evento_id:
+        if DATABASE_URL:
+            c.execute("SELECT * FROM ordenes_clob WHERE evento_id = %s AND estado = 'activa' ORDER BY precio DESC", (evento_id,))
+        else:
+            c.execute("SELECT * FROM ordenes_clob WHERE evento_id = ? AND estado = 'activa' ORDER BY precio DESC", (evento_id,))
+    else:
+        c.execute("SELECT * FROM ordenes_clob WHERE estado = 'activa' ORDER BY id DESC LIMIT 50")
+    ordenes = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({"success": True, "ordenes": ordenes})
+
+@app.route("/api/clob/orden", methods=["POST"])
+def crear_orden_clob():
+    data = request.json or {}
+    username = data.get("username")
+    evento_id = data.get("evento_id")
+    opcion_id = data.get("opcion_id")
+    tipo_orden = data.get("tipo_orden", "limit")
+    accion = data.get("accion") # 'comprar' o 'vender'
+    
+    try:
+        precio = float(data.get("precio", 0))
+        cantidad = float(data.get("cantidad", 0))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "Valores numéricos inválidos"}), 400
+
+    if precio <= 0 or cantidad <= 0 or accion not in ["comprar", "vender"]:
+        return jsonify({"success": False, "error": "Parámetros de orden incorrectos"}), 400
+
+    costo_total = precio * cantidad if accion == "comprar" else cantidad
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+        else:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+        row = c.fetchone()
+        
+        if not row or row["saldo_disponible"] < costo_total:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Saldo insuficiente para colocar esta orden en el Order Book"})
+
+        nuevo_saldo = row["saldo_disponible"] - costo_total
+        if DATABASE_URL:
+            c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
+            c.execute("INSERT INTO ordenes_clob (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, estado, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s, 'activa', %s)",
+                      (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, datetime.now().strftime("%Y-%m-%d %H:%M")))
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                      (username, f"Orden CLOB ({accion})", -costo_total, f"CLOB_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
+        else:
+            c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
+            c.execute("INSERT INTO ordenes_clob (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, estado, fecha) VALUES (?, ?, ?, ?, ?, ?, ?, 'activa', ?)",
+                      (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, datetime.now().strftime("%Y-%m-%d %H:%M")))
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
+                      (username, f"Orden CLOB ({accion})", -costo_total, f"CLOB_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
+
+        conn.commit()
+        return jsonify({"success": True, "nuevo_saldo": nuevo_saldo, "mensaje": "Orden colocada en el Order Book exitosamente."})
     except Exception as e:
         conn.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
