@@ -353,8 +353,8 @@
     <!-- VISTA: ORDER BOOK (CLOB) -->
     <div id="view-clob" class="section-view">
         <div class="market-card">
-            <div class="market-title">📈 Libro de Órdenes P2P (CLOB)</div>
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Coloca órdenes de compra o venta a precio límite con otros usuarios.</p>
+            <div class="market-title">📈 Libro de Órdenes P2P (CLOB) con Matching Engine</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Coloca órdenes limit. Si cruzan el precio contrario, se ejecutan de inmediato.</p>
             
             <div class="form-group">
                 <label>Seleccionar Evento / Mercado</label>
@@ -380,12 +380,12 @@
             </div>
             <div style="display: flex; gap: 8px; margin-top: 4px;">
                 <button class="action-btn" style="flex:1; background: var(--success);" onclick="crearOrdenCLOB('comprar')">Comprar / Pujar</button>
-                <button class="action-btn" style="flex:1; background: var(--danger);" onclick="crearOrdenCLOB('vender')">Vender</button>
+                <button class="action-btn" style="flex:1; background: var(--danger);" onclick="crearOrdenCLOB('vender')">Vender Posición</button>
             </div>
         </div>
 
         <div class="market-card">
-            <div class="market-title" style="font-size: 0.85rem;">Órdenes Activas en el Mercado</div>
+            <div class="market-title" style="font-size: 0.85rem;">Libro de Órdenes Activas (Bids & Asks)</div>
             <div id="clob-orders-container" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;">
                 Selecciona un mercado para ver el Order Book.
             </div>
@@ -610,12 +610,36 @@
                     container.innerHTML = "No hay órdenes activas en el Order Book para este mercado.";
                     return;
                 }
-                container.innerHTML = data.ordenes.map(o => `
-                    <div style="background: var(--bg-color); padding: 6px 8px; border-radius: 6px; margin-bottom: 4px; display: flex; justify-content: space-between; border: 1px solid var(--border-color);">
-                        <span><b>${o.accion.toUpperCase()}</b> | Precio: ${o.precio} Pi</span>
-                        <span>Cant: ${o.cantidad} | <i>${o.username}</i></span>
-                    </div>
-                `).join('');
+
+                const compras = data.ordenes.filter(o => o.accion === 'comprar');
+                const ventas = data.ordenes.filter(o => o.accion === 'vender');
+
+                let html = '<div style="display: flex; gap: 10px;">';
+                
+                // Bids (Compras)
+                html += '<div style="flex: 1;">';
+                html += '<div style="color: var(--success); font-weight: bold; margin-bottom: 4px; font-size: 0.8rem;">🟢 Bids (Compras)</div>';
+                if (compras.length === 0) html += '<div style="color: var(--text-muted); font-size: 0.75rem;">Sin bids</div>';
+                compras.forEach(o => {
+                    html += `<div style="background: var(--bg-color); padding: 4px 6px; border-radius: 4px; margin-bottom: 3px; font-size: 0.75rem; border: 1px solid var(--border-color); display: flex; justify-content: space-between;">
+                        <span><b>${o.precio} Pi</b></span><span>Cant: ${o.cantidad}</span>
+                    </div>`;
+                });
+                html += '</div>';
+
+                // Asks (Ventas)
+                html += '<div style="flex: 1;">';
+                html += '<div style="color: var(--danger); font-weight: bold; margin-bottom: 4px; font-size: 0.8rem;">🔴 Asks (Ventas)</div>';
+                if (ventas.length === 0) html += '<div style="color: var(--text-muted); font-size: 0.75rem;">Sin asks</div>';
+                ventas.forEach(o => {
+                    html += `<div style="background: var(--bg-color); padding: 4px 6px; border-radius: 4px; margin-bottom: 3px; font-size: 0.75rem; border: 1px solid var(--border-color); display: flex; justify-content: space-between;">
+                        <span><b>${o.precio} Pi</b></span><span>Cant: ${o.cantidad}</span>
+                    </div>`;
+                });
+                html += '</div>';
+
+                html += '</div>';
+                container.innerHTML = html;
             } catch (err) {
                 console.error("Error cargando órdenes CLOB");
             }
