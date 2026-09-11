@@ -450,6 +450,21 @@ def crear_orden_clob():
         cantidad_restante = cantidad
         fecha_str = datetime.now().strftime("%Y-%m-%d %H:%M")
 
+        # Obtener nombres para registrar en historial de apuestas y transacciones
+        if DATABASE_URL:
+            c.execute("SELECT titulo FROM eventos WHERE id = %s", (evento_id,))
+            ev_row = c.fetchone()
+            c.execute("SELECT nombre FROM opciones_evento WHERE id = %s", (opcion_id,))
+            op_row = c.fetchone()
+        else:
+            c.execute("SELECT titulo FROM eventos WHERE id = ?", (evento_id,))
+            ev_row = c.fetchone()
+            c.execute("SELECT nombre FROM opciones_evento WHERE id = ?", (opcion_id,))
+            op_row = c.fetchone()
+
+        titulo_ev = ev_row["titulo"] if ev_row else "Mercado P2P"
+        nombre_op = op_row["nombre"] if op_row else "Opción"
+
         # ================= MOTOR DE MATCHING (CRUCE DE ÓRDENES) =================
         if accion == "comprar":
             if DATABASE_URL:
@@ -487,14 +502,10 @@ def crear_orden_clob():
                         c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo_vendedor, contra["username"]))
 
                 if DATABASE_URL:
-                    c.execute("SELECT titulo FROM eventos WHERE id = %s", (evento_id,))
-                    ev_row = c.fetchone()
-                    c.execute("SELECT nombre FROM opciones_evento WHERE id = %s", (opcion_id,))
-                    op_row = c.fetchone()
-                    titulo_ev = ev_row["titulo"] if ev_row else "Mercado P2P"
-                    nombre_op = op_row["nombre"] if op_row else "Opción"
-                    
                     c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (%s, %s, %s, %s, %s)",
+                              (username, titulo_ev, nombre_op, match_precio * match_cant, "Activo"))
+                else:
+                    c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (?, ?, ?, ?, ?)",
                               (username, titulo_ev, nombre_op, match_precio * match_cant, "Activo"))
                 
                 nueva_contra_cant = contra["cantidad"] - match_cant
@@ -529,14 +540,10 @@ def crear_orden_clob():
                     c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo_creador, username))
 
                 if DATABASE_URL:
-                    c.execute("SELECT titulo FROM eventos WHERE id = %s", (evento_id,))
-                    ev_row = c.fetchone()
-                    c.execute("SELECT nombre FROM opciones_evento WHERE id = %s", (opcion_id,))
-                    op_row = c.fetchone()
-                    titulo_ev = ev_row["titulo"] if ev_row else "Mercado P2P"
-                    nombre_op = op_row["nombre"] if op_row else "Opción"
-                    
                     c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (%s, %s, %s, %s, %s)",
+                              (contra["username"], titulo_ev, nombre_op, match_precio * match_cant, "Activo"))
+                else:
+                    c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (?, ?, ?, ?, ?)",
                               (contra["username"], titulo_ev, nombre_op, match_precio * match_cant, "Activo"))
 
                 nueva_contra_cant = contra["cantidad"] - match_cant
@@ -557,12 +564,17 @@ def crear_orden_clob():
                 c.execute("INSERT INTO ordenes_clob (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, estado, fecha) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                           (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad_restante, estado_final_orden, fecha_str))
 
+        # Registrar siempre la operación en el historial de apuestas general o transacciones del usuario
         if DATABASE_URL:
+            c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (%s, %s, %s, %s, %s)",
+                      (username, titulo_ev, f"CLOB {accion.capitalize()} ({cantidad} a {precio})", costo_inicial, "Completada/Ordenada"))
             c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
-                      (username, f"CLOB Match/Orden ({accion})", -costo_inicial + (precio * (cantidad - cantidad_restante)), f"CLOB_{datetime.now().strftime('%Y%m%d%H%M%S')}", fecha_str))
+                      (username, f"CLOB Orden ({accion})", -costo_inicial + (precio * (cantidad - cantidad_restante)), f"CLOB_{datetime.now().strftime('%Y%m%d%H%M%S')}", fecha_str))
         else:
+            c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (?, ?, ?, ?, ?)",
+                      (username, titulo_ev, f"CLOB {accion.capitalize()} ({cantidad} a {precio})", costo_inicial, "Completada/Ordenada"))
             c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
-                      (username, f"CLOB Match/Orden ({accion})", -costo_inicial + (precio * (cantidad - cantidad_restante)), f"CLOB_{datetime.now().strftime('%Y%m%d%H%M%S')}", fecha_str))
+                      (username, f"CLOB Orden ({accion})", -costo_inicial + (precio * (cantidad - cantidad_restante)), f"CLOB_{datetime.now().strftime('%Y%m%d%H%M%S')}", fecha_str))
 
         conn.commit()
         return jsonify({
@@ -756,8 +768,6 @@ def admin_verificar_sesion():
         return jsonify({"success": True, "is_admin": True})
     return jsonify({"success": True, "is_admin": False}), 403
 
-# ================= NUEVOS ENDPOINTS DE ADMINISTRACIÓN Y RANKING =================
-
 @app.route("/api/ranking", methods=["GET"])
 def obtener_ranking():
     conn = obtener_conexion()
@@ -770,6 +780,69 @@ def obtener_ranking():
     conn.close()
     return jsonify({"success": True, "ranking": ranking})
 
+# ================= ENDPOINT PARA COBRAR PREDICCIÓN GANADA =================
+@app.route("/api/cobrar/<int:apuesta_id>", methods=["POST"])
+def cobrar_prediccion(apuesta_id):
+    data = request.json or {}
+    username = data.get("username")
+
+    if not username:
+        return jsonify({"success": False, "error": "Usuario no especificado"}), 400
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT * FROM historial_apuestas WHERE id = %s AND username = %s", (apuesta_id, username))
+        else:
+            c.execute("SELECT * FROM historial_apuestas WHERE id = ? AND username = ?", (apuesta_id, username))
+        
+        apuesta = c.fetchone()
+        if not apuesta:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Apuesta no encontrada"}), 404
+
+        if apuesta["estado"] != "Ganada":
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Esta apuesta no está marcada como ganadora o ya fue cobrada"}), 400
+
+        # Calcular premio (ej: 2x del monto apostado)
+        premio = apuesta["monto"] * 2.0
+
+        if DATABASE_URL:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+        else:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+        
+        u_row = c.fetchone()
+        if not u_row:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Usuario no existe"}), 400
+
+        nuevo_saldo = u_row["saldo_disponible"] + premio
+
+        if DATABASE_URL:
+            c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
+            c.execute("UPDATE historial_apuestas SET estado = 'Cobrada' WHERE id = %s", (apuesta_id,))
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                      (username, "Cobro de Predicción", premio, f"COBRO_{apuesta_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
+        else:
+            c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
+            c.execute("UPDATE historial_apuestas SET estado = 'Cobrada' WHERE id = ?", (apuesta_id,))
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
+                      (username, "Cobro de Predicción", premio, f"COBRO_{apuesta_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
+
+        conn.commit()
+        return jsonify({"success": True, "nuevo_saldo": nuevo_saldo, "mensaje": f"¡Premio de {premio} cobrado con éxito!"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
+
 @app.route("/api/admin/crear-evento", methods=["POST"])
 def admin_crear_evento():
     if not session.get('is_admin'):
@@ -779,7 +852,7 @@ def admin_crear_evento():
     titulo = data.get("titulo")
     categoria = data.get("categoria", "General")
     fecha_cierre = data.get("fecha_cierre", datetime.now().strftime("%Y-%m-%d"))
-    opciones = data.get("opciones", []) # Lista de strings ej: ["Sí", "No"]
+    opciones = data.get("opciones", [])
 
     if not titulo or not opciones or len(opciones) < 2:
         return jsonify({"success": False, "error": "Título y al menos 2 opciones son obligatorios"}), 400
@@ -816,7 +889,7 @@ def admin_cerrar_evento():
 
     data = request.json or {}
     evento_id = data.get("evento_id")
-    ganador_id = data.get("ganador_id") # ID de la opción ganadora
+    ganador_id = data.get("ganador_id")
 
     if not evento_id or not ganador_id:
         return jsonify({"success": False, "error": "Faltan parámetros de cierre"}), 400
@@ -849,47 +922,14 @@ def admin_cerrar_evento():
         nombre_ganador = opcion_ganadora["nombre"]
         titulo_evento = evento["titulo"]
 
-        # Marcar evento como cerrado y asignar ganador
         if DATABASE_URL:
             c.execute("UPDATE eventos SET estado = 'cerrado', ganador_id = %s WHERE id = %s", (ganador_id, evento_id))
-            c.execute("SELECT username, monto FROM historial_apuestas WHERE titulo_evento = %s AND opcion_elegida = %s AND estado = 'Activo'", 
-                      (titulo_evento, nombre_ganador))
+            c.execute("UPDATE historial_apuestas SET estado = 'Ganada' WHERE titulo_evento = %s AND opcion_elegida = %s AND estado = 'Activo'", (titulo_evento, nombre_ganador))
+            c.execute("UPDATE historial_apuestas SET estado = 'Perdida' WHERE titulo_evento = %s AND opcion_elegida != %s AND estado = 'Activo'", (titulo_evento, nombre_ganador))
         else:
             c.execute("UPDATE eventos SET estado = 'cerrado', ganador_id = ? WHERE id = ?", (ganador_id, evento_id))
-            c.execute("SELECT username, monto FROM historial_apuestas WHERE titulo_evento = ? AND opcion_elegida = ? AND estado = 'Activo'", 
-                      (titulo_evento, nombre_ganador))
-        
-        apuestas_ganadoras = c.fetchall()
-
-        # Repartir premios de manera proporcional o 1:1 según pozo (en este modelo se devuelve el pozo proporcional o el pago exacto)
-        for apuesta in apuestas_ganadoras:
-            usr = apuesta["username"]
-            monto_apostado = apuesta["monto"]
-            premio = monto_apostado * 2.0 # Payout base estándar 2x por simplicidad y solidez en apuestas binarias
-
-            if DATABASE_URL:
-                c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (usr,))
-            else:
-                c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (usr,))
-            u_row = c.fetchone()
-            if u_row:
-                nuevo_s = u_row["saldo_disponible"] + premio
-                if DATABASE_URL:
-                    c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_s, usr))
-                    c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
-                              (usr, "Premio Mercado Cerrado", premio, f"WIN_{evento_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
-                else:
-                    c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_s, usr))
-                    c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
-                              (usr, "Premio Mercado Cerrado", premio, f"WIN_{evento_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
-
-        # Actualizar estado de las apuestas del evento
-        if DATABASE_URL:
-            c.execute("UPDATE historial_apuestas SET estado = 'Ganada' WHERE titulo_evento = %s AND opcion_elegida = %s", (titulo_evento, nombre_ganador))
-            c.execute("UPDATE historial_apuestas SET estado = 'Perdida' WHERE titulo_evento = %s AND opcion_elegida != %s", (titulo_evento, nombre_ganador))
-        else:
-            c.execute("UPDATE historial_apuestas SET estado = 'Ganada' WHERE titulo_evento = ? AND opcion_elegida = ?", (titulo_evento, nombre_ganador))
-            c.execute("UPDATE historial_apuestas SET estado = 'Perdida' WHERE titulo_evento = ? AND opcion_elegida != ?", (titulo_evento, nombre_ganador))
+            c.execute("UPDATE historial_apuestas SET estado = 'Ganada' WHERE titulo_evento = ? AND opcion_elegida = ? AND estado = 'Activo'", (titulo_evento, nombre_ganador))
+            c.execute("UPDATE historial_apuestas SET estado = 'Perdida' WHERE titulo_evento = ? AND opcion_elegida != ? AND estado = 'Activo'", (titulo_evento, nombre_ganador))
 
         conn.commit()
         registrar_log_admin("CERRAR_EVENTO", f"Cerrado evento ID {evento_id}. Ganador: {nombre_ganador}")
