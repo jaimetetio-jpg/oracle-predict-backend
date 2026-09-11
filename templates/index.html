@@ -494,7 +494,7 @@
                 </div>
                 <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color);">
                     <span>2. @jaimetetio</span>
-                    <b style="color: #38bdf8;">150.00 Pi</b>
+                    <b style="color: #38bdf8;" id="ranking-user-balance">150.00 Pi</b>
                 </div>
                 <div style="display: flex; justify-content: space-between; padding: 6px 0;">
                     <span>3. @pioneerglobal</span>
@@ -557,51 +557,49 @@
     </div>
 
     <script>
-        let usuarioActual = { handle: "@jaimetetio", balance: 150.00 };
-        let posicionesActivas = [];
-        let historialTransacciones = []; 
-        let ordenesGlobales = [];
-        let ordenActivaModal = null;
+        // Cargar estado inicial desde localStorage o usar valores por defecto
+        let usuarioActual = JSON.parse(localStorage.getItem('p2p_usuario')) || { handle: "@jaimetetio", balance: 150.00 };
+        let posicionesActivas = JSON.parse(localStorage.getItem('p2p_posiciones')) || [];
+        let historialTransacciones = JSON.parse(localStorage.getItem('p2p_historial_transacciones')) || []; 
+        let ordenesGlobales = JSON.parse(localStorage.getItem('p2p_ordenes_globales')) || [];
         
-        // Estado base de precios de los mercados que irán variando con las compras
-        let preciosMercados = {
+        let preciosMercados = JSON.parse(localStorage.getItem('p2p_precios_mercados')) || {
             1: { "SÍ": 0.64, "NO": 0.36 },
             2: { "SÍ": 0.81, "NO": 0.19 }
         };
 
-        let estadosMercados = {
+        let estadosMercados = JSON.parse(localStorage.getItem('p2p_estados_mercados')) || {
             1: null,
             2: null
         };
 
+        let ordenActivaModal = null;
+
         window.onload = function() {
-            const historialGuardado = localStorage.getItem('p2p_historial_transacciones');
-            if (historialGuardado) {
-                try {
-                    historialTransacciones = JSON.parse(historialGuardado);
-                } catch(e) {
-                    historialTransacciones = [];
-                }
-            }
+            sincronizarPersistencia();
             actualizarUIBalance();
             actualizarPreciosVisuales();
+            restaurarEstadosMercadosVisuales();
             cargarHistorialDesdeDB();
             renderizarOrderBookVisible();
-
-            setInterval(actualizarDatosAutomaticos, 3000);
         };
 
-        function actualizarDatosAutomaticos() {
-            const historialGuardado = localStorage.getItem('p2p_historial_transacciones');
-            if (historialGuardado) {
-                try {
-                    historialTransacciones = JSON.parse(historialGuardado);
-                } catch(e) {}
-            }
-            actualizarUIBalance();
-            actualizarPreciosVisuales();
-            cargarHistorialDesdeDB();
-            renderizarOrderBookVisible();
+        function guardarTodoEnStorage() {
+            localStorage.setItem('p2p_usuario', JSON.stringify(usuarioActual));
+            localStorage.setItem('p2p_posiciones', JSON.stringify(posicionesActivas));
+            localStorage.setItem('p2p_historial_transacciones', JSON.stringify(historialTransacciones));
+            localStorage.setItem('p2p_ordenes_globales', JSON.stringify(ordenesGlobales));
+            localStorage.setItem('p2p_precios_mercados', JSON.stringify(preciosMercados));
+            localStorage.setItem('p2p_estados_mercados', JSON.stringify(estadosMercados));
+        }
+
+        function sincronizarPersistencia() {
+            usuarioActual = JSON.parse(localStorage.getItem('p2p_usuario')) || usuarioActual;
+            posicionesActivas = JSON.parse(localStorage.getItem('p2p_posiciones')) || [];
+            historialTransacciones = JSON.parse(localStorage.getItem('p2p_historial_transacciones')) || [];
+            ordenesGlobales = JSON.parse(localStorage.getItem('p2p_ordenes_globales')) || [];
+            preciosMercados = JSON.parse(localStorage.getItem('p2p_precios_mercados')) || preciosMercados;
+            estadosMercados = JSON.parse(localStorage.getItem('p2p_estados_mercados')) || estadosMercados;
         }
 
         function toggleTheme() {
@@ -638,7 +636,7 @@
             const cards = document.querySelectorAll('#markets-container .market-card');
             cards.forEach(card => {
                 const cardCat = card.getAttribute('data-category');
-                if (cat === 'Todos' | cardCat === cat) {
+                if (cat === 'Todos' || cardCat === cat) {
                     card.style.display = 'block';
                 } else {
                     card.style.display = 'none';
@@ -648,6 +646,8 @@
 
         function actualizarUIBalance() {
             document.getElementById('user-balance').innerText = usuarioActual.balance.toFixed(2) + ' Pi';
+            const rankingBal = document.getElementById('ranking-user-balance');
+            if(rankingBal) rankingBal.innerText = usuarioActual.balance.toFixed(2) + ' Pi';
         }
 
         function actualizarPreciosVisuales() {
@@ -656,6 +656,18 @@
                 const elNo = document.getElementById(`ask-precio-${id}-NO`);
                 if (elSi) elSi.innerText = preciosMercados[id]["SÍ"].toFixed(2) + ' Pi';
                 if (elNo) elNo.innerText = preciosMercados[id]["NO"].toFixed(2) + ' Pi';
+            }
+        }
+
+        function restaurarEstadosMercadosVisuales() {
+            for (let id in estadosMercados) {
+                if (estadosMercados[id] !== null) {
+                    const estadoBadge = document.getElementById('estado-mercado-' + id);
+                    if (estadoBadge) {
+                        estadoBadge.innerHTML = `🔴 Cerrado (Ganador: ${estadosMercados[id]})`;
+                        estadoBadge.style.color = '#ef4444';
+                    }
+                }
             }
         }
 
@@ -669,7 +681,6 @@
                 alert("Este mercado ya se encuentra cerrado o resuelto.");
                 return;
             }
-            // Obtenemos el precio actual y dinámico de ese mercado según la opción
             let precioAskActual = preciosMercados[idMercado][opcion];
             
             ordenActivaModal = { idMercado, tituloMercado, opcion, precioAskBase: precioAskActual };
@@ -686,10 +697,8 @@
 
         function calcularModalTotal() {
             const cantidad = parseInt(document.getElementById('modal-amount').value) || 1;
-            
-            // Fórmula de precio dinámico: el precio por contrato sube ligeramente un 0.3% por cada contrato adicional comprado en el lote
             const precioDinamicoUnitario = ordenActivaModal.precioAskBase * (1 + (cantidad - 1) * 0.003);
-            ordenActivaModal.precioCalculadoUnitario = Math.min(precioDinamicoUnitario, 0.98); // Tope máximo de 0.98 Pi
+            ordenActivaModal.precioCalculadoUnitario = Math.min(precioDinamicoUnitario, 0.98);
 
             const totalReq = cantidad * ordenActivaModal.precioCalculadoUnitario;
             const payout = cantidad * 1.00; 
@@ -716,18 +725,13 @@
             }
 
             usuarioActual.balance -= totalReq;
-            actualizarUIBalance();
 
-            // IMPACTO EN LA OFERTA Y DEMANDA: Actualizamos el precio base del mercado para reflejar la presión de compra
             const idM = ordenActivaModal.idMercado;
             const opM = ordenActivaModal.opcion;
             const opOpuesta = opM === 'SÍ' ? 'NO' : 'SÍ';
 
-            // Sube el precio de la opción comprada y baja el de la contraria de forma equilibrada
             preciosMercados[idM][opM] = Math.min(preciosMercados[idM][opM] + (cantidad * 0.002), 0.95);
             preciosMercados[idM][opOpuesta] = Math.max(1 - preciosMercados[idM][opM], 0.05);
-
-            actualizarPreciosVisuales();
 
             const nuevaPosicion = {
                 id: 'POS-' + Date.now(),
@@ -750,13 +754,17 @@
                 trader: usuarioActual.handle
             });
 
+            guardarTodoEnStorage();
+            actualizarUIBalance();
+            actualizarPreciosVisuales();
             renderizarPosiciones();
             renderizarOrderBookVisible();
             cerrarTerminalTrading();
-            alert("¡Orden ejecutada! El precio del activo se ha movido debido a la presión de compra.");
+            alert("¡Orden ejecutada y guardada permanentemente en el sistema!");
         }
 
         function renderizarOrderBookVisible() {
+            sincronizarPersistencia();
             const marketIdFiltro = document.getElementById('orderbook-market-filter').value;
             const tbody = document.getElementById('orderbook-table-body');
             
@@ -839,7 +847,6 @@
             const retornoVenta = pos.invertido * 0.9;
             
             usuarioActual.balance += retornoVenta;
-            actualizarUIBalance();
 
             registrarTransaccionEnDB({
                 id: 'VEND-' + Date.now(),
@@ -850,6 +857,8 @@
             });
 
             posicionesActivas.splice(idx, 1);
+            guardarTodoEnStorage();
+            actualizarUIBalance();
             renderizarPosiciones();
             renderizarHistorial();
             alert(`¡Has vendido tus contratos anticipadamente! Se han acreditado ${retornoVenta.toFixed(2)} Pi a tu balance.`);
@@ -858,7 +867,6 @@
         function cobrarPrediccion(idx) {
             const pos = posicionesActivas[idx];
             usuarioActual.balance += pos.payout;
-            actualizarUIBalance();
 
             registrarTransaccionEnDB({
                 id: pos.id,
@@ -869,6 +877,8 @@
             });
 
             posicionesActivas.splice(idx, 1);
+            guardarTodoEnStorage();
+            actualizarUIBalance();
             renderizarPosiciones();
             renderizarHistorial();
             alert(`¡Predicción cobrada con éxito! Se acreditaron ${pos.payout.toFixed(2)} Pi a tu balance.`);
@@ -876,7 +886,7 @@
 
         function registrarTransaccionEnDB(tx) {
             historialTransacciones.unshift(tx);
-            localStorage.setItem('p2p_historial_transacciones', JSON.stringify(historialTransacciones));
+            guardarTodoEnStorage();
         }
 
         function renderizarHistorial() {
@@ -909,7 +919,6 @@
                 return;
             }
             usuarioActual.balance += monto;
-            actualizarUIBalance();
             registrarTransaccionEnDB({
                 id: 'DEP-' + Date.now(),
                 titulo: 'Recarga de Billetera Pi',
@@ -917,8 +926,10 @@
                 monto: monto,
                 detalle: 'Recarga procesada mediante Blockchain Pi'
             });
+            guardarTodoEnStorage();
+            actualizarUIBalance();
             renderizarHistorial();
-            alert(`¡Depósito de ${monto} Pi realizado correctamente mediante Pi SDK!`);
+            alert(`¡Depósito de ${monto} Pi realizado correctamente!`);
         }
 
         function retirarBilletera() {
@@ -932,7 +943,6 @@
                 return;
             }
             usuarioActual.balance -= monto;
-            actualizarUIBalance();
             registrarTransaccionEnDB({
                 id: 'RET-' + Date.now(),
                 titulo: 'Retiro de Billetera Pi',
@@ -940,6 +950,8 @@
                 monto: -monto,
                 detalle: 'Retiro procesado a la mainnet de Pi'
             });
+            guardarTodoEnStorage();
+            actualizarUIBalance();
             renderizarHistorial();
             alert(`Se han retirado ${monto} Pi de tu saldo disponible.`);
         }
@@ -949,15 +961,11 @@
             const ganador = document.getElementById('admin-result-select').value;
 
             estadosMercados[marketId] = ganador;
-            
-            const estadoBadge = document.getElementById('estado-mercado-' + marketId);
-            if (estadoBadge) {
-                estadoBadge.innerHTML = `🔴 Cerrado (Ganador: ${ganador})`;
-                estadoBadge.style.color = '#ef4444';
-            }
-
+            guardarTodoEnStorage();
+            restaurarEstadosMercadosVisuales();
             renderizarPosiciones();
-            alert(`¡El administrador ha declarado a "${ganador}" como ganador oficial del mercado #${marketId}! Los usuarios ganadores ya pueden cobrar sus premios.`);
+
+            alert(`¡El administrador ha declarado a "${ganador}" como ganador oficial del mercado #${marketId}!`);
             switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
         }
 
