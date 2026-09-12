@@ -177,6 +177,26 @@ def inicializar_bd():
                         razon TEXT,
                         fecha TEXT
                     )''')
+        # Nuevas tablas para el módulo de inmutabilidad y aprobación dual (Four-Eyes)
+        c.execute('''CREATE TABLE IF NOT EXISTS admin_audit_logs (
+                        id SERIAL PRIMARY KEY,
+                        admin_id TEXT,
+                        action_type TEXT,
+                        target_id TEXT,
+                        ip_address TEXT,
+                        user_agent TEXT,
+                        payload_snapshot TEXT,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+                    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS admin_pending_actions (
+                        id SERIAL PRIMARY KEY,
+                        admin_creator TEXT,
+                        action_type TEXT,
+                        target_id TEXT,
+                        payload TEXT,
+                        status TEXT DEFAULT 'PENDING',
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+                    )''')
     else:
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (username TEXT PRIMARY KEY, saldo_disponible REAL DEFAULT 0.0, is_frozen INTEGER DEFAULT 0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS transacciones (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, tipo TEXT, monto REAL, txid TEXT, fecha TEXT)''')
@@ -188,6 +208,26 @@ def inicializar_bd():
         c.execute('''CREATE TABLE IF NOT EXISTS opciones_evento (id INTEGER PRIMARY KEY AUTOINCREMENT, evento_id INTEGER, nombre TEXT, pozo REAL DEFAULT 0.0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS admin_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, accion TEXT, detalles TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS admin_balance_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_user TEXT, target_user TEXT, monto_anterior REAL, monto_nuevo REAL, razon TEXT, fecha TEXT)''')
+        # Nuevas tablas para SQLite local
+        c.execute('''CREATE TABLE IF NOT EXISTS admin_audit_logs (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        admin_id TEXT,
+                        action_type TEXT,
+                        target_id TEXT,
+                        ip_address TEXT,
+                        user_agent TEXT,
+                        payload_snapshot TEXT,
+                        created_at TEXT
+                    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS admin_pending_actions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        admin_creator TEXT,
+                        action_type TEXT,
+                        target_id TEXT,
+                        payload TEXT,
+                        status TEXT DEFAULT 'PENDING',
+                        created_at TEXT
+                    )''')
     
     conn.commit()
 
@@ -240,6 +280,29 @@ def registrar_log_admin(accion, detalles):
             c.execute("INSERT INTO admin_logs (ip, accion, detalles, fecha) VALUES (%s, %s, %s, %s)", (ip, accion, detalles, fecha))
         else:
             c.execute("INSERT INTO admin_logs (ip, accion, detalles, fecha) VALUES (?, ?, ?, ?)", (ip, accion, detalles, fecha))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+# Función de registro inmutable WORM para los logs de auditoría estricta
+def registrar_audit_log(admin_id, action_type, target_id, payload_snapshot):
+    try:
+        conn = obtener_conexion()
+        c = conn.cursor()
+        ip = request.remote_addr or "127.0.0.1"
+        ua = request.user_agent.string or "Desconocido"
+        if DATABASE_URL:
+            c.execute(
+                "INSERT INTO admin_audit_logs (admin_id, action_type, target_id, ip_address, user_agent, payload_snapshot) VALUES (%s, %s, %s, %s, %s, %s)",
+                (admin_id, action_type, target_id, ip, ua, str(payload_snapshot))
+            )
+        else:
+            fecha_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            c.execute(
+                "INSERT INTO admin_audit_logs (admin_id, action_type, target_id, ip_address, user_agent, payload_snapshot, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (admin_id, action_type, target_id, ip, ua, str(payload_snapshot), fecha_str)
+            )
         conn.commit()
         conn.close()
     except Exception:
@@ -970,6 +1033,7 @@ def admin_crear_evento():
         
         conn.commit()
         registrar_log_admin("CREAR_EVENTO", f"Creado evento ID {ev_id}: {titulo}")
+        registrar_audit_log("Admin", "CREAR_EVENTO", str(ev_id), {"titulo": titulo, "opciones": opciones})
         return jsonify({"success": True, "mensaje": "Mercado/Evento creado con éxito"})
     except Exception as e:
         conn.rollback()
@@ -1056,6 +1120,7 @@ def admin_cerrar_evento():
 
         conn.commit()
         registrar_log_admin("CERRAR_EVENTO", f"Cerrado evento ID {evento_id}. Ganador: {nombre_ganador}. Pagos acreditados automáticamente.")
+        registrar_audit_log("Admin", "CERRAR_EVENTO", str(evento_id), {"ganador": nombre_ganador})
         return jsonify({"success": True, "mensaje": f"Evento cerrado y premios acreditados automáticamente. Ganador: {nombre_ganador}"})
     except Exception as e:
         conn.rollback()
@@ -1099,6 +1164,7 @@ def admin_toggle_freeze():
         conn.commit()
         accion_desc = "Congelado" if nuevo_estado else "Descongelado"
         registrar_log_admin("TOGGLE_FREEZE", f"Usuario {username} ha sido {accion_desc}.")
+        registrar_audit_log("Admin", "TOGGLE_FREEZE", username, {"is_frozen": nuevo_estado})
         conn.close()
         return jsonify({"success": True, "is_frozen": nuevo_estado, "mensaje": f"Cuenta de {username} {accion_desc} exitosamente."})
     except Exception as e:
@@ -1146,6 +1212,24 @@ def admin_ajustar_balance():
             conn.close()
             return jsonify({"success": False, "error": "El ajuste dejaría al usuario con saldo negativo"}), 400
 
+        # Lógica de Aprobación Dual (Four-Eyes): Si el cambio excede un monto crítico, se pone en PENDING
+        if abs(monto_cambio) >= 100.0:
+            payload_str = str({"username": username, "monto_cambio": monto_cambio, "razon": razon, "monto_anterior": monto_anterior})
+            if DATABASE_URL:
+                c.execute("INSERT INTO admin_pending_actions (admin_creator, action_type, target_id, payload, status) VALUES (%s, %s, %s, %s, 'PENDING')",
+                          ("Admin", "AJUSTE_BALANCE", username, payload_str))
+            else:
+                fecha_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                c.execute("INSERT INTO admin_pending_actions (admin_creator, action_type, target_id, payload, status, created_at) VALUES (?, ?, ?, ?, 'PENDING', ?)",
+                          ("Admin", "AJUSTE_BALANCE", username, payload_str, fecha_str))
+            conn.commit()
+            conn.close()
+            return jsonify({
+                "success": True, 
+                "pending": True, 
+                "mensaje": "Ajuste crítico detectado. Solicitud retenida en estado PENDING para aprobación dual de un segundo administrador."
+            })
+
         if DATABASE_URL:
             c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (monto_nuevo, username))
             fecha_str = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -1163,6 +1247,7 @@ def admin_ajustar_balance():
 
         conn.commit()
         registrar_log_admin("AJUSTE_BALANCE", f"Ajuste a {username}: Cambio de {monto_cambio}. Razón: {razon}")
+        registrar_audit_log("Admin", "AJUSTE_BALANCE", username, {"monto_anterior": monto_anterior, "monto_nuevo": monto_nuevo, "razon": razon})
         conn.close()
         return jsonify({"success": True, "saldo_disponible": monto_nuevo, "mensaje": f"Balance ajustado correctamente. Nuevo saldo: {monto_nuevo}"})
     except Exception as e:
