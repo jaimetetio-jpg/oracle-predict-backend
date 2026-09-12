@@ -600,6 +600,40 @@
             </div>
         </div>
 
+        <!-- NUEVA ACTUALIZACIÓN: CREAR NUEVO MERCADO PERSONALIZADO -->
+        <div class="market-card">
+            <div class="market-title">➕ Crear Nuevo Mercado de Predicción</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Añade un nuevo evento o pregunta al sistema con precios iniciales configurables.</p>
+            
+            <div class="form-group">
+                <label>Pregunta / Título del Mercado</label>
+                <input type="text" id="new-market-title" class="form-control" placeholder="Ej: ¿Lanzará Pi Network su KYC masivo este mes?">
+            </div>
+
+            <div class="form-group">
+                <label>Categoría</label>
+                <select id="new-market-category" class="form-control">
+                    <option value="Crypto">Crypto</option>
+                    <option value="Pi Ecosystem">Pi Ecosystem</option>
+                    <option value="DeFi">DeFi</option>
+                    <option value="General">General</option>
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <label>Precio Inicial SÍ (Ask)</label>
+                    <input type="number" id="new-market-price-si" class="form-control" value="0.50" min="0.05" max="0.95" step="0.01">
+                </div>
+                <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <label>Precio Inicial NO (Ask)</label>
+                    <input type="number" id="new-market-price-no" class="form-control" value="0.50" min="0.05" max="0.95" step="0.01">
+                </div>
+            </div>
+
+            <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="crearNuevoMercadoAdmin()">Publicar Nuevo Mercado</button>
+        </div>
+
         <!-- PANEL DE CONTROL ADMINISTRATIVO AVANZADO: GESTIÓN DE USUARIOS Y BALANCES -->
         <div class="market-card">
             <div class="market-title">⚙️ Gestión de Usuarios y Balances</div>
@@ -812,15 +846,20 @@
             2: null
         };
 
+        let nombresMercados = JSON.parse(localStorage.getItem('p2p_nombres_mercados')) || {
+            1: "¿Bitcoin superará los $100,000?",
+            2: "¿Se habilitará Open Mainnet este trimestre?"
+        };
+
+        let categoriasMercados = JSON.parse(localStorage.getItem('p2p_categorias_mercados')) || {
+            1: "Crypto",
+            2: "Pi Ecosystem"
+        };
+
         const CLAVE_ADMIN_SECRETA = "Anthony*2023";
         let adminAutenticado = sessionStorage.getItem('p2p_admin_auth') === 'true';
         let ticketAdminActivoId = null;
         let usuarioAdminSeleccionadoHandle = null;
-
-        const nombresMercados = {
-            1: "¿Bitcoin superará los $100,000?",
-            2: "¿Se habilitará Open Mainnet este trimestre?"
-        };
 
         let ordenActivaModal = null;
         let categoriaActualFiltro = 'Todos';
@@ -831,6 +870,7 @@
             sincronizarPersistencia();
             verificarBloqueoUsuarioActual();
             actualizarUIBalance();
+            renderizarListaMercadosDinamicos();
             actualizarPreciosVisuales();
             restaurarEstadosMercadosVisuales();
             cargarHistorialDesdeDB();
@@ -888,6 +928,8 @@
             localStorage.setItem('p2p_ordenes_globales', JSON.stringify(ordenesGlobales));
             localStorage.setItem('p2p_precios_mercados', JSON.stringify(preciosMercados));
             localStorage.setItem('p2p_estados_mercados', JSON.stringify(estadosMercados));
+            localStorage.setItem('p2p_nombres_mercados', JSON.stringify(nombresMercados));
+            localStorage.setItem('p2p_categorias_mercados', JSON.stringify(categoriasMercados));
             localStorage.setItem('p2p_tickets_soporte', JSON.stringify(ticketsSoporte));
         }
 
@@ -899,6 +941,8 @@
             ordenesGlobales = JSON.parse(localStorage.getItem('p2p_ordenes_globales')) || [];
             preciosMercados = JSON.parse(localStorage.getItem('p2p_precios_mercados')) || preciosMercados;
             estadosMercados = JSON.parse(localStorage.getItem('p2p_estados_mercados')) || estadosMercados;
+            nombresMercados = JSON.parse(localStorage.getItem('p2p_nombres_mercados')) || nombresMercados;
+            categoriasMercados = JSON.parse(localStorage.getItem('p2p_categorias_mercados')) || categoriasMercados;
             ticketsSoporte = JSON.parse(localStorage.getItem('p2p_tickets_soporte')) || [];
         }
 
@@ -980,6 +1024,78 @@
 
         function toggleAccordion(id) {
             document.getElementById(id).classList.toggle('open');
+        }
+
+        function renderizarListaMercadosDinamicos() {
+            const container = document.getElementById('markets-container');
+            if (!container) return;
+
+            let html = '';
+            for (let id in nombresMercados) {
+                const titulo = nombresMercados[id];
+                const categoria = categoriasMercados[id] || 'General';
+                const estadoCerrado = estadosMercados[id] !== null;
+                const estadoTexto = estadoCerrado ? `🔴 Cerrado (Ganador: ${estadosMercados[id]})` : `● Abierto`;
+                const colorEstado = estadoCerrado ? '#ef4444' : '#eab308';
+                const estadoAttr = estadoCerrado ? 'Cerrado' : 'Abierto';
+                
+                if (!preciosMercados[id]) {
+                    preciosMercados[id] = { "SÍ": 0.50, "NO": 0.50 };
+                }
+                const pSi = preciosMercados[id]["SÍ"].toFixed(2);
+                const pNo = preciosMercados[id]["NO"].toFixed(2);
+                const disabledAttr = estadoCerrado ? 'disabled' : '';
+
+                html += `
+                    <div class="market-card" data-id="${id}" data-category="${categoria}" data-estado="${estadoAttr}">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">
+                            <span>🏷️ ${categoria}</span>
+                            <span id="estado-mercado-${id}" style="color: ${colorEstado}; font-weight: bold;">${estadoTexto}</span>
+                        </div>
+                        <div class="market-title">${titulo}</div>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span id="ask-precio-${id}-SI" style="color: #4ade80; font-weight: bold;">${pSi} Pi</span> | Ask NO: <span id="ask-precio-${id}-NO" style="color: #f87171; font-weight: bold;">${pNo} Pi</span></p>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="btn-comprar-${id}-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" ${disabledAttr} onclick="abrirTerminalTrading(${id}, '${titulo.replace(/'/g, "\\'")}', 'SÍ')">Comprar SÍ</button>
+                            <button id="btn-comprar-${id}-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" ${disabledAttr} onclick="abrirTerminalTrading(${id}, '${titulo.replace(/'/g, "\\'")}', 'NO')">Comprar NO</button>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+            aplicarFiltrosCombinados();
+        }
+
+        function crearNuevoMercadoAdmin() {
+            const titulo = document.getElementById('new-market-title').value.trim();
+            const categoria = document.getElementById('new-market-category').value;
+            const pSi = parseFloat(document.getElementById('new-market-price-si').value);
+            const pNo = parseFloat(document.getElementById('new-market-price-no').value);
+
+            if (!titulo) {
+                alert("Por favor, ingresa una pregunta o título válido para el mercado.");
+                return;
+            }
+            if (isNaN(pSi) || isNaN(pNo) || pSi <= 0 || pNo <= 0) {
+                alert("Introduce precios iniciales válidos mayores a 0.");
+                return;
+            }
+
+            const nuevoId = Date.now().toString();
+            nombresMercados[nuevoId] = titulo;
+            categoriasMercados[nuevoId] = categoria;
+            estadosMercados[nuevoId] = null;
+            preciosMercados[nuevoId] = { "SÍ": pSi, "NO": pNo };
+
+            guardarTodoEnStorage();
+            renderizarListaMercadosDinamicos();
+            actualizarSelectsMercadosActivos();
+
+            document.getElementById('new-market-title').value = '';
+            document.getElementById('new-market-price-si').value = '0.50';
+            document.getElementById('new-market-price-no').value = '0.50';
+
+            alert(`¡El mercado "${titulo}" ha sido creado y publicado con éxito!`);
+            switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
         }
 
         function aplicarFiltrosCombinados() {
