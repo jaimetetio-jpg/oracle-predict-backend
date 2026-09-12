@@ -392,8 +392,15 @@
             <button class="pill" onclick="setCategory('Pi Ecosystem', this)">Pi Ecosystem</button>
         </div>
 
+        <!-- FILTROS DE ESTADO (MEJORA APLICADA) -->
+        <div class="filter-pills" id="estado-filter-pills" style="margin-bottom: 14px;">
+            <button class="pill active" onclick="setStatusFilter('Todos', this)">Todos</button>
+            <button class="pill" onclick="setStatusFilter('Abiertos', this)">Abiertos</button>
+            <button class="pill" onclick="setStatusFilter('Cerrados', this)">Cerrados / Finalizados</button>
+        </div>
+
         <div id="markets-container">
-            <div class="market-card" data-id="1" data-category="Crypto">
+            <div class="market-card" data-id="1" data-category="Crypto" data-estado="Abierto">
                 <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">
                     <span>🏷️ Crypto</span>
                     <span id="estado-mercado-1" style="color: #eab308; font-weight: bold;">● Abierto</span>
@@ -406,7 +413,7 @@
                 </div>
             </div>
 
-            <div class="market-card" data-id="2" data-category="Pi Ecosystem">
+            <div class="market-card" data-id="2" data-category="Pi Ecosystem" data-estado="Abierto">
                 <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">
                     <span>🏷️ Pi Ecosystem</span>
                     <span id="estado-mercado-2" style="color: #eab308; font-weight: bold;">● Abierto</span>
@@ -597,6 +604,8 @@
         };
 
         let ordenActivaModal = null;
+        let categoriaActualFiltro = 'Todos';
+        let estadoActualFiltro = 'Todos';
 
         window.onload = async function() {
             await sincronizarConSupabase();
@@ -693,28 +702,53 @@
             document.getElementById(id).classList.toggle('open');
         }
 
-        function filtrarMercados() {
+        function aplicarFiltrosCombinados() {
             const query = document.getElementById('search-input').value.toLowerCase();
             const cards = document.querySelectorAll('#markets-container .market-card');
+            
             cards.forEach(card => {
                 const title = card.querySelector('.market-title').innerText.toLowerCase();
-                card.style.display = title.includes(query) ? 'block' : 'none';
-            });
-        }
-
-        function setCategory(cat, pillElement) {
-            document.querySelectorAll('.filter-pills .pill').forEach(p => p.classList.remove('active'));
-            pillElement.classList.add('active');
-            
-            const cards = document.querySelectorAll('#markets-container .market-card');
-            cards.forEach(card => {
                 const cardCat = card.getAttribute('data-category');
-                if (cat === 'Todos' || cardCat === cat) {
+                const cardEstado = card.getAttribute('data-estado'); // 'Abierto' o 'Cerrado'
+
+                let cumpleQuery = title.includes(query);
+                let cumpleCat = (categoriaActualFiltro === 'Todos' || cardCat === categoriaActualFiltro);
+                let cumpleEstado = true;
+
+                if (estadoActualFiltro === 'Abiertos') {
+                    cumpleEstado = (cardEstado === 'Abierto');
+                } else if (estadoActualFiltro === 'Cerrados') {
+                    cumpleEstado = (cardEstado === 'Cerrado');
+                }
+
+                if (cumpleQuery && cumpleCat && cumpleEstado) {
                     card.style.display = 'block';
                 } else {
                     card.style.display = 'none';
                 }
             });
+        }
+
+        function filtrarMercados() {
+            aplicarFiltrosCombinados();
+        }
+
+        function setCategory(cat, pillElement) {
+            const pillsContainer = pillElement.parentElement;
+            pillsContainer.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+            pillElement.classList.add('active');
+            
+            categoriaActualFiltro = cat;
+            aplicarFiltrosCombinados();
+        }
+
+        function setStatusFilter(estado, pillElement) {
+            const pillsContainer = pillElement.parentElement;
+            pillsContainer.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+            pillElement.classList.add('active');
+            
+            estadoActualFiltro = estado;
+            aplicarFiltrosCombinados();
         }
 
         function actualizarUIBalance() {
@@ -734,14 +768,28 @@
 
         function restaurarEstadosMercadosVisuales() {
             for (let id in estadosMercados) {
+                const estadoBadge = document.getElementById('estado-mercado-' + id);
+                const marketCard = document.querySelector(`.market-card[data-id="${id}"]`);
+                
                 if (estadosMercados[id] !== null) {
-                    const estadoBadge = document.getElementById('estado-mercado-' + id);
                     if (estadoBadge) {
                         estadoBadge.innerHTML = `🔴 Cerrado (Ganador: ${estadosMercados[id]})`;
                         estadoBadge.style.color = '#ef4444';
                     }
+                    if (marketCard) {
+                        marketCard.setAttribute('data-estado', 'Cerrado');
+                    }
+                } else {
+                    if (estadoBadge) {
+                        estadoBadge.innerHTML = `● Abierto`;
+                        estadoBadge.style.color = '#eab308';
+                    }
+                    if (marketCard) {
+                        marketCard.setAttribute('data-estado', 'Abierto');
+                    }
                 }
             }
+            aplicarFiltrosCombinados();
         }
 
         function cargarHistorialDesdeDB() {
