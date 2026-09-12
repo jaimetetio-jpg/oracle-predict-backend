@@ -97,7 +97,8 @@ def inicializar_bd():
     if DATABASE_URL:
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (
                         username TEXT PRIMARY KEY,
-                        saldo_disponible DOUBLE PRECISION DEFAULT 0.0
+                        saldo_disponible DOUBLE PRECISION DEFAULT 0.0,
+                        is_frozen BOOLEAN DEFAULT FALSE
                     )''')
         c.execute('''CREATE TABLE IF NOT EXISTS transacciones (
                         id SERIAL PRIMARY KEY,
@@ -167,8 +168,17 @@ def inicializar_bd():
                         detalles TEXT,
                         fecha TEXT
                     )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS admin_balance_audit (
+                        id SERIAL PRIMARY KEY,
+                        admin_user TEXT,
+                        target_user TEXT,
+                        monto_anterior DOUBLE PRECISION,
+                        monto_nuevo DOUBLE PRECISION,
+                        razon TEXT,
+                        fecha TEXT
+                    )''')
     else:
-        c.execute('''CREATE TABLE IF NOT EXISTS usuarios (username TEXT PRIMARY KEY, saldo_disponible REAL DEFAULT 0.0)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS usuarios (username TEXT PRIMARY KEY, saldo_disponible REAL DEFAULT 0.0, is_frozen INTEGER DEFAULT 0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS transacciones (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, tipo TEXT, monto REAL, txid TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS historial_apuestas (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, titulo_evento TEXT, opcion_elegida TEXT, monto REAL, estado TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS ordenes_clob (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, evento_id INTEGER, opcion_id INTEGER, tipo_orden TEXT, accion TEXT, precio REAL, cantidad REAL, estado TEXT DEFAULT 'activa', fecha TEXT)''')
@@ -177,6 +187,7 @@ def inicializar_bd():
         c.execute('''CREATE TABLE IF NOT EXISTS eventos (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT, categoria TEXT, estado TEXT DEFAULT 'activo', fecha_cierre TEXT, ganador_id INTEGER)''')
         c.execute('''CREATE TABLE IF NOT EXISTS opciones_evento (id INTEGER PRIMARY KEY AUTOINCREMENT, evento_id INTEGER, nombre TEXT, pozo REAL DEFAULT 0.0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS admin_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, accion TEXT, detalles TEXT, fecha TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS admin_balance_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_user TEXT, target_user TEXT, monto_anterior REAL, monto_nuevo REAL, razon TEXT, fecha TEXT)''')
     
     conn.commit()
 
@@ -259,22 +270,22 @@ def obtener_saldo(username):
     c = conn.cursor()
     
     if DATABASE_URL:
-        c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s", (username,))
+        c.execute("SELECT saldo_disponible, is_frozen FROM usuarios WHERE username = %s", (username,))
     else:
-        c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+        c.execute("SELECT saldo_disponible, is_frozen FROM usuarios WHERE username = ?", (username,))
     row = c.fetchone()
     
     if not row:
         saldo_inicial = 0.10 if username.lower() in ["@jaimetetio", "jaimetetio"] else 0.0
         if DATABASE_URL:
-            c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (%s, %s)", (username, saldo_inicial))
+            c.execute("INSERT INTO usuarios (username, saldo_disponible, is_frozen) VALUES (%s, %s, FALSE)", (username, saldo_inicial))
             if saldo_inicial > 0:
                 txid = f"CREDITO_INICIAL_{datetime.now().strftime('%Y%m%d%H%M%S')}"
                 fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
                 c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
                           (username, "Crédito Inicial", saldo_inicial, txid, fecha))
         else:
-            c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (?, ?)", (username, saldo_inicial))
+            c.execute("INSERT INTO usuarios (username, saldo_disponible, is_frozen) VALUES (?, ?, 0)", (username, saldo_inicial))
             if saldo_inicial > 0:
                 txid = f"CREDITO_INICIAL_{datetime.now().strftime('%Y%m%d%H%M%S')}"
                 fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -282,8 +293,10 @@ def obtener_saldo(username):
                           (username, "Crédito Inicial", saldo_inicial, txid, fecha))
         conn.commit()
         saldo = saldo_inicial
+        is_frozen = False
     else:
         saldo = row["saldo_disponible"]
+        is_frozen = bool(row["is_frozen"])
 
     if DATABASE_URL:
         c.execute("SELECT * FROM historial_apuestas WHERE username = %s ORDER BY id DESC LIMIT %s OFFSET %s", (username, limite, offset))
@@ -308,6 +321,7 @@ def obtener_saldo(username):
     return jsonify({
         "success": True,
         "saldo_disponible": saldo,
+        "is_frozen": is_frozen,
         "historial": historial,
         "transacciones": transacciones,
     })
@@ -355,11 +369,16 @@ def participar():
 
     try:
         if DATABASE_URL:
-            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+            c.execute("SELECT saldo_disponible, is_frozen FROM usuarios WHERE username = %s FOR UPDATE", (username,))
         else:
-            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+            c.execute("SELECT saldo_disponible, is_frozen FROM usuarios WHERE username = ?", (username,))
         
         row = c.fetchone()
+        if row and row.get("is_frozen"):
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Tu cuenta se encuentra suspendida temporalmente."}), 403
+
         saldo_actual = row["saldo_disponible"] if row else 0
         if not row or saldo_actual < monto:
             conn.rollback()
@@ -484,13 +503,18 @@ def crear_orden_clob():
     conn = obtener_conexion()
     c = conn.cursor()
     try:
-        costo_inicial = precio * cantidad if accion == "comprar" else cantidad
         if DATABASE_URL:
-            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+            c.execute("SELECT saldo_disponible, is_frozen FROM usuarios WHERE username = %s FOR UPDATE", (username,))
         else:
-            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+            c.execute("SELECT saldo_disponible, is_frozen FROM usuarios WHERE username = ?", (username,))
         row_user = c.fetchone()
         
+        if row_user and row_user.get("is_frozen"):
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Tu cuenta se encuentra suspendida temporalmente."}), 403
+
+        costo_inicial = precio * cantidad if accion == "comprar" else cantidad
         if not row_user or row_user["saldo_disponible"] < costo_inicial:
             conn.rollback()
             conn.close()
@@ -684,17 +708,22 @@ def completar_pago():
     
     try:
         if DATABASE_URL:
-            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+            c.execute("SELECT saldo_disponible, is_frozen FROM usuarios WHERE username = %s FOR UPDATE", (username,))
         else:
-            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+            c.execute("SELECT saldo_disponible, is_frozen FROM usuarios WHERE username = ?", (username,))
         row = c.fetchone()
         
+        if row and row.get("is_frozen"):
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Tu cuenta se encuentra suspendida temporalmente."}), 403
+
         if not row:
             nuevo_saldo = monto
             if DATABASE_URL:
-                c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (%s, %s)", (username, nuevo_saldo))
+                c.execute("INSERT INTO usuarios (username, saldo_disponible, is_frozen) VALUES (%s, %s, FALSE)", (username, nuevo_saldo))
             else:
-                c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (?, ?)", (username, nuevo_saldo))
+                c.execute("INSERT INTO usuarios (username, saldo_disponible, is_frozen) VALUES (?, ?, 0)", (username, nuevo_saldo))
         else:
             nuevo_saldo = row["saldo_disponible"] + monto
             if DATABASE_URL:
@@ -746,10 +775,15 @@ def solicitar_retiro():
 
     try:
         if DATABASE_URL:
-            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+            c.execute("SELECT saldo_disponible, is_frozen FROM usuarios WHERE username = %s FOR UPDATE", (username,))
         else:
-            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+            c.execute("SELECT saldo_disponible, is_frozen FROM usuarios WHERE username = ?", (username,))
         row = c.fetchone()
+
+        if row and row.get("is_frozen"):
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Tu cuenta se encuentra suspendida temporalmente."}), 403
 
         if not row or row["saldo_disponible"] < monto:
             conn.rollback()
@@ -844,6 +878,16 @@ def cobrar_prediccion(apuesta_id):
     conn = obtener_conexion()
     c = conn.cursor()
     try:
+        if DATABASE_URL:
+            c.execute("SELECT is_frozen FROM usuarios WHERE username = %s", (username,))
+        else:
+            c.execute("SELECT is_frozen FROM usuarios WHERE username = ?", (username,))
+        u_check = c.fetchone()
+        if u_check and u_check.get("is_frozen"):
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Tu cuenta se encuentra suspendida temporalmente."}), 403
+
         if DATABASE_URL:
             c.execute("SELECT * FROM historial_apuestas WHERE id = %s AND username = %s", (apuesta_id, username))
         else:
@@ -973,7 +1017,6 @@ def admin_cerrar_evento():
         nombre_ganador = opcion_ganadora["nombre"]
         titulo_evento = evento["titulo"]
 
-        # 1. Marcar el evento como cerrado y guardar el ganador
         if DATABASE_URL:
             c.execute("UPDATE eventos SET estado = 'cerrado', ganador_id = %s WHERE id = %s", (ganador_id, evento_id))
             c.execute("SELECT * FROM historial_apuestas WHERE titulo_evento = %s AND opcion_elegida = %s AND estado = 'Activo'", (titulo_evento, nombre_ganador))
@@ -983,7 +1026,6 @@ def admin_cerrar_evento():
         
         apuestas_ganadoras = c.fetchall()
 
-        # 2. Acreditar automáticamente el premio (2.0x) al saldo de cada ganador
         for ap in apuestas_ganadoras:
             usr = ap["username"]
             premio = ap["monto"] * 2.0
@@ -1005,7 +1047,6 @@ def admin_cerrar_evento():
                     c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
                               (usr, "Premio Automático", premio, f"AUTO_WIN_{ap['id']}_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
 
-        # 3. Actualizar los estados en el historial de apuestas
         if DATABASE_URL:
             c.execute("UPDATE historial_apuestas SET estado = 'Ganada' WHERE titulo_evento = %s AND opcion_elegida = %s AND estado = 'Activo'", (titulo_evento, nombre_ganador))
             c.execute("UPDATE historial_apuestas SET estado = 'Perdida' WHERE titulo_evento = %s AND opcion_elegida != %s AND estado = 'Activo'", (titulo_evento, nombre_ganador))
@@ -1021,6 +1062,158 @@ def admin_cerrar_evento():
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
         conn.close()
+
+# ================= NUEVOS ENDPOINTS DE ADMINISTRACIÓN Y CONTROL DE USUARIOS =================
+
+@app.route("/api/admin/toggle-freeze", methods=["POST"])
+def admin_toggle_freeze():
+    if not session.get('is_admin'):
+        return jsonify({"success": False, "error": "No autorizado"}), 401
+
+    data = request.json or {}
+    username = data.get("username")
+    
+    if not username:
+        return jsonify({"success": False, "error": "Usuario no especificado"}), 400
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT is_frozen FROM usuarios WHERE username = %s", (username,))
+        else:
+            c.execute("SELECT is_frozen FROM usuarios WHERE username = ?", (username,))
+        row = c.fetchone()
+
+        if not row:
+            conn.close()
+            return jsonify({"success": False, "error": "Usuario no encontrado"}), 404
+
+        nuevo_estado = not bool(row["is_frozen"])
+
+        if DATABASE_URL:
+            c.execute("UPDATE usuarios SET is_frozen = %s WHERE username = %s", (nuevo_estado, username))
+        else:
+            c.execute("UPDATE usuarios SET is_frozen = ? WHERE username = ?", (1 if nuevo_estado else 0, username))
+
+        conn.commit()
+        accion_desc = "Congelado" if nuevo_estado else "Descongelado"
+        registrar_log_admin("TOGGLE_FREEZE", f"Usuario {username} ha sido {accion_desc}.")
+        conn.close()
+        return jsonify({"success": True, "is_frozen": nuevo_estado, "mensaje": f"Cuenta de {username} {accion_desc} exitosamente."})
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/admin/ajustar-balance", methods=["POST"])
+def admin_ajustar_balance():
+    if not session.get('is_admin'):
+        return jsonify({"success": False, "error": "No autorizado"}), 401
+
+    data = request.json or {}
+    username = data.get("username")
+    razon = str(data.get("razon", "")).strip()
+
+    try:
+        monto_cambio = float(data.get("monto", 0))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "Monto inválido"}), 400
+
+    if not username:
+        return jsonify({"success": False, "error": "Usuario no especificado"}), 400
+
+    if not razon:
+        return jsonify({"success": False, "error": "Es obligatorio dejar una nota o razón para el ajuste de balance"}), 400
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+        else:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+        row = c.fetchone()
+
+        if not row:
+            conn.close()
+            return jsonify({"success": False, "error": "Usuario no encontrado"}), 404
+
+        monto_anterior = row["saldo_disponible"]
+        monto_nuevo = monto_anterior + monto_cambio
+
+        if monto_nuevo < 0:
+            conn.close()
+            return jsonify({"success": False, "error": "El ajuste dejaría al usuario con saldo negativo"}), 400
+
+        if DATABASE_URL:
+            c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (monto_nuevo, username))
+            fecha_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                      (username, "Ajuste Admin", monto_cambio, f"ADMIN_ADJUST_{datetime.now().strftime('%Y%m%d%H%M%S')}", fecha_str))
+            c.execute("INSERT INTO admin_balance_audit (admin_user, target_user, monto_anterior, monto_nuevo, razon, fecha) VALUES (%s, %s, %s, %s, %s, %s)",
+                      ("Admin", username, monto_anterior, monto_nuevo, razon, fecha_str))
+        else:
+            c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (monto_nuevo, username))
+            fecha_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
+                      (username, "Ajuste Admin", monto_cambio, f"ADMIN_ADJUST_{datetime.now().strftime('%Y%m%d%H%M%S')}", fecha_str))
+            c.execute("INSERT INTO admin_balance_audit (admin_user, target_user, monto_anterior, monto_nuevo, razon, fecha) VALUES (?, ?, ?, ?, ?, ?)",
+                      ("Admin", username, monto_anterior, monto_nuevo, razon, fecha_str))
+
+        conn.commit()
+        registrar_log_admin("AJUSTE_BALANCE", f"Ajuste a {username}: Cambio de {monto_cambio}. Razón: {razon}")
+        conn.close()
+        return jsonify({"success": True, "saldo_disponible": monto_nuevo, "mensaje": f"Balance ajustado correctamente. Nuevo saldo: {monto_nuevo}"})
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/admin/usuario/<username>/detalle", methods=["GET"])
+def admin_obtener_usuario_detalle(username):
+    if not session.get('is_admin'):
+        return jsonify({"success": False, "error": "No autorizado"}), 401
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT username, saldo_disponible, is_frozen FROM usuarios WHERE username = %s", (username,))
+        else:
+            c.execute("SELECT username, saldo_disponible, is_frozen FROM usuarios WHERE username = ?", (username,))
+        user_row = c.fetchone()
+
+        if not user_row:
+            conn.close()
+            return jsonify({"success": False, "error": "Usuario no encontrado"}), 404
+
+        if DATABASE_URL:
+            c.execute("SELECT * FROM transacciones WHERE username = %s ORDER BY id DESC", (username,))
+        else:
+            c.execute("SELECT * FROM transacciones WHERE username = ? ORDER BY id DESC", (username,))
+        transacciones = [dict(r) for r in c.fetchall()]
+
+        if DATABASE_URL:
+            c.execute("SELECT * FROM historial_apuestas WHERE username = %s ORDER BY id DESC", (username,))
+        else:
+            c.execute("SELECT * FROM historial_apuestas WHERE username = ? ORDER BY id DESC", (username,))
+        historial_apuestas = [dict(r) for r in c.fetchall()]
+
+        conn.close()
+        return jsonify({
+            "success": True,
+            "usuario": {
+                "username": user_row["username"],
+                "saldo_disponible": user_row["saldo_disponible"],
+                "is_frozen": bool(user_row["is_frozen"])
+            },
+            "transacciones": transacciones,
+            "historial_apuestas": historial_apuestas
+        })
+    except Exception as e:
+        conn.close()
+        return jsonify({"success": False, "error": str(e)}), 500
 
 # ================= NUEVO ENDPOINT INTEGRADO PARA FILTRAR POSICIONES ACTIVAS =================
 @app.route("/api/posiciones-activas/<username>", methods=["GET"])
