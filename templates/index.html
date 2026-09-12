@@ -800,6 +800,10 @@
                     // Deshabilitar botones de compra cuando el mercado está cerrado
                     if (btnSi) btnSi.disabled = true;
                     if (btnNo) btnNo.disabled = true;
+
+                    // Limpiar también del selector de admin si ya está cerrado
+                    const optionAdmin = document.querySelector(`#admin-market-id option[value="${id}"]`);
+                    if (optionAdmin) optionAdmin.remove();
                 } else {
                     if (estadoBadge) {
                         estadoBadge.innerHTML = `● Abierto`;
@@ -1144,8 +1148,15 @@
         }
 
         function declararGanadorAdmin() {
-            const marketId = document.getElementById('admin-market-id').value;
+            const marketSelect = document.getElementById('admin-market-id');
+            const marketId = marketSelect.value;
             const ganador = document.getElementById('admin-result-select').value;
+
+            // Validación de seguridad para evitar re-declaraciones si ya está cerrado
+            if (estadosMercados[marketId] !== null) {
+                alert(`¡Atención! El mercado #${marketId} ya fue cerrado y liquidado previamente con el resultado: ${estadosMercados[marketId]}.`);
+                return;
+            }
 
             estadosMercados[marketId] = ganador;
 
@@ -1177,6 +1188,10 @@
             renderizarPosiciones();
             renderizarHistorial();
             renderizarOrderBookVisible();
+
+            // Eliminar del select del panel admin para que no se pueda volver a elegir
+            const optionToRemove = marketSelect.querySelector(`option[value="${marketId}"]`);
+            if (optionToRemove) optionToRemove.remove();
 
             alert(`¡El administrador ha declarado a "${ganador}" como ganador oficial del mercado #${marketId}!`);
             switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
