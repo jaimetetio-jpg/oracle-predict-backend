@@ -827,7 +827,6 @@
         let estadoActualFiltro = 'Todos';
 
         window.onload = async function() {
-            await autenticarPiNetworkUsuario();
             await sincronizarConSupabase();
             sincronizarPersistencia();
             verificarBloqueoUsuarioActual();
@@ -838,36 +837,6 @@
             actualizarSelectsMercadosActivos();
             renderizarOrderBookVisible();
         };
-
-        async function autenticarPiNetworkUsuario() {
-            try {
-                if (typeof Pi !== 'undefined' && Pi.authenticate) {
-                    const scopes = ['username', 'payments'];
-                    const onIncompletePaymentFound = function(payment) {
-                        console.warn("Pago incompleto encontrado:", payment);
-                    };
-
-                    const authResult = await Pi.authenticate(scopes, onIncompletePaymentFound);
-                    if (authResult && authResult.user && authResult.user.username) {
-                        const piUsername = '@' + authResult.user.username;
-                        usuarioActual.handle = piUsername;
-                        
-                        let uExistente = cuentasDirectorio.find(c => c.handle === piUsername);
-                        if (!uExistente) {
-                            cuentasDirectorio.push({ handle: piUsername, balance: 150.00, bloqueado: false });
-                            usuarioActual.balance = 150.00;
-                        } else {
-                            usuarioActual.balance = uExistente.balance;
-                        }
-                        
-                        document.getElementById('user-handle').innerText = usuarioActual.handle;
-                        guardarTodoEnStorage();
-                    }
-                }
-            } catch (error) {
-                console.warn("Aviso: No se pudo completar la autenticación con el SDK de Pi (Modo Sandbox/Local activo):", error);
-            }
-        }
 
         async function sincronizarConSupabase() {
             if (!supabaseClient) return;
@@ -995,6 +964,7 @@
                 const tabs = document.querySelectorAll('.nav-tab');
                 const btnAdmin = tabs[tabs.length - 1];
                 switchTab('admin', btnAdmin);
+                alert("¡Acceso de administrador concedido con éxito!");
             } else {
                 alert("Contraseña incorrecta. Acceso denegado.");
                 document.getElementById('admin-password-input').value = '';
@@ -1005,6 +975,7 @@
             adminAutenticado = false;
             sessionStorage.removeItem('p2p_admin_auth');
             switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
+            alert("Sesión de administrador cerrada correctamente.");
         }
 
         function toggleAccordion(id) {
@@ -1049,7 +1020,6 @@
         }
 
         function actualizarUIBalance() {
-            document.getElementById('user-handle').innerText = usuarioActual.handle;
             document.getElementById('user-balance').innerText = usuarioActual.balance.toFixed(2) + ' Pi';
             const rankingBal = document.getElementById('ranking-user-balance');
             if(rankingBal) rankingBal.innerText = usuarioActual.balance.toFixed(2) + ' Pi';
@@ -1215,6 +1185,7 @@
             renderizarPosiciones();
             renderizarOrderBookVisible();
             cerrarTerminalTrading();
+            alert("¡Orden ejecutada y guardada permanentemente en el sistema!");
         }
 
         function renderizarOrderBookVisible() {
@@ -1324,6 +1295,7 @@
             actualizarUIBalance();
             renderizarPosiciones();
             renderizarHistorial();
+            alert(`¡Has vendido tus contratos anticipadamente! Se han acreditado ${retornoVenta.toFixed(2)} Pi a tu balance.`);
         }
 
         function cobrarPrediccion(idx) {
@@ -1340,6 +1312,7 @@
             actualizarUIBalance();
             renderizarPosiciones();
             renderizarHistorial();
+            alert(`¡Predicción cobrada con éxito! Se acreditaron ${pos.payout.toFixed(2)} Pi a tu balance.`);
         }
 
         function registrarTransaccionEnDB(tx) {
@@ -1500,6 +1473,7 @@
             guardarTodoEnStorage();
             cargarDatosUsuarioAdminSeleccionado();
             calcularMetricasFinancierasAdmin();
+            alert(`El usuario ${u.handle} ha sido ${u.bloqueado ? 'BLOQUEADO' : 'DESBLOQUEADO'} con éxito.`);
         }
 
         function abrirModalAjusteBalance() {
@@ -1562,9 +1536,10 @@
             cargarDatosUsuarioAdminSeleccionado();
             calcularMetricasFinancierasAdmin();
             cerrarModalAjusteBalance();
+            alert("¡Ajuste manual de balance aplicado y registrado en auditoría correctamente!");
         }
 
-        async function depositarConPiNetwork() {
+        function depositarConPiNetwork() {
             let uCheck = cuentasDirectorio.find(c => c.handle === usuarioActual.handle);
             if (uCheck && uCheck.bloqueado) {
                 alert("⚠️ Operación denegada: Tu cuenta está bloqueada por el administrador.");
@@ -1572,41 +1547,7 @@
             }
 
             const monto = parseFloat(document.getElementById('wallet-amount').value);
-            if (!monto || monto <= 0) { 
-                alert("Introduce un monto válido para recargar."); 
-                return; 
-            }
-
-            if (typeof Pi !== 'undefined' && Pi.createPayment) {
-                try {
-                    const paymentData = {
-                        amount: monto,
-                        memo: `Recarga de saldo P2Ppredict: ${monto} Pi`,
-                        metadata: { type: "deposit", handle: usuarioActual.handle }
-                    };
-
-                    const callbacks = {
-                        onReadyForServerApproval: function(paymentId) {},
-                        onReadyForServerCompletion: function(paymentId, txid) {
-                            usuarioActual.balance += monto;
-                            registrarTransaccionEnDB({
-                                id: 'DEP-' + Date.now(), titulo: 'Recarga de Billetera Pi', tipo: 'Depósito', monto: monto, detalle: `Recarga de ${monto} Pi procesada por ${usuarioActual.handle} (TxID: ${txid})`
-                            });
-                            guardarTodoEnStorage();
-                            actualizarUIBalance();
-                            renderizarHistorial();
-                        },
-                        onCancel: function(paymentId) {},
-                        onError: function(error, payment) {}
-                    };
-
-                    Pi.createPayment(paymentData, callbacks);
-                    return;
-                } catch (e) {
-                    console.warn("Fallo al invocar Pi.createPayment, ejecutando recarga simulada/sandbox...", e);
-                }
-            }
-
+            if (!monto || monto <= 0) { alert("Introduce un monto válido para recargar."); return; }
             usuarioActual.balance += monto;
             registrarTransaccionEnDB({
                 id: 'DEP-' + Date.now(), titulo: 'Recarga de Billetera Pi', tipo: 'Depósito', monto: monto, detalle: `Recarga de ${monto} Pi procesada por ${usuarioActual.handle}`
@@ -1614,6 +1555,7 @@
             guardarTodoEnStorage();
             actualizarUIBalance();
             renderizarHistorial();
+            alert(`¡Depósito de ${monto} Pi realizado correctamente!`);
         }
 
         function retirarBilletera() {
@@ -1633,6 +1575,7 @@
             guardarTodoEnStorage();
             actualizarUIBalance();
             renderizarHistorial();
+            alert(`Se han retirado ${monto} Pi de tu saldo disponible.`);
         }
 
         function declararGanadorAdmin() {
@@ -1668,6 +1611,7 @@
             actualizarSelectsMercadosActivos();
             renderizarOrderBookVisible();
 
+            alert(`¡El administrador ha declarado a "${ganador}" como ganador oficial del mercado #${marketId}!`);
             switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
         }
 
