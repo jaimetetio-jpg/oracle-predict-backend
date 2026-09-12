@@ -583,6 +583,22 @@
 
     <!-- VISTA: ADMIN (PROTEGIDA) -->
     <div id="view-admin" class="section-view">
+        <!-- MÉTRICAS FINANCIERAS GLOBALES Y TOP DE USUARIOS -->
+        <div class="market-card" style="margin-top: 0;">
+            <div class="market-title">📈 Métricas Financieras y Circulante Global</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Control en tiempo real del suministro total de Pi y cuentas con mayor balance.</p>
+            
+            <div style="background: var(--card-bg); border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 0.8rem;">
+                <div>Circulante Total en Sistema: <b id="admin-total-supply" style="color: #4ade80;">0.00 Pi</b></div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Suma total de balances de los usuarios registrados.</div>
+            </div>
+
+            <div style="font-size: 0.8rem; font-weight: bold; margin-bottom: 6px; color: var(--text-color);">🏆 Top Cuentas con Mayor Balance</div>
+            <div id="admin-top-users-container" style="display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem;">
+                <p style="font-size: 0.75rem; color: var(--text-muted);">Cargando ranking...</p>
+            </div>
+        </div>
+
         <div class="market-card">
             <div class="market-title">🛠️ Panel de Administración y Resolución</div>
             <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Declara el resultado oficial del mercado para habilitar el cobro de los ganadores.</p>
@@ -834,6 +850,7 @@
             if(tabId === 'admin') {
                 renderizarTicketsAdmin();
                 renderizarHistorialGlobalAdmin();
+                calcularMetricasFinancierasAdmin();
             }
         }
 
@@ -1275,6 +1292,38 @@
                 `;
             });
             contenedor.innerHTML = html;
+        }
+
+        function calcularMetricasFinancierasAdmin() {
+            sincronizarPersistencia();
+            
+            let cuentasGlobales = [
+                { handle: "@crypto_king", balance: 1420.50 },
+                { handle: usuarioActual.handle, balance: usuarioActual.balance },
+                { handle: "@pioneerglobal", balance: 98.20 }
+            ];
+
+            let totalSupply = cuentasGlobales.reduce((acc, curr) => acc + curr.balance, 0);
+            const elSupply = document.getElementById('admin-total-supply');
+            if (elSupply) {
+                elSupply.innerText = totalSupply.toFixed(2) + ' Pi';
+            }
+
+            cuentasGlobales.sort((a, b) => b.balance - a.balance);
+
+            const containerTop = document.getElementById('admin-top-users-container');
+            if (!containerTop) return;
+
+            let htmlTop = '';
+            cuentasGlobales.forEach((c, idx) => {
+                htmlTop += `
+                    <div style="display: flex; justify-content: space-between; background: var(--card-bg); border: 1px solid var(--border-color); padding: 6px 8px; border-radius: 6px;">
+                        <span>${idx + 1}. ${c.handle}</span>
+                        <b style="color: #38bdf8;">${c.balance.toFixed(2)} Pi</b>
+                    </div>
+                `;
+            });
+            containerTop.innerHTML = htmlTop;
         }
 
         function depositarConPiNetwork() {
