@@ -216,6 +216,15 @@ def inicializar_bd():
                     activo BOOLEAN DEFAULT TRUE,
                     fecha TEXT
                 )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS pi_wallet_events (
+                        id SERIAL PRIMARY KEY,
+                        username TEXT,
+                        evento_tipo TEXT,
+                        monto DOUBLE PRECISION,
+                        balance_total_plataforma DOUBLE PRECISION,
+                        txid TEXT,
+                        fecha TEXT
+                    )""")
   else:
     c.execute("""CREATE TABLE IF NOT EXISTS usuarios (
                     username TEXT PRIMARY KEY, 
@@ -324,6 +333,15 @@ def inicializar_bd():
                     contenido TEXT NOT NULL,
                     tipo TEXT DEFAULT 'info',
                     activo INTEGER DEFAULT 1,
+                    fecha TEXT
+                )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS pi_wallet_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT,
+                    evento_tipo TEXT,
+                    monto REAL,
+                    balance_total_plataforma REAL,
+                    txid TEXT,
                     fecha TEXT
                 )""")
 
@@ -1330,10 +1348,29 @@ def completar_pago():
           (username, "Recarga Pi Real", monto, txid or payment_id, fecha),
       )
 
+    # Registrar evento y balance total de la plataforma en pi_wallet_events
+    if DATABASE_URL:
+      c.execute("SELECT SUM(saldo_disponible) as total FROM usuarios")
+      res_tot = c.fetchone()
+      balance_total_plataforma = res_tot["total"] if res_tot and res_tot["total"] else 0.0
+      c.execute(
+          "INSERT INTO pi_wallet_events (username, evento_tipo, monto, balance_total_plataforma, txid, fecha) VALUES (%s, %s, %s, %s, %s, %s)",
+          (username, "COMPLETAR_PAGO", monto, balance_total_plataforma, txid or payment_id, fecha)
+      )
+    else:
+      c.execute("SELECT SUM(saldo_disponible) as total FROM usuarios")
+      res_tot = c.fetchone()
+      balance_total_plataforma = res_tot["total"] if res_tot and res_tot["total"] else 0.0
+      c.execute(
+          "INSERT INTO pi_wallet_events (username, evento_tipo, monto, balance_total_plataforma, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
+          (username, "COMPLETAR_PAGO", monto, balance_total_plataforma, txid or payment_id, fecha)
+      )
+
     conn.commit()
     return jsonify({
         "success": True,
         "nuevo_saldo": nuevo_saldo,
+        "balance_total_plataforma": balance_total_plataforma,
         "mensaje": f"Recarga de {monto} Pi acreditada con éxito.",
     })
   except Exception as e:
@@ -1469,10 +1506,29 @@ def solicitar_retiro():
           (username, "Retiro Pi Blockchain", -monto, txid, fecha),
       )
 
+    # Registrar evento de retiro y balance total de la plataforma en pi_wallet_events
+    if DATABASE_URL:
+      c.execute("SELECT SUM(saldo_disponible) as total FROM usuarios")
+      res_tot = c.fetchone()
+      balance_total_plataforma = res_tot["total"] if res_tot and res_tot["total"] else 0.0
+      c.execute(
+          "INSERT INTO pi_wallet_events (username, evento_tipo, monto, balance_total_plataforma, txid, fecha) VALUES (%s, %s, %s, %s, %s, %s)",
+          (username, "SOLICITAR_RETIRO", -monto, balance_total_plataforma, txid, fecha)
+      )
+    else:
+      c.execute("SELECT SUM(saldo_disponible) as total FROM usuarios")
+      res_tot = c.fetchone()
+      balance_total_plataforma = res_tot["total"] if res_tot and res_tot["total"] else 0.0
+      c.execute(
+          "INSERT INTO pi_wallet_events (username, evento_tipo, monto, balance_total_plataforma, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
+          (username, "SOLICITAR_RETIRO", -monto, balance_total_plataforma, txid, fecha)
+      )
+
     conn.commit()
     return jsonify({
         "success": True,
         "nuevo_saldo": nuevo_saldo,
+        "balance_total_plataforma": balance_total_plataforma,
         "txid": txid,
         "mensaje": f"Retiro de {monto} Pi procesado con éxito.",
     })
@@ -1481,6 +1537,35 @@ def solicitar_retiro():
     return jsonify({"success": False, "error": str(e)}), 500
   finally:
     conn.close()
+
+
+@app.route("/api/pi/balance-plataforma", methods=["GET"])
+def obtener_balance_plataforma():
+  conn = obtener_conexion()
+  c = conn.cursor()
+  try:
+    if DATABASE_URL:
+      c.execute("SELECT SUM(saldo_disponible) as total_circulante FROM usuarios")
+    else:
+      c.execute("SELECT SUM(saldo_disponible) as total_circulante FROM usuarios")
+    row = c.fetchone()
+    total_circulante = row["total_circulante"] if row and row["total_circulante"] else 0.0
+
+    if DATABASE_URL:
+      c.execute("SELECT * FROM pi_wallet_events ORDER BY id DESC LIMIT 20")
+    else:
+      c.execute("SELECT * FROM pi_wallet_events ORDER BY id DESC LIMIT 20")
+    eventos = [dict(r) for r in c.fetchall()]
+
+    conn.close()
+    return jsonify({
+        "success": True,
+        "balance_total_pi": total_circulante,
+        "ultimos_eventos_wallet": eventos
+    })
+  except Exception as e:
+    conn.close()
+    return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/api/admin/login", methods=["POST"])
