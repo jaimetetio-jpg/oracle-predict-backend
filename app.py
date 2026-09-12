@@ -23,6 +23,9 @@ ADMIN_PASSWORD_HASH = generate_password_hash(RAW_ADMIN_PASSWORD)
 PI_API_KEY = os.environ.get("PI_API_KEY", "")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+# REQUISITO: Monto mínimo obligatorio para la apuesta o liquidez inicial en la creación
+MONTO_MINIMO_CREACION = 1.0
+
 # ================= SISTEMA DE RATE LIMITING EN MEMORIA =================
 request_records = defaultdict(list)
 
@@ -558,7 +561,7 @@ def obtener_eventos():
   return jsonify(lista_final)
 
 
-# ================= NUEVO APARTADO PARA PIONEROS (CREAR PREDICCIÓN CON LIQUIDEZ INICIAL Y 0 COMISIÓN) =================
+# ================= NUEVO APARTADO PARA PIONEROS (CREAR PREDICCIÓN CON APUESTA INICIAL MÍNIMA DE 1 PI) =================
 @app.route("/api/pioneros/crear-prediccion", methods=["POST"])
 def pioneros_crear_prediccion():
   if not check_rate_limit(limit=10, window=60):
@@ -575,14 +578,20 @@ def pioneros_crear_prediccion():
   titulo = data.get("titulo")
   categoria = data.get("categoria", "General")
   fecha_cierre = data.get("fecha_cierre", datetime.now().strftime("%Y-%m-%d"))
-  opciones = data.get(
-      "opciones", []
-  )  # Lista de nombres de opciones, ej: ["Sí", "No"]
+  opciones = data.get("opciones", [])  # Lista de nombres de opciones, ej: ["Sí", "No"]
   opcion_elegida = data.get("opcion_elegida")  # Opción que elige para la liquidez
+  
   try:
     liquidez_inicial = float(data.get("liquidez_inicial", 0))
   except (ValueError, TypeError):
     return jsonify({"success": False, "error": "Liquidez inicial inválida"}), 400
+
+  # REQUISITO: Validar que la apuesta/liquidez inicial sea estrictamente de al menos 1 Pi
+  if liquidez_inicial < MONTO_MINIMO_CREACION:
+    return jsonify({
+        "success": False,
+        "error": f"La apuesta inicial obligatoria debe ser de al menos {MONTO_MINIMO_CREACION} Pi."
+    }), 400
 
   if not username:
     return (
@@ -597,14 +606,11 @@ def pioneros_crear_prediccion():
         }),
         400,
     )
-  if not opcion_elegida or liquidez_inicial <= 0:
+  if not opcion_elegida:
     return (
         jsonify({
             "success": False,
-            "error": (
-                "Debe indicar la opción para la liquidez inicial y un monto"
-                " mayor a 0"
-            ),
+            "error": "Debe indicar la opción para la apuesta inicial.",
         }),
         400,
     )
@@ -640,7 +646,7 @@ def pioneros_crear_prediccion():
       conn.close()
       return jsonify({
           "success": False,
-          "error": "Saldo insuficiente para aportar la liquidez inicial",
+          "error": "Saldo insuficiente para cubrir la apuesta inicial de 1 Pi",
       }), 400
 
     # Descontar saldo (EL PIONERO NO PAGA COMISIÓN POR CREAR)
@@ -710,7 +716,7 @@ def pioneros_crear_prediccion():
           " VALUES (%s, %s, %s, %s, %s)",
           (
               username,
-              "Creación de Mercado (Liquidez Inicial)",
+              "Creación de Mercado (Apuesta Inicial de 1 Pi)",
               -liquidez_inicial,
               f"PIONEER_CREATE_{ev_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}",
               fecha_str,
@@ -727,7 +733,7 @@ def pioneros_crear_prediccion():
           " VALUES (?, ?, ?, ?, ?, ?)",
           (
               username,
-              "Creación de Mercado (Liquidez Inicial)",
+              "Creación de Mercado (Apuesta Inicial de 1 Pi)",
               -liquidez_inicial,
               f"PIONEER_CREATE_{ev_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}",
               fecha_str,
@@ -740,8 +746,7 @@ def pioneros_crear_prediccion():
         "evento_id": ev_id,
         "nuevo_saldo": nuevo_saldo,
         "mensaje": (
-            "¡Predicción creada con éxito y liquidez inicial aportada sin"
-            " comisión!"
+            "¡Predicción creada con éxito con la apuesta inicial de 1 Pi!"
         ),
     })
   except Exception as e:
