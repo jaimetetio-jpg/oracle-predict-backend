@@ -973,18 +973,49 @@ def admin_cerrar_evento():
         nombre_ganador = opcion_ganadora["nombre"]
         titulo_evento = evento["titulo"]
 
+        # 1. Marcar el evento como cerrado y guardar el ganador
         if DATABASE_URL:
             c.execute("UPDATE eventos SET estado = 'cerrado', ganador_id = %s WHERE id = %s", (ganador_id, evento_id))
+            c.execute("SELECT * FROM historial_apuestas WHERE titulo_evento = %s AND opcion_elegida = %s AND estado = 'Activo'", (titulo_evento, nombre_ganador))
+        else:
+            c.execute("UPDATE eventos SET estado = 'cerrado', ganador_id = ? WHERE id = ?", (ganador_id, evento_id))
+            c.execute("SELECT * FROM historial_apuestas WHERE titulo_evento = ? AND opcion_elegida = ? AND estado = 'Activo'", (titulo_evento, nombre_ganador))
+        
+        apuestas_ganadoras = c.fetchall()
+
+        # 2. Acreditar automáticamente el premio (2.0x) al saldo de cada ganador
+        for ap in apuestas_ganadoras:
+            usr = ap["username"]
+            premio = ap["monto"] * 2.0
+            
+            if DATABASE_URL:
+                c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (usr,))
+            else:
+                c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (usr,))
+            
+            u_row = c.fetchone()
+            if u_row:
+                nuevo_saldo = u_row["saldo_disponible"] + premio
+                if DATABASE_URL:
+                    c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, usr))
+                    c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                              (usr, "Premio Automático", premio, f"AUTO_WIN_{ap['id']}_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
+                else:
+                    c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, usr))
+                    c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
+                              (usr, "Premio Automático", premio, f"AUTO_WIN_{ap['id']}_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
+
+        # 3. Actualizar los estados en el historial de apuestas
+        if DATABASE_URL:
             c.execute("UPDATE historial_apuestas SET estado = 'Ganada' WHERE titulo_evento = %s AND opcion_elegida = %s AND estado = 'Activo'", (titulo_evento, nombre_ganador))
             c.execute("UPDATE historial_apuestas SET estado = 'Perdida' WHERE titulo_evento = %s AND opcion_elegida != %s AND estado = 'Activo'", (titulo_evento, nombre_ganador))
         else:
-            c.execute("UPDATE eventos SET estado = 'cerrado', ganador_id = ? WHERE id = ?", (ganador_id, evento_id))
             c.execute("UPDATE historial_apuestas SET estado = 'Ganada' WHERE titulo_evento = ? AND opcion_elegida = ? AND estado = 'Activo'", (titulo_evento, nombre_ganador))
             c.execute("UPDATE historial_apuestas SET estado = 'Perdida' WHERE titulo_evento = ? AND opcion_elegida != ? AND estado = 'Activo'", (titulo_evento, nombre_ganador))
 
         conn.commit()
-        registrar_log_admin("CERRAR_EVENTO", f"Cerrado evento ID {evento_id}. Ganador: {nombre_ganador}")
-        return jsonify({"success": True, "mensaje": f"Evento cerrado correctamente. Ganador: {nombre_ganador}"})
+        registrar_log_admin("CERRAR_EVENTO", f"Cerrado evento ID {evento_id}. Ganador: {nombre_ganador}. Pagos acreditados automáticamente.")
+        return jsonify({"success": True, "mensaje": f"Evento cerrado y premios acreditados automáticamente. Ganador: {nombre_ganador}"})
     except Exception as e:
         conn.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
