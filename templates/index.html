@@ -7,16 +7,22 @@
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
     <!-- SDK de Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Carga segura de variables de entorno mediante archivo externo -->
+    <script src="env.js"></script>
     <script>
         Pi.init({ version: "2.0", sandbox: true });
 
-        // Configuración de Supabase (Credenciales protegidas mediante variables de entorno simuladas / inyectadas de forma segura)
-        const SUPABASE_URL = window.ENV?.SUPABASE_URL || 'https://uwrqtuxzycduakqftvjx.supabase.co';
-        const SUPABASE_ANON_KEY = window.ENV?.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3cnF0dXh6eWNkdWFrcWZ0dmp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NDg5MjcsImV4cCI6MjEwNDUyNDkyN30.7r8AYXSYOml1Ub68INeXXZKTIrqXbCpD-V9oAvFldZU';
+        // Extracción de credenciales desde el archivo de entorno seguro (env.js)
+        const SUPABASE_URL = (window.ENV && window.ENV.SUPABASE_URL) || '';
+        const SUPABASE_ANON_KEY = (window.ENV && window.ENV.SUPABASE_ANON_KEY) || '';
         
         const supabaseClient = (SUPABASE_URL && SUPABASE_URL !== 'TU_SUPABASE_URL_AQUI') 
             ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
             : null;
+
+        if (!supabaseClient) {
+            console.warn("Aviso: Supabase no está configurado o el archivo env.js no se cargó correctamente. La app funcionará con almacenamiento local de respaldo.");
+        }
     </script>
     <style>
         :root {
@@ -392,7 +398,7 @@
             <button class="pill" onclick="setCategory('Pi Ecosystem', this)">Pi Ecosystem</button>
         </div>
 
-        <!-- FILTROS DE ESTADO (MEJORA APLICADA) -->
+        <!-- FILTROS DE ESTADO -->
         <div class="filter-pills" id="estado-filter-pills" style="margin-bottom: 14px;">
             <button class="pill active" onclick="setStatusFilter('Todos', this)">Todos</button>
             <button class="pill" onclick="setStatusFilter('Abiertos', this)">Abiertos</button>
@@ -474,7 +480,7 @@
         </div>
     </div>
 
-    <!-- VISTA: ORDER BOOK P2P VISIBLE (CON HISTORIAL DE MERCADOS CERRADOS) -->
+    <!-- VISTA: ORDER BOOK P2P VISIBLE -->
     <div id="view-clob" class="section-view">
         <div class="market-card">
             <div class="market-title">📊 Order Book P2P en Vivo</div>
@@ -709,7 +715,7 @@
             cards.forEach(card => {
                 const title = card.querySelector('.market-title').innerText.toLowerCase();
                 const cardCat = card.getAttribute('data-category');
-                const cardEstado = card.getAttribute('data-estado'); // 'Abierto' o 'Cerrado'
+                const cardEstado = card.getAttribute('data-estado');
 
                 let cumpleQuery = title.includes(query);
                 let cumpleCat = (categoriaActualFiltro === 'Todos' || cardCat === categoriaActualFiltro);
@@ -898,14 +904,12 @@
             alert("¡Orden ejecutada y guardada permanentemente en el sistema!");
         }
 
-        // Renderizado del Order Book con banner de estado e historial del mercado seleccionado
         function renderizarOrderBookVisible() {
             sincronizarPersistencia();
             const marketIdFiltro = document.getElementById('orderbook-market-filter').value;
             const tbody = document.getElementById('orderbook-table-body');
             const bannerStatus = document.getElementById('orderbook-market-status-banner');
             
-            // Actualizar banner según si está abierto o cerrado
             const estadoGanador = estadosMercados[marketIdFiltro];
             if (estadoGanador !== null) {
                 bannerStatus.innerHTML = `
