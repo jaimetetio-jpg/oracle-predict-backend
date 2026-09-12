@@ -127,7 +127,6 @@ def inicializar_bd():
                         estado TEXT DEFAULT 'activa',
                         fecha TEXT
                     )''')
-        # Tablas adicionales requeridas para la integración completa de Supabase / Order Book y posiciones
         c.execute('''CREATE TABLE IF NOT EXISTS posiciones_activas (
                         id TEXT PRIMARY KEY,
                         market_id TEXT NOT NULL,
@@ -991,6 +990,24 @@ def admin_cerrar_evento():
         return jsonify({"success": False, "error": str(e)}), 500
     finally:
         conn.close()
+
+# ================= NUEVO ENDPOINT INTEGRADO PARA FILTRAR POSICIONES ACTIVAS =================
+@app.route("/api/posiciones-activas/<username>", methods=["GET"])
+def obtener_posiciones_activas(username):
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT * FROM historial_apuestas WHERE username = %s AND estado = 'Activo' ORDER BY id DESC", (username,))
+        else:
+            c.execute("SELECT * FROM historial_apuestas WHERE username = ? AND estado = 'Activo' ORDER BY id DESC", (username,))
+        
+        posiciones = [dict(row) for row in c.fetchall()]
+        conn.close()
+        return jsonify({"success": True, "posiciones_activas": posiciones})
+    except Exception as e:
+        conn.close()
+        return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
