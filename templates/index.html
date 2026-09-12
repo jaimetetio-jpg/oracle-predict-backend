@@ -313,6 +313,7 @@
             max-height: 90vh;
             display: flex;
             flex-direction: column;
+            overflow-y: auto;
         }
 
         .position-ticket {
@@ -492,7 +493,7 @@
                         <button class="action-btn" style="flex:1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="retirarBilletera()">Retirar Pi</button>
                     </div>
                 </div>
-                <div id="wallet-history" style="font-size: 0.75rem; color: var(--text-muted);">Conectado con SDK oficial de Pi Network y Supabase.</div>
+                <div id="wallet-history" style="font-size: 0.75rem; color: var(--text-muted);">Conectado com SDK oficial de Pi Network y Supabase.</div>
             </div>
         </div>
 
@@ -599,6 +600,33 @@
             </div>
         </div>
 
+        <!-- PANEL DE CONTROL ADMINISTRATIVO AVANZADO: GESTIÓN DE USUARIOS Y BALANCES -->
+        <div class="market-card">
+            <div class="market-title">⚙️ Gestión de Usuarios y Balances</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Bloqueo de cuentas, suspensión temporal o ajuste manual de balances con notas de auditoría.</p>
+            
+            <div class="form-group">
+                <label>Seleccionar o Buscar Cuenta de Usuario</label>
+                <select id="admin-user-select" class="form-control" onchange="cargarDatosUsuarioAdminSeleccionado()">
+                    <option value="">-- Seleccionar Usuario --</option>
+                    <option value="@jaimetetio">@jaimetetio</option>
+                    <option value="@crypto_king">@crypto_king</option>
+                    <option value="@pioneerglobal">@pioneerglobal</option>
+                </select>
+            </div>
+
+            <div id="admin-user-details-card" style="background: var(--card-bg); border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 0.8rem; display: none;">
+                <div>Usuario: <b id="adm-det-handle" style="color: #38bdf8;">-</b></div>
+                <div>Balance Actual: <b id="adm-det-balance" style="color: #4ade80;">0.00 Pi</b></div>
+                <div>Estado de Cuenta: <b id="adm-det-status" style="color: #eab308;">Activo</b></div>
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #2563eb, #1d4ed8); font-size: 0.75rem;" onclick="abrirModalAjusteBalance()">⚖️ Ajuste Manual de Balance</button>
+                <button id="admin-btn-bloqueo" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #b91c1c, #991b1b); border-color: #ef4444; font-size: 0.75rem;" onclick="toggleBloqueoCuentaActual()">🔒 Bloquear Cuenta</button>
+            </div>
+        </div>
+
         <div class="market-card">
             <div class="market-title">🛠️ Panel de Administración y Resolución</div>
             <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Declara el resultado oficial del mercado para habilitar el cobro de los ganadores.</p>
@@ -690,6 +718,37 @@
         </div>
     </div>
 
+    <!-- MODAL DE AJUSTE MANUAL DE BALANCE (ADMIN) -->
+    <div id="admin-balance-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="font-size: 1rem; margin: 0; color: #38bdf8;">⚖️ Ajuste Manual de Balance</h3>
+                <button onclick="cerrarModalAjusteBalance()" style="background: transparent; border: none; color: var(--text-color); font-size: 1.2rem; cursor: pointer;">&times;</button>
+            </div>
+            <p id="admin-balance-modal-subtitle" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Modifica el saldo del usuario seleccionando la operación e ingresando el monto y la nota obligatoria.</p>
+            
+            <div class="form-group">
+                <label>Tipo de Operación</label>
+                <select id="admin-adj-tipo" class="form-control">
+                    <option value="CREDITO">Acreditar Balance (+)</option>
+                    <option value="DEBITO">Debitar / Descontar Balance (-)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Monto (Pi)</label>
+                <input type="number" id="admin-adj-monto" class="form-control" placeholder="0.00" min="0.1" step="0.1">
+            </div>
+
+            <div class="form-group">
+                <label>Nota de Auditoría / Justificación</label>
+                <textarea id="admin-adj-nota" class="form-control" placeholder="Motivo del ajuste manual..." rows="3"></textarea>
+            </div>
+
+            <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #2563eb, #1d4ed8);" onclick="ejecutarAjusteBalanceAdmin()">Confirmar y Registrar Ajuste</button>
+        </div>
+    </div>
+
     <!-- MODAL DE CHAT DE SOPORTE USUARIO -->
     <div id="support-chat-modal" class="modal-overlay">
         <div class="modal-card">
@@ -737,6 +796,12 @@
         let ordenesGlobales = JSON.parse(localStorage.getItem('p2p_ordenes_globales')) || [];
         let ticketsSoporte = JSON.parse(localStorage.getItem('p2p_tickets_soporte')) || [];
         
+        let cuentasDirectorio = JSON.parse(localStorage.getItem('p2p_cuentas_directorio')) || [
+            { handle: "@jaimetetio", balance: 150.00, bloqueado: false },
+            { handle: "@crypto_king", balance: 1420.50, bloqueado: false },
+            { handle: "@pioneerglobal", balance: 98.20, bloqueado: false }
+        ];
+
         let preciosMercados = JSON.parse(localStorage.getItem('p2p_precios_mercados')) || {
             1: { "SÍ": 0.64, "NO": 0.36 },
             2: { "SÍ": 0.81, "NO": 0.19 }
@@ -750,6 +815,7 @@
         const CLAVE_ADMIN_SECRETA = "Anthony*2023";
         let adminAutenticado = sessionStorage.getItem('p2p_admin_auth') === 'true';
         let ticketAdminActivoId = null;
+        let usuarioAdminSeleccionadoHandle = null;
 
         const nombresMercados = {
             1: "¿Bitcoin superará los $100,000?",
@@ -763,6 +829,7 @@
         window.onload = async function() {
             await sincronizarConSupabase();
             sincronizarPersistencia();
+            verificarBloqueoUsuarioActual();
             actualizarUIBalance();
             actualizarPreciosVisuales();
             restaurarEstadosMercadosVisuales();
@@ -813,7 +880,9 @@
         }
 
         function guardarTodoEnStorage() {
+            sincronizarBalanceDirectorioLocal();
             localStorage.setItem('p2p_usuario', JSON.stringify(usuarioActual));
+            localStorage.setItem('p2p_cuentas_directorio', JSON.stringify(cuentasDirectorio));
             localStorage.setItem('p2p_posiciones', JSON.stringify(posicionesActivas));
             localStorage.setItem('p2p_historial_transacciones', JSON.stringify(historialTransacciones));
             localStorage.setItem('p2p_ordenes_globales', JSON.stringify(ordenesGlobales));
@@ -824,12 +893,29 @@
 
         function sincronizarPersistencia() {
             usuarioActual = JSON.parse(localStorage.getItem('p2p_usuario')) || usuarioActual;
+            cuentasDirectorio = JSON.parse(localStorage.getItem('p2p_cuentas_directorio')) || cuentasDirectorio;
             posicionesActivas = JSON.parse(localStorage.getItem('p2p_posiciones')) || [];
             historialTransacciones = JSON.parse(localStorage.getItem('p2p_historial_transacciones')) || [];
             ordenesGlobales = JSON.parse(localStorage.getItem('p2p_ordenes_globales')) || [];
             preciosMercados = JSON.parse(localStorage.getItem('p2p_precios_mercados')) || preciosMercados;
             estadosMercados = JSON.parse(localStorage.getItem('p2p_estados_mercados')) || estadosMercados;
             ticketsSoporte = JSON.parse(localStorage.getItem('p2p_tickets_soporte')) || [];
+        }
+
+        function sincronizarBalanceDirectorioLocal() {
+            let u = cuentasDirectorio.find(c => c.handle === usuarioActual.handle);
+            if (u) {
+                u.balance = usuarioActual.balance;
+            } else {
+                cuentasDirectorio.push({ handle: usuarioActual.handle, balance: usuarioActual.balance, bloqueado: false });
+            }
+        }
+
+        function verificarBloqueoUsuarioActual() {
+            let u = cuentasDirectorio.find(c => c.handle === usuarioActual.handle);
+            if (u && u.bloqueado) {
+                alert("⚠️ ATENCIÓN: Tu cuenta se encuentra BLOQUEADA por el administrador del sistema.");
+            }
         }
 
         function toggleTheme() {
@@ -1007,6 +1093,12 @@
         }
 
         function abrirTerminalTrading(idMercado, tituloMercado, opcion) {
+            let uCheck = cuentasDirectorio.find(c => c.handle === usuarioActual.handle);
+            if (uCheck && uCheck.bloqueado) {
+                alert("⚠️ Operación denegada: Tu cuenta está bloqueada por el administrador.");
+                return;
+            }
+
             if (estadosMercados[idMercado] !== null) {
                 alert("Este mercado ya se encuentra cerrado o resuelto.");
                 return;
@@ -1296,37 +1388,164 @@
 
         function calcularMetricasFinancierasAdmin() {
             sincronizarPersistencia();
+            sincronizarBalanceDirectorioLocal();
             
-            let cuentasGlobales = [
-                { handle: "@crypto_king", balance: 1420.50 },
-                { handle: usuarioActual.handle, balance: usuarioActual.balance },
-                { handle: "@pioneerglobal", balance: 98.20 }
-            ];
-
-            let totalSupply = cuentasGlobales.reduce((acc, curr) => acc + curr.balance, 0);
+            let totalSupply = cuentasDirectorio.reduce((acc, curr) => acc + curr.balance, 0);
             const elSupply = document.getElementById('admin-total-supply');
             if (elSupply) {
                 elSupply.innerText = totalSupply.toFixed(2) + ' Pi';
             }
 
-            cuentasGlobales.sort((a, b) => b.balance - a.balance);
+            let listaOrdenada = [...cuentasDirectorio].sort((a, b) => b.balance - a.balance);
 
             const containerTop = document.getElementById('admin-top-users-container');
             if (!containerTop) return;
 
             let htmlTop = '';
-            cuentasGlobales.forEach((c, idx) => {
+            listaOrdenada.forEach((c, idx) => {
+                let badgeBloq = c.bloqueado ? ' <span style="color:#ef4444; font-size:0.7rem;">[Bloqueado]</span>' : '';
                 htmlTop += `
                     <div style="display: flex; justify-content: space-between; background: var(--card-bg); border: 1px solid var(--border-color); padding: 6px 8px; border-radius: 6px;">
-                        <span>${idx + 1}. ${c.handle}</span>
+                        <span>${idx + 1}. ${c.handle}${badgeBloq}</span>
                         <b style="color: #38bdf8;">${c.balance.toFixed(2)} Pi</b>
                     </div>
                 `;
             });
             containerTop.innerHTML = htmlTop;
+            actualizarSelectsAdminDirectorio();
+        }
+
+        function actualizarSelectsAdminDirectorio() {
+            const selectUsr = document.getElementById('admin-user-select');
+            if (!selectUsr) return;
+            const valAnt = selectUsr.value;
+            let html = '<option value="">-- Seleccionar Usuario --</option>';
+            cuentasDirectorio.forEach(c => {
+                html += `<option value="${c.handle}">${c.handle} (${c.balance.toFixed(2)} Pi)</option>`;
+            });
+            selectUsr.innerHTML = html;
+            if (valAnt && selectUsr.querySelector(`option[value="${valAnt}"]`)) {
+                selectUsr.value = valAnt;
+            }
+        }
+
+        function cargarDatosUsuarioAdminSeleccionado() {
+            const handle = document.getElementById('admin-user-select').value;
+            usuarioAdminSeleccionadoHandle = handle;
+            const detCard = document.getElementById('admin-user-details-card');
+            if (!handle) {
+                detCard.style.display = 'none';
+                return;
+            }
+            let u = cuentasDirectorio.find(c => c.handle === handle);
+            if (!u) return;
+
+            document.getElementById('adm-det-handle').innerText = u.handle;
+            document.getElementById('adm-det-balance').innerText = u.balance.toFixed(2) + ' Pi';
+            
+            const stEl = document.getElementById('adm-det-status');
+            const btnBloq = document.getElementById('admin-btn-bloqueo');
+            if (u.bloqueado) {
+                stEl.innerText = "BLOQUEADO";
+                stEl.style.color = "#ef4444";
+                btnBloq.innerText = "🔓 Desbloquear Cuenta";
+                btnBloq.style.background = "linear-gradient(145deg, #166534, #14532d)";
+                btnBloq.style.borderColor = "#22c55e";
+            } else {
+                stEl.innerText = "Activo";
+                stEl.style.color = "#4ade80";
+                btnBloq.innerText = "🔒 Bloquear Cuenta";
+                btnBloq.style.background = "linear-gradient(145deg, #b91c1c, #991b1b)";
+                btnBloq.style.borderColor = "#ef4444";
+            }
+            detCard.style.display = 'block';
+        }
+
+        function toggleBloqueoCuentaActual() {
+            if (!usuarioAdminSeleccionadoHandle) {
+                alert("Por favor, selecciona un usuario primero.");
+                return;
+            }
+            let u = cuentasDirectorio.find(c => c.handle === usuarioAdminSeleccionadoHandle);
+            if (!u) return;
+
+            u.bloqueado = !u.bloqueado;
+            guardarTodoEnStorage();
+            cargarDatosUsuarioAdminSeleccionado();
+            calcularMetricasFinancierasAdmin();
+            alert(`El usuario ${u.handle} ha sido ${u.bloqueado ? 'BLOQUEADO' : 'DESBLOQUEADO'} con éxito.`);
+        }
+
+        function abrirModalAjusteBalance() {
+            if (!usuarioAdminSeleccionadoHandle) {
+                alert("Por favor, selecciona un usuario del panel de gestión primero.");
+                return;
+            }
+            document.getElementById('admin-adj-monto').value = '';
+            document.getElementById('admin-adj-nota').value = '';
+            document.getElementById('admin-balance-modal-subtitle').innerText = `Ajuste manual para la cuenta: ${usuarioAdminSeleccionadoHandle}`;
+            document.getElementById('admin-balance-modal').style.display = 'flex';
+        }
+
+        function cerrarModalAjusteBalance() {
+            document.getElementById('admin-balance-modal').style.display = 'none';
+        }
+
+        function ejecutarAjusteBalanceAdmin() {
+            if (!usuarioAdminSeleccionadoHandle) return;
+            const tipo = document.getElementById('admin-adj-tipo').value;
+            const monto = parseFloat(document.getElementById('admin-adj-monto').value);
+            const nota = document.getElementById('admin-adj-nota').value.trim();
+
+            if (!monto || monto <= 0) {
+                alert("Introduce un monto válido mayor a 0.");
+                return;
+            }
+            if (!nota) {
+                alert("La nota de auditoría o justificación es obligatoria para el ajuste manual.");
+                return;
+            }
+
+            let u = cuentasDirectorio.find(c => c.handle === usuarioAdminSeleccionadoHandle);
+            if (!u) return;
+
+            if (tipo === 'CREDITO') {
+                u.balance += monto;
+            } else {
+                if (u.balance < monto) {
+                    alert("El usuario no tiene suficiente balance para este débito.");
+                    return;
+                }
+                u.balance -= monto;
+            }
+
+            if (u.handle === usuarioActual.handle) {
+                usuarioActual.balance = u.balance;
+                actualizarUIBalance();
+            }
+
+            registrarTransaccionEnDB({
+                id: 'ADJ-' + Date.now(),
+                titulo: `Ajuste Admin [${tipo}]`,
+                tipo: 'Ajuste Manual',
+                monto: tipo === 'CREDITO' ? monto : -monto,
+                detalle: `Admin ajustó saldo a ${u.handle} (${tipo} ${monto} Pi). Nota: ${nota}`
+            });
+
+            guardarTodoEnStorage();
+            cargarDatosUsuarioAdminSeleccionado();
+            calcularMetricasFinancierasAdmin();
+            cerrarModalAjusteBalance();
+            alert("¡Ajuste manual de balance aplicado y registrado en auditoría correctamente!");
         }
 
         function depositarConPiNetwork() {
+            let uCheck = cuentasDirectorio.find(c => c.handle === usuarioActual.handle);
+            if (uCheck && uCheck.bloqueado) {
+                alert("⚠️ Operación denegada: Tu cuenta está bloqueada por el administrador.");
+                return;
+            }
+
             const monto = parseFloat(document.getElementById('wallet-amount').value);
             if (!monto || monto <= 0) { alert("Introduce un monto válido para recargar."); return; }
             usuarioActual.balance += monto;
@@ -1340,6 +1559,12 @@
         }
 
         function retirarBilletera() {
+            let uCheck = cuentasDirectorio.find(c => c.handle === usuarioActual.handle);
+            if (uCheck && uCheck.bloqueado) {
+                alert("⚠️ Operación denegada: Tu cuenta está bloqueada por el administrador.");
+                return;
+            }
+
             const monto = parseFloat(document.getElementById('wallet-amount').value);
             if (!monto || monto <= 0) { alert("Introduce un monto válido para retirar."); return; }
             if (usuarioActual.balance < monto) { alert("No tienes suficiente saldo para este retiro."); return; }
