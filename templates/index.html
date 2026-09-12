@@ -256,6 +256,16 @@
             box-shadow: var(--shadow-3d-active);
         }
 
+        .action-btn:disabled {
+            background: #374151 !important;
+            border-color: #4b5563 !important;
+            color: #9ca3af !important;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+            opacity: 0.6;
+        }
+
         .section-view {
             display: none;
         }
@@ -414,8 +424,8 @@
                 <div class="market-title">¿Bitcoin superará los $100,000 antes de finalizar este mes?</div>
                 <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span id="ask-precio-1-SI" style="color: #4ade80; font-weight: bold;">0.64 Pi</span> | Ask NO: <span id="ask-precio-1-NO" style="color: #f87171; font-weight: bold;">0.36 Pi</span></p>
                 <div style="display: flex; gap: 8px;">
-                    <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'SÍ')">Comprar SÍ</button>
-                    <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'NO')">Comprar NO</button>
+                    <button id="btn-comprar-1-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'SÍ')">Comprar SÍ</button>
+                    <button id="btn-comprar-1-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'NO')">Comprar NO</button>
                 </div>
             </div>
 
@@ -427,8 +437,8 @@
                 <div class="market-title">¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?</div>
                 <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span id="ask-precio-2-SI" style="color: #4ade80; font-weight: bold;">0.81 Pi</span> | Ask NO: <span id="ask-precio-2-NO" style="color: #f87171; font-weight: bold;">0.19 Pi</span></p>
                 <div style="display: flex; gap: 8px;">
-                    <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'SÍ')">Comprar SÍ</button>
-                    <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'NO')">Comprar NO</button>
+                    <button id="btn-comprar-2-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'SÍ')">Comprar SÍ</button>
+                    <button id="btn-comprar-2-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'NO')">Comprar NO</button>
                 </div>
             </div>
         </div>
@@ -776,6 +786,8 @@
             for (let id in estadosMercados) {
                 const estadoBadge = document.getElementById('estado-mercado-' + id);
                 const marketCard = document.querySelector(`.market-card[data-id="${id}"]`);
+                const btnSi = document.getElementById(`btn-comprar-${id}-SI`);
+                const btnNo = document.getElementById(`btn-comprar-${id}-NO`);
                 
                 if (estadosMercados[id] !== null) {
                     if (estadoBadge) {
@@ -785,6 +797,9 @@
                     if (marketCard) {
                         marketCard.setAttribute('data-estado', 'Cerrado');
                     }
+                    // Deshabilitar botones de compra cuando el mercado está cerrado
+                    if (btnSi) btnSi.disabled = true;
+                    if (btnNo) btnNo.disabled = true;
                 } else {
                     if (estadoBadge) {
                         estadoBadge.innerHTML = `● Abierto`;
@@ -793,6 +808,9 @@
                     if (marketCard) {
                         marketCard.setAttribute('data-estado', 'Abierto');
                     }
+                    // Habilitar botones de compra cuando el mercado está abierto
+                    if (btnSi) btnSi.disabled = false;
+                    if (btnNo) btnNo.disabled = false;
                 }
             }
             aplicarFiltrosCombinados();
