@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2Ppredict - Order Book</title>
+    <title>P2Ppredict - Order Book & Soporte</title>
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="env.js"></script>
@@ -310,6 +310,9 @@
             max-width: 420px;
             padding: 18px;
             box-shadow: var(--shadow-3d);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
         }
 
         .position-ticket {
@@ -372,6 +375,42 @@
             border-radius: 30px !important;
             padding: 12px 20px !important;
             box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+        }
+
+        /* ESTILOS DE CHAT SOPORTE */
+        .chat-messages-box {
+            flex: 1;
+            min-height: 200px;
+            max-height: 260px;
+            overflow-y: auto;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            box-sizing: border-box;
+        }
+        .chat-msg {
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            max-width: 80%;
+            word-break: break-word;
+        }
+        .chat-msg.user {
+            background: #1e3a8a;
+            color: #93c5fd;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+        .chat-msg.admin {
+            background: #374151;
+            color: #e5e7eb;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
         }
     </style>
 </head>
@@ -566,6 +605,15 @@
                 </select>
             </div>
             <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #b91c1c, #991b1b); border-color: #ef4444;" onclick="declararGanadorAdmin()">Ejecutar Resolución y Liquidación</button>
+        </div>
+
+        <!-- PANEL DE SOPORTE ADMIN (TICKETS DE RECLAMO) -->
+        <div class="market-card" style="margin-top: 14px;">
+            <div class="market-title">💬 Bandeja de Soporte / Tickets de Reclamo</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Responde los reclamos o dudas de los usuarios en tiempo real.</p>
+            <div id="admin-tickets-container">
+                <p style="font-size: 0.8rem; color: var(--text-muted);">No hay tickets de soporte activos.</p>
+            </div>
             <div style="margin-top: 14px; text-align: center;">
                 <button onclick="cerrarSesionAdmin()" style="background: transparent; border: none; color: #ef4444; font-size: 0.8rem; cursor: pointer; text-decoration: underline;">Bloquear / Cerrar Sesión Admin</button>
             </div>
@@ -614,9 +662,46 @@
         </div>
     </div>
 
+    <!-- MODAL DE CHAT DE SOPORTE USUARIO -->
+    <div id="support-chat-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="font-size: 1rem; margin: 0; color: #38bdf8;">💬 Chat de Soporte (Tus Reclamos)</h3>
+                <button onclick="cerrarChatSoporteUsuario()" style="background: transparent; border: none; color: var(--text-color); font-size: 1.2rem; cursor: pointer;">&times;</button>
+            </div>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px;">Describe tu reclamo o duda sobre transacciones, retiros u órdenes. El equipo de soporte te responderá directamente aquí.</p>
+            
+            <div id="chat-messages-container" class="chat-messages-box">
+                <!-- Mensajes dinámicos -->
+            </div>
+
+            <div style="display: flex; gap: 6px;">
+                <input type="text" id="chat-user-input" class="form-control" placeholder="Escribe tu mensaje o reclamo..." style="margin-bottom:0;" onkeydown="if(event.key === 'Enter') enviarMensajeSoporteUsuario()">
+                <button class="action-btn" style="padding: 10px 14px;" onclick="enviarMensajeSoporteUsuario()">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CHAT DE RESPUESTA ADMIN -->
+    <div id="admin-chat-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 id="admin-chat-title" style="font-size: 1rem; margin: 0; color: #4ade80;">💬 Responder Ticket</h3>
+                <button onclick="cerrarChatAdminModal()" style="background: transparent; border: none; color: var(--text-color); font-size: 1.2rem; cursor: pointer;">&times;</button>
+            </div>
+            <div id="admin-chat-messages-container" class="chat-messages-box">
+                <!-- Mensajes dinámicos de la conversación del ticket -->
+            </div>
+            <div style="display: flex; gap: 6px; margin-top: 6px;">
+                <input type="text" id="chat-admin-input" class="form-control" placeholder="Respuesta del Administrador..." style="margin-bottom:0;" onkeydown="if(event.key === 'Enter') enviarMensajeSoporteAdmin()">
+                <button class="action-btn" style="padding: 10px 14px;" onclick="enviarMensajeSoporteAdmin()">Responder</button>
+            </div>
+        </div>
+    </div>
+
     <!-- BOTÓN FLOTANTE DE SOPORTE -->
     <div class="support-chat-float">
-        <button class="action-btn chat-launcher-btn" onclick="abrirSoporteChat()">💬 Chat de Soporte</button>
+        <button class="action-btn chat-launcher-btn" onclick="abrirSoporteChatUsuario()">💬 Chat de Soporte</button>
     </div>
 
     <script>
@@ -624,6 +709,7 @@
         let posicionesActivas = JSON.parse(localStorage.getItem('p2p_posiciones')) || [];
         let historialTransacciones = JSON.parse(localStorage.getItem('p2p_historial_transacciones')) || []; 
         let ordenesGlobales = JSON.parse(localStorage.getItem('p2p_ordenes_globales')) || [];
+        let ticketsSoporte = JSON.parse(localStorage.getItem('p2p_tickets_soporte')) || [];
         
         let preciosMercados = JSON.parse(localStorage.getItem('p2p_precios_mercados')) || {
             1: { "SÍ": 0.64, "NO": 0.36 },
@@ -637,6 +723,7 @@
 
         const CLAVE_ADMIN_SECRETA = "Anthony*2023";
         let adminAutenticado = sessionStorage.getItem('p2p_admin_auth') === 'true';
+        let ticketAdminActivoId = null;
 
         const nombresMercados = {
             1: "¿Bitcoin superará los $100,000?",
@@ -662,28 +749,20 @@
             if (!supabaseClient) return;
             try {
                 let { data: ordenes, error: errOrd } = await supabaseClient.from('ordenes_clob').select('*');
-                if (!errOrd && ordenes && ordenes.length > 0) {
-                    ordenesGlobales = ordenes;
-                }
+                if (!errOrd && ordenes && ordenes.length > 0) { ordenesGlobales = ordenes; }
 
                 let { data: txs, error: errTx } = await supabaseClient.from('historial_transacciones').select('*');
-                if (!errTx && txs && txs.length > 0) {
-                    historialTransacciones = txs;
-                }
+                if (!errTx && txs && txs.length > 0) { historialTransacciones = txs; }
 
                 let { data: pos, error: errPos } = await supabaseClient.from('posiciones_activas').select('*');
                 if (!errPos && pos && pos.length > 0) {
                     posicionesActivas = pos.map(p => ({
-                        id: p.id,
-                        marketId: p.market_id,
-                        handle: p.handle,
-                        titulo: p.titulo,
-                        opcion: p.opcion,
-                        contratos: p.contratos,
-                        invertido: Number(p.invertido),
-                        payout: Number(p.payout)
+                        id: p.id, marketId: p.market_id, handle: p.handle, titulo: p.titulo, opcion: p.opcion, contratos: p.contratos, invertido: Number(p.invertido), payout: Number(p.payout)
                     }));
                 }
+
+                let { data: tcks, error: errTck } = await supabaseClient.from('tickets_soporte').select('*');
+                if (!errTck && tcks && tcks.length > 0) { ticketsSoporte = tcks; }
             } catch (e) {
                 console.warn("Aviso: No se pudo conectar con Supabase en tiempo de ejecución.", e);
             }
@@ -692,7 +771,7 @@
         async function guardarEnSupabaseTabla(tabla, objetoDatos) {
             if (!supabaseClient) return;
             try {
-                await supabaseClient.from(tabla).insert([objetoDatos]);
+                await supabaseClient.from(tabla).upsert([objetoDatos]);
             } catch (e) {
                 console.error("Error guardando en Supabase:", e);
             }
@@ -714,6 +793,7 @@
             localStorage.setItem('p2p_ordenes_globales', JSON.stringify(ordenesGlobales));
             localStorage.setItem('p2p_precios_mercados', JSON.stringify(preciosMercados));
             localStorage.setItem('p2p_estados_mercados', JSON.stringify(estadosMercados));
+            localStorage.setItem('p2p_tickets_soporte', JSON.stringify(ticketsSoporte));
         }
 
         function sincronizarPersistencia() {
@@ -723,6 +803,7 @@
             ordenesGlobales = JSON.parse(localStorage.getItem('p2p_ordenes_globales')) || [];
             preciosMercados = JSON.parse(localStorage.getItem('p2p_precios_mercados')) || preciosMercados;
             estadosMercados = JSON.parse(localStorage.getItem('p2p_estados_mercados')) || estadosMercados;
+            ticketsSoporte = JSON.parse(localStorage.getItem('p2p_tickets_soporte')) || [];
         }
 
         function toggleTheme() {
@@ -739,6 +820,9 @@
             if(tabId === 'clob') {
                 actualizarSelectsMercadosActivos();
                 renderizarOrderBookVisible();
+            }
+            if(tabId === 'admin') {
+                renderizarTicketsAdmin();
             }
         }
 
@@ -797,38 +881,26 @@
                 let cumpleCat = (categoriaActualFiltro === 'Todos' || cardCat === categoriaActualFiltro);
                 let cumpleEstado = true;
 
-                if (estadoActualFiltro === 'Abiertos') {
-                    cumpleEstado = (cardEstado === 'Abierto');
-                } else if (estadoActualFiltro === 'Cerrados') {
-                    cumpleEstado = (cardEstado === 'Cerrado');
-                }
+                if (estadoActualFiltro === 'Abiertos') { cumpleEstado = (cardEstado === 'Abierto'); }
+                else if (estadoActualFiltro === 'Cerrados') { cumpleEstado = (cardEstado === 'Cerrado'); }
 
-                if (cumpleQuery && cumpleCat && cumpleEstado) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
+                if (cumpleQuery && cumpleCat && cumpleEstado) { card.style.display = 'block'; }
+                else { card.style.display = 'none'; }
             });
         }
 
-        function filtrarMercados() {
-            aplicarFiltrosCombinados();
-        }
+        function filtrarMercados() { aplicarFiltrosCombinados(); }
 
         function setCategory(cat, pillElement) {
-            const pillsContainer = pillElement.parentElement;
-            pillsContainer.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+            pillElement.parentElement.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
             pillElement.classList.add('active');
-            
             categoriaActualFiltro = cat;
             aplicarFiltrosCombinados();
         }
 
         function setStatusFilter(estado, pillElement) {
-            const pillsContainer = pillElement.parentElement;
-            pillsContainer.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+            pillElement.parentElement.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
             pillElement.classList.add('active');
-            
             estadoActualFiltro = estado;
             aplicarFiltrosCombinados();
         }
@@ -856,23 +928,13 @@
                 const btnNo = document.getElementById(`btn-comprar-${id}-NO`);
                 
                 if (estadosMercados[id] !== null) {
-                    if (estadoBadge) {
-                        estadoBadge.innerHTML = `🔴 Cerrado (Ganador: ${estadosMercados[id]})`;
-                        estadoBadge.style.color = '#ef4444';
-                    }
-                    if (marketCard) {
-                        marketCard.setAttribute('data-estado', 'Cerrado');
-                    }
+                    if (estadoBadge) { estadoBadge.innerHTML = `🔴 Cerrado (Ganador: ${estadosMercados[id]})`; estadoBadge.style.color = '#ef4444'; }
+                    if (marketCard) { marketCard.setAttribute('data-estado', 'Cerrado'); }
                     if (btnSi) btnSi.disabled = true;
                     if (btnNo) btnNo.disabled = true;
                 } else {
-                    if (estadoBadge) {
-                        estadoBadge.innerHTML = `● Abierto`;
-                        estadoBadge.style.color = '#eab308';
-                    }
-                    if (marketCard) {
-                        marketCard.setAttribute('data-estado', 'Abierto');
-                    }
+                    if (estadoBadge) { estadoBadge.innerHTML = `● Abierto`; estadoBadge.style.color = '#eab308'; }
+                    if (marketCard) { marketCard.setAttribute('data-estado', 'Abierto'); }
                     if (btnSi) btnSi.disabled = false;
                     if (btnNo) btnNo.disabled = false;
                 }
@@ -891,13 +953,9 @@
                         htmlClob += `<option value="${id}">${nombresMercados[id] || ('Mercado #' + id)}</option>`;
                     }
                 }
-                if (htmlClob === '') {
-                    htmlClob = '<option value="">No hay mercados activos</option>';
-                }
+                if (htmlClob === '') { htmlClob = '<option value="">No hay mercados activos</option>'; }
                 selectClob.innerHTML = htmlClob;
-                if (valorAnterior && selectClob.querySelector(`option[value="${valorAnterior}"]`)) {
-                    selectClob.value = valorAnterior;
-                }
+                if (valorAnterior && selectClob.querySelector(`option[value="${valorAnterior}"]`)) { selectClob.value = valorAnterior; }
             }
 
             const selectAdmin = document.getElementById('admin-market-id');
@@ -909,13 +967,9 @@
                         htmlAdmin += `<option value="${id}">${nombresMercados[id] || ('Mercado #' + id)}</option>`;
                     }
                 }
-                if (htmlAdmin === '') {
-                    htmlAdmin = '<option value="">No hay mercados pendientes por resolver</option>';
-                }
+                if (htmlAdmin === '') { htmlAdmin = '<option value="">No hay mercados pendientes por resolver</option>'; }
                 selectAdmin.innerHTML = htmlAdmin;
-                if (valorAdminAnterior && selectAdmin.querySelector(`option[value="${valorAdminAnterior}"]`)) {
-                    selectAdmin.value = valorAdminAnterior;
-                }
+                if (valorAdminAnterior && selectAdmin.querySelector(`option[value="${valorAdminAnterior}"]`)) { selectAdmin.value = valorAdminAnterior; }
             }
         }
 
@@ -930,7 +984,6 @@
                 return;
             }
             let precioAskActual = preciosMercados[idMercado][opcion];
-            
             ordenActivaModal = { idMercado, tituloMercado, opcion, precioAskBase: precioAskActual };
             document.getElementById('modal-title').innerText = `Comprar Contratos [${opcion}]`;
             document.getElementById('modal-market-text').innerText = tituloMercado;
@@ -994,23 +1047,13 @@
             posicionesActivas.push(nuevaPosicion);
             
             guardarEnSupabaseTabla('posiciones_activas', {
-                id: nuevaPosicion.id,
-                market_id: String(nuevaPosicion.marketId),
-                handle: usuarioActual.handle,
-                titulo: nuevaPosicion.titulo,
-                opcion: nuevaPosicion.opcion,
-                contratos: nuevaPosicion.contratos,
-                invertido: nuevaPosicion.invertido,
-                payout: nuevaPosicion.payout
+                id: nuevaPosicion.id, market_id: String(nuevaPosicion.marketId), handle: usuarioActual.handle,
+                titulo: nuevaPosicion.titulo, opcion: nuevaPosicion.opcion, contratos: nuevaPosicion.contratos,
+                invertido: nuevaPosicion.invertido, payout: nuevaPosicion.payout
             });
 
             const nuevaOrdenGlobal = {
-                marketId: idM,
-                tipo: 'COMPRA (Bid)',
-                opcion: opM,
-                contratos: cantidad,
-                precio: precioFinalUnitario,
-                trader: usuarioActual.handle
+                marketId: idM, tipo: 'COMPRA (Bid)', opcion: opM, contratos: cantidad, precio: precioFinalUnitario, trader: usuarioActual.handle
             };
 
             ordenesGlobales.push(nuevaOrdenGlobal);
@@ -1032,12 +1075,8 @@
             const bannerStatus = document.getElementById('orderbook-market-status-banner');
             
             if (!marketIdFiltro || estadosMercados[marketIdFiltro] !== null) {
-                if (bannerStatus) {
-                    bannerStatus.innerHTML = `<span style="color: #ef4444; font-weight: bold;">● No hay un mercado activo seleccionado o el mercado está cerrado.</span>`;
-                }
-                if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 12px;">Seleccione un mercado activo válido.</td></tr>';
-                }
+                if (bannerStatus) { bannerStatus.innerHTML = `<span style="color: #ef4444; font-weight: bold;">● No hay un mercado activo seleccionado o el mercado está cerrado.</span>`; }
+                if (tbody) { tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 12px;">Seleccione un mercado activo válido.</td></tr>'; }
                 return;
             }
 
@@ -1045,10 +1084,8 @@
                 <div style="color: #eab308; font-weight: bold;">● Estado del Mercado: Activo / Abierto</div>
                 <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">Últimos precios Ask SÍ: ${preciosMercados[marketIdFiltro]["SÍ"].toFixed(2)} Pi | Ask NO: ${preciosMercados[marketIdFiltro]["NO"].toFixed(2)} Pi</div>
             `;
-            bannerStatus.style.borderColor = 'var(--border-color)';
 
             const filtradas = ordenesGlobales.filter(o => o.marketId == marketIdFiltro);
-
             if (filtradas.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 12px;">No hay órdenes en el libro para este mercado.</td></tr>';
                 return;
@@ -1072,12 +1109,9 @@
 
         function renderizarPosiciones() {
             const contenedor = document.getElementById('my-positions-content');
-            
             const posicionesVivas = posicionesActivas.filter(pos => {
                 const ganadorOficial = estadosMercados[pos.marketId];
-                if (ganadorOficial !== null && ganadorOficial !== pos.opcion) {
-                    return false;
-                }
+                if (ganadorOficial !== null && ganadorOficial !== pos.opcion) { return false; }
                 return true;
             });
 
@@ -1089,13 +1123,9 @@
             let html = '';
             posicionesActivas.forEach((pos, idx) => {
                 const ganadorOficial = estadosMercados[pos.marketId];
-                
-                if (ganadorOficial !== null && ganadorOficial !== pos.opcion) {
-                    return;
-                }
+                if (ganadorOficial !== null && ganadorOficial !== pos.opcion) { return; }
 
                 const colorBadge = pos.opcion === 'SÍ' ? '#4ade80' : '#f87171';
-                
                 let botonesHtml = '';
                 if (ganadorOficial === null) {
                     const valorVentaAnticipada = (pos.invertido * 0.9).toFixed(2);
@@ -1133,15 +1163,10 @@
         function venderPosicionAnticipada(idx) {
             const pos = posicionesActivas[idx];
             const retornoVenta = pos.invertido * 0.9;
-            
             usuarioActual.balance += retornoVenta;
 
             registrarTransaccionEnDB({
-                id: 'VEND-' + Date.now(),
-                titulo: pos.titulo,
-                tipo: 'Venta Anticipada',
-                monto: retornoVenta,
-                detalle: `${pos.contratos} contratos (${pos.opcion}) vendidos antes de tiempo`
+                id: 'VEND-' + Date.now(), titulo: pos.titulo, tipo: 'Venta Anticipada', monto: retornoVenta, detalle: `${pos.contratos} contratos (${pos.opcion}) vendidos antes de tiempo`
             });
 
             eliminarDeSupabaseTabla('posiciones_activas', pos.id);
@@ -1158,11 +1183,7 @@
             usuarioActual.balance += pos.payout;
 
             registrarTransaccionEnDB({
-                id: pos.id,
-                titulo: pos.titulo,
-                tipo: 'Cobrada / Ganada',
-                monto: pos.payout,
-                detalle: `${pos.contratos} contratos (${pos.opcion}) cobrados con éxito`
+                id: pos.id, titulo: pos.titulo, tipo: 'Cobrada / Ganada', monto: pos.payout, detalle: `${pos.contratos} contratos (${pos.opcion}) cobrados con éxito`
             });
 
             eliminarDeSupabaseTabla('posiciones_activas', pos.id);
@@ -1205,17 +1226,10 @@
 
         function depositarConPiNetwork() {
             const monto = parseFloat(document.getElementById('wallet-amount').value);
-            if (!monto || monto <= 0) {
-                alert("Introduce un monto válido para recargar.");
-                return;
-            }
+            if (!monto || monto <= 0) { alert("Introduce un monto válido para recargar."); return; }
             usuarioActual.balance += monto;
             registrarTransaccionEnDB({
-                id: 'DEP-' + Date.now(),
-                titulo: 'Recarga de Billetera Pi',
-                tipo: 'Depósito',
-                monto: monto,
-                detalle: 'Recarga procesada mediante Blockchain Pi'
+                id: 'DEP-' + Date.now(), titulo: 'Recarga de Billetera Pi', tipo: 'Depósito', monto: monto, detalle: 'Recarga procesada mediante Blockchain Pi'
             });
             guardarTodoEnStorage();
             actualizarUIBalance();
@@ -1225,21 +1239,11 @@
 
         function retirarBilletera() {
             const monto = parseFloat(document.getElementById('wallet-amount').value);
-            if (!monto || monto <= 0) {
-                alert("Introduce un monto válido para retirar.");
-                return;
-            }
-            if (usuarioActual.balance < monto) {
-                alert("No tienes suficiente saldo para este retiro.");
-                return;
-            }
+            if (!monto || monto <= 0) { alert("Introduce un monto válido para retirar."); return; }
+            if (usuarioActual.balance < monto) { alert("No tienes suficiente saldo para este retiro."); return; }
             usuarioActual.balance -= monto;
             registrarTransaccionEnDB({
-                id: 'RET-' + Date.now(),
-                titulo: 'Retiro de Billetera Pi',
-                tipo: 'Retiro',
-                monto: -monto,
-                detalle: 'Retiro procesado a la mainnet de Pi'
+                id: 'RET-' + Date.now(), titulo: 'Retiro de Billetera Pi', tipo: 'Retiro', monto: -monto, detalle: 'Retiro procesado a la mainnet de Pi'
             });
             guardarTodoEnStorage();
             actualizarUIBalance();
@@ -1250,10 +1254,7 @@
         function declararGanadorAdmin() {
             const marketSelect = document.getElementById('admin-market-id');
             const marketId = marketSelect.value;
-            if (!marketId) {
-                alert("No hay mercados pendientes válidos para resolver.");
-                return;
-            }
+            if (!marketId) { alert("No hay mercados pendientes válidos para resolver."); return; }
             const ganador = document.getElementById('admin-result-select').value;
 
             if (estadosMercados[marketId] !== null) {
@@ -1262,30 +1263,20 @@
             }
 
             estadosMercados[marketId] = ganador;
-
             let nuevasPosicionesActivas = [];
 
             posicionesActivas.forEach(pos => {
                 if (pos.marketId == marketId) {
                     if (pos.opcion !== ganador) {
                         registrarTransaccionEnDB({
-                            id: 'PERD-' + Date.now() + '-' + Math.floor(Math.random()*1000),
-                            titulo: pos.titulo,
-                            tipo: 'Perdida / Cerrada',
-                            monto: 0.00,
-                            detalle: `${pos.contratos} contratos (${pos.opcion}) cerrados sin premio (Ganador: ${ganador})`
+                            id: 'PERD-' + Date.now() + '-' + Math.floor(Math.random()*1000), titulo: pos.titulo, tipo: 'Perdida / Cerrada', monto: 0.00, detalle: `${pos.contratos} contratos (${pos.opcion}) cerrados sin premio (Ganador: ${ganador})`
                         });
                         eliminarDeSupabaseTabla('posiciones_activas', pos.id);
-                    } else {
-                        nuevasPosicionesActivas.push(pos);
-                    }
-                } else {
-                    nuevasPosicionesActivas.push(pos);
-                }
+                    } else { nuevasPosicionesActivas.push(pos); }
+                } else { nuevasPosicionesActivas.push(pos); }
             });
 
             posicionesActivas = nuevasPosicionesActivas;
-
             guardarTodoEnStorage();
             restaurarEstadosMercadosVisuales();
             renderizarPosiciones();
@@ -1297,8 +1288,132 @@
             switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
         }
 
-        function abrirSoporteChat() {
-            alert("Abriendo canal de soporte técnico con el equipo de P2Ppredict...");
+        // ==========================================
+        // SISTEMA DE CHAT DE SOPORTE Y TICKETS
+        // ==========================================
+
+        function abrirSoporteChatUsuario() {
+            document.getElementById('support-chat-modal').style.display = 'flex';
+            renderizarMensajesChatUsuario();
+        }
+
+        function cerrarChatSoporteUsuario() {
+            document.getElementById('support-chat-modal').style.display = 'none';
+        }
+
+        function obtenerTicketActualUsuario() {
+            let ticket = ticketsSoporte.find(t => t.handle === usuarioActual.handle);
+            if (!ticket) {
+                ticket = {
+                    id: 'TCK-' + Date.now(),
+                    handle: usuarioActual.handle,
+                    mensajes: [
+                        { remitente: 'admin', texto: '¡Hola! Bienvenido al soporte de P2Ppredict. ¿En qué podemos ayudarte con tus apuestas o retiros?' }
+                    ]
+                };
+                ticketsSoporte.push(ticket);
+                guardarTodoEnStorage();
+                guardarEnSupabaseTabla('tickets_soporte', ticket);
+            }
+            return ticket;
+        }
+
+        function renderizarMensajesChatUsuario() {
+            const ticket = obtenerTicketActualUsuario();
+            const container = document.getElementById('chat-messages-container');
+            let html = '';
+            ticket.mensajes.forEach(m => {
+                const claseCss = m.remitente === 'user' ? 'user' : 'admin';
+                html += `<div class="chat-msg ${claseCss}"><b>${m.remitente === 'user' ? 'Tú' : 'Soporte'}:</b> ${m.texto}</div>`;
+            });
+            container.innerHTML = html;
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function enviarMensajeSoporteUsuario() {
+            const input = document.getElementById('chat-user-input');
+            const texto = input.value.trim();
+            if (!texto) return;
+
+            let ticket = obtenerTicketActualUsuario();
+            ticket.mensajes.push({ remitente: 'user', texto: texto });
+            
+            guardarTodoEnStorage();
+            guardarEnSupabaseTabla('tickets_soporte', ticket);
+            input.value = '';
+            renderizarMensajesChatUsuario();
+        }
+
+        function renderizarTicketsAdmin() {
+            sincronizarPersistencia();
+            const container = document.getElementById('admin-tickets-container');
+            if (ticketsSoporte.length === 0) {
+                container.innerHTML = '<p style="font-size: 0.8rem; color: var(--text-muted);">No hay tickets de soporte activos.</p>';
+                return;
+            }
+
+            let html = '';
+            ticketsSoporte.forEach(t => {
+                const ultimoMsg = t.mensajes[t.mensajes.length - 1] ? t.mensajes[t.mensajes.length - 1].texto : 'Sin mensajes';
+                html += `
+                    <div style="background: var(--card-bg); border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 0.8rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <b style="color: #38bdf8;">Ticket: ${t.id}</b>
+                            <span style="color: #4ade80;">Usuario: ${t.handle}</span>
+                        </div>
+                        <div style="color: var(--text-muted); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Último: ${ultimoMsg}</div>
+                        <button class="action-btn" style="width: 100%; font-size: 0.75rem; padding: 6px;" onclick="abrirChatAdminModal('${t.id}')">💬 Abrir Conversación y Responder</button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function abrirChatAdminModal(ticketId) {
+            ticketAdminActivoId = ticketId;
+            const ticket = ticketsSoporte.find(t => t.id === ticketId);
+            if (!ticket) return;
+
+            document.getElementById('admin-chat-title').innerText = `💬 Ticket: ${ticket.id} (${ticket.handle})`;
+            document.getElementById('admin-chat-modal').style.display = 'flex';
+            renderizarMensajesChatAdmin();
+        }
+
+        function cerrarChatAdminModal() {
+            document.getElementById('admin-chat-modal').style.display = 'none';
+            ticketAdminActivoId = null;
+            renderizarTicketsAdmin();
+        }
+
+        function renderizarMensajesChatAdmin() {
+            if (!ticketAdminActivoId) return;
+            const ticket = ticketsSoporte.find(t => t.id === ticketAdminActivoId);
+            if (!ticket) return;
+
+            const container = document.getElementById('admin-chat-messages-container');
+            let html = '';
+            ticket.mensajes.forEach(m => {
+                const claseCss = m.remitente === 'admin' ? 'user' : 'admin';
+                html += `<div class="chat-msg ${claseCss}"><b>${m.remitente === 'admin' ? 'Tú (Admin)' : ticket.handle}:</b> ${m.texto}</div>`;
+            });
+            container.innerHTML = html;
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function enviarMensajeSoporteAdmin() {
+            const input = document.getElementById('chat-admin-input');
+            const texto = input.value.trim();
+            if (!texto || !ticketAdminActivoId) return;
+
+            let ticket = ticketsSoporte.find(t => t.id === ticketAdminActivoId);
+            if (!ticket) return;
+
+            ticket.mensajes.push({ remitente: 'admin', texto: texto });
+            guardarTodoEnStorage();
+            guardarEnSupabaseTabla('tickets_soporte', ticket);
+
+            input.value = '';
+            renderizarMensajesChatAdmin();
         }
     </script>
 </body>
