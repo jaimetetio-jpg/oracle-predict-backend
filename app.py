@@ -347,6 +347,7 @@ def inicializar_bd():
 
   conn.commit()
 
+  # REQUISITO 2: Asegurar que solo exista la predicción de la Mainnet de Pi abierta inicialmente si la tabla está vacía
   c.execute("SELECT COUNT(*) as total FROM eventos")
   row = c.fetchone()
   total_evs = row["total"] if row else 0
@@ -354,16 +355,10 @@ def inicializar_bd():
   if total_evs == 0:
     eventos_iniciales = [
         {
-            "titulo": "¿BTC alcanzará los $120,000 antes de finalizar el mes?",
-            "categoria": "Crypto",
-            "fecha_cierre": "2026-12-31",
-            "opciones": [("Sí", 15.0), ("No", 10.0)],
-        },
-        {
             "titulo": "¿Pi Network lanzará su Mainnet abierta global este año?",
             "categoria": "Pi Ecosystem",
             "fecha_cierre": "2026-11-30",
-            "opciones": [("Sí", 35.0), ("No", 5.0)],
+            "opciones": [("Sí", 0.0), ("No", 0.0)],
         },
     ]
     for ev in eventos_iniciales:
@@ -513,6 +508,7 @@ def obtener_saldo(username):
   row = c.fetchone()
 
   if not row:
+    # REQUISITO 1: Únicamente @jaimetetio queda con saldo inicial de 0.1 Pi. Los demás en 0.0
     saldo_inicial = (
         0.10 if username.lower() in ["@jaimetetio", "jaimetetio"] else 0.0
     )
