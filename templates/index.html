@@ -5,14 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>P2Ppredict - Order Book</title>
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-    <!-- SDK de Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Carga segura de variables de entorno mediante archivo externo -->
     <script src="env.js"></script>
     <script>
         Pi.init({ version: "2.0", sandbox: true });
 
-        // Extracción de credenciales desde el archivo de entorno seguro (env.js)
         const SUPABASE_URL = (window.ENV && window.ENV.SUPABASE_URL) || '';
         const SUPABASE_ANON_KEY = (window.ENV && window.ENV.SUPABASE_ANON_KEY) || '';
         
@@ -395,7 +392,7 @@
         <button class="nav-tab active" onclick="switchTab('mercados', this)">Mercados</button>
         <button class="nav-tab" onclick="switchTab('clob', this)">Order Book</button>
         <button class="nav-tab" onclick="switchTab('ranking', this)">Ranking</button>
-        <button class="nav-tab" onclick="switchTab('admin', this)">Admin</button>
+        <button class="nav-tab" onclick="verificarAccesoAdmin(this)">Admin</button>
     </div>
 
     <!-- VISTA: MERCADOS -->
@@ -549,7 +546,7 @@
         </div>
     </div>
 
-    <!-- VISTA: ADMIN -->
+    <!-- VISTA: ADMIN (PROTEGIDA) -->
     <div id="view-admin" class="section-view">
         <div class="market-card">
             <div class="market-title">🛠️ Panel de Administración y Resolución</div>
@@ -569,6 +566,9 @@
                 </select>
             </div>
             <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #b91c1c, #991b1b); border-color: #ef4444;" onclick="declararGanadorAdmin()">Ejecutar Resolución y Liquidación</button>
+            <div style="margin-top: 14px; text-align: center;">
+                <button onclick="cerrarSesionAdmin()" style="background: transparent; border: none; color: #ef4444; font-size: 0.8rem; cursor: pointer; text-decoration: underline;">Bloquear / Cerrar Sesión Admin</button>
+            </div>
         </div>
     </div>
 
@@ -596,13 +596,30 @@
         </div>
     </div>
 
+    <!-- MODAL DE CONTRASEÑA DE ADMINISTRADOR -->
+    <div id="admin-auth-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="font-size: 1rem; margin: 0; color: #ef4444;">🔒 Acceso Restringido - Admin</h3>
+                <button onclick="cerrarModalAdminAuth()" style="background: transparent; border: none; color: var(--text-color); font-size: 1.2rem; cursor: pointer;">&times;</button>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Introduce la clave de administrador para acceder a las opciones de gestión.</p>
+            
+            <div class="form-group">
+                <label>Contraseña de Administrador</label>
+                <input type="password" id="admin-password-input" class="form-control" placeholder="Introduce la clave secreta" onkeydown="if(event.key === 'Enter') validarClaveAdmin()">
+            </div>
+
+            <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="validarClaveAdmin()">Acceder al Panel</button>
+        </div>
+    </div>
+
     <!-- BOTÓN FLOTANTE DE SOPORTE -->
     <div class="support-chat-float">
         <button class="action-btn chat-launcher-btn" onclick="abrirSoporteChat()">💬 Chat de Soporte</button>
     </div>
 
     <script>
-        // Estado local de respaldo
         let usuarioActual = JSON.parse(localStorage.getItem('p2p_usuario')) || { handle: "@jaimetetio", balance: 150.00 };
         let posicionesActivas = JSON.parse(localStorage.getItem('p2p_posiciones')) || [];
         let historialTransacciones = JSON.parse(localStorage.getItem('p2p_historial_transacciones')) || []; 
@@ -618,7 +635,9 @@
             2: null
         };
 
-        // Diccionario con los títulos oficiales de los mercados para construir selects dinámicos de forma segura
+        const CLAVE_ADMIN_SECRETA = "Anthony*2023";
+        let adminAutenticado = sessionStorage.getItem('p2p_admin_auth') === 'true';
+
         const nombresMercados = {
             1: "¿Bitcoin superará los $100,000?",
             2: "¿Se habilitará Open Mainnet este trimestre?"
@@ -723,6 +742,44 @@
             }
         }
 
+        function verificarAccesoAdmin(btnElement) {
+            if (adminAutenticado) {
+                switchTab('admin', btnElement);
+            } else {
+                document.getElementById('admin-password-input').value = '';
+                document.getElementById('admin-auth-modal').style.display = 'flex';
+                document.getElementById('admin-password-input').focus();
+            }
+        }
+
+        function cerrarModalAdminAuth() {
+            document.getElementById('admin-auth-modal').style.display = 'none';
+        }
+
+        function validarClaveAdmin() {
+            const claveIngresada = document.getElementById('admin-password-input').value;
+            if (claveIngresada === CLAVE_ADMIN_SECRETA) {
+                adminAutenticado = true;
+                sessionStorage.setItem('p2p_admin_auth', 'true');
+                cerrarModalAdminAuth();
+                
+                const tabs = document.querySelectorAll('.nav-tab');
+                const btnAdmin = tabs[tabs.length - 1];
+                switchTab('admin', btnAdmin);
+                alert("¡Acceso de administrador concedido con éxito!");
+            } else {
+                alert("Contraseña incorrecta. Acceso denegado.");
+                document.getElementById('admin-password-input').value = '';
+            }
+        }
+
+        function cerrarSesionAdmin() {
+            adminAutenticado = false;
+            sessionStorage.removeItem('p2p_admin_auth');
+            switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
+            alert("Sesión de administrador cerrada correctamente.");
+        }
+
         function toggleAccordion(id) {
             document.getElementById(id).classList.toggle('open');
         }
@@ -825,7 +882,6 @@
         }
 
         function actualizarSelectsMercadosActivos() {
-            // Actualizar select del Order Book (solo mercados abiertos)
             const selectClob = document.getElementById('orderbook-market-filter');
             if (selectClob) {
                 const valorAnterior = selectClob.value;
@@ -844,7 +900,6 @@
                 }
             }
 
-            // Actualizar select del Panel Admin (solo mercados abiertos)
             const selectAdmin = document.getElementById('admin-market-id');
             if (selectAdmin) {
                 const valorAdminAnterior = selectAdmin.value;
@@ -986,7 +1041,6 @@
                 return;
             }
 
-            const estadoGanador = estadosMercados[marketIdFiltro];
             bannerStatus.innerHTML = `
                 <div style="color: #eab308; font-weight: bold;">● Estado del Mercado: Activo / Abierto</div>
                 <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">Últimos precios Ask SÍ: ${preciosMercados[marketIdFiltro]["SÍ"].toFixed(2)} Pi | Ask NO: ${preciosMercados[marketIdFiltro]["NO"].toFixed(2)} Pi</div>
