@@ -377,7 +377,6 @@
             box-shadow: 0 8px 16px rgba(0,0,0,0.4);
         }
 
-        /* ESTILOS DE CHAT SOPORTE */
         .chat-messages-box {
             flex: 1;
             min-height: 200px;
@@ -444,7 +443,6 @@
             <button class="pill" onclick="setCategory('Pi Ecosystem', this)">Pi Ecosystem</button>
         </div>
 
-        <!-- FILTROS DE ESTADO -->
         <div class="filter-pills" id="estado-filter-pills" style="margin-bottom: 14px;">
             <button class="pill active" onclick="setStatusFilter('Todos', this)">Todos</button>
             <button class="pill" onclick="setStatusFilter('Abiertos', this)">Abiertos</button>
@@ -535,11 +533,9 @@
             <div class="form-group">
                 <label>Seleccionar Mercado Activo</label>
                 <select id="orderbook-market-filter" class="form-control" onchange="renderizarOrderBookVisible()">
-                    <!-- Se llenará dinámicamente omitiendo los cerrados -->
                 </select>
             </div>
 
-            <!-- BLOQUE DE ESTADO / HISTORIAL DEL MERCADO SELECCIONADO -->
             <div id="orderbook-market-status-banner" style="background: var(--card-bg); border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 0.8rem;">
                 <span style="color: #eab308; font-weight: bold;">● Estado: Abierto</span>
             </div>
@@ -616,13 +612,14 @@
             </div>
         </div>
 
-        <!-- NUEVO: AUDITORÍA E HISTORIAL GLOBAL DE TRANSACCIONES DE USUARIOS -->
+        <!-- AUDITORÍA E HISTORIAL GLOBAL DE TRANSACCIONES DE USUARIOS -->
         <div class="market-card" style="margin-top: 14px;">
             <div class="market-title">📜 Auditoría Global: Historial de Transacciones</div>
             <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Registro completo de todas las operaciones financieras (depósitos, retiros, ventas anticipadas y cobros de premios) de los usuarios para resolver disputas.</p>
             
-            <div class="form-group" style="margin-bottom: 8px;">
-                <input type="text" id="admin-tx-search" class="form-control" placeholder="🔍 Filtrar por título o detalle..." oninput="renderizarHistorialGlobalAdmin()">
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <input type="text" id="admin-user-search" class="form-control" placeholder="👤 Buscar por @usuario..." oninput="renderizarHistorialGlobalAdmin()">
+                <input type="text" id="admin-tx-search" class="form-control" placeholder="🔍 Filtrar por detalle..." oninput="renderizarHistorialGlobalAdmin()">
             </div>
 
             <div id="admin-global-transactions-container" style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
@@ -687,7 +684,6 @@
             <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px;">Describe tu reclamo o duda sobre transacciones, retiros u órdenes. El equipo de soporte te responderá directamente aquí.</p>
             
             <div id="chat-messages-container" class="chat-messages-box">
-                <!-- Mensajes dinámicos -->
             </div>
 
             <div style="display: flex; gap: 6px;">
@@ -705,7 +701,6 @@
                 <button onclick="cerrarChatAdminModal()" style="background: transparent; border: none; color: var(--text-color); font-size: 1.2rem; cursor: pointer;">&times;</button>
             </div>
             <div id="admin-chat-messages-container" class="chat-messages-box">
-                <!-- Mensajes dinámicos de la conversación del ticket -->
             </div>
             <div style="display: flex; gap: 6px; margin-top: 6px;">
                 <input type="text" id="chat-admin-input" class="form-control" placeholder="Respuesta del Administrador..." style="margin-bottom:0;" onkeydown="if(event.key === 'Enter') enviarMensajeSoporteAdmin()">
@@ -779,7 +774,7 @@
                 let { data: tcks, error: errTck } = await supabaseClient.from('tickets_soporte').select('*');
                 if (!errTck && tcks && tcks.length > 0) { ticketsSoporte = tcks; }
             } catch (e) {
-                console.warn("Aviso: No se pudo conectar con Supabase en tiempo de ejecución.", e);
+                console.warn("Aviso: No se pudo conectar com Supabase em tempo de execução.", e);
             }
         }
 
@@ -1246,17 +1241,22 @@
         function renderizarHistorialGlobalAdmin() {
             sincronizarPersistencia();
             const contenedor = document.getElementById('admin-global-transactions-container');
-            const filtroTexto = document.getElementById('admin-tx-search').value.toLowerCase();
+            const filtroUsuario = (document.getElementById('admin-user-search').value || '').toLowerCase();
+            const filtroTexto = (document.getElementById('admin-tx-search').value || '').toLowerCase();
 
             const filtradas = historialTransacciones.filter(tx => {
                 const titulo = (tx.titulo || '').toLowerCase();
                 const detalle = (tx.detalle || '').toLowerCase();
                 const tipo = (tx.tipo || '').toLowerCase();
-                return titulo.includes(filtroTexto) || detalle.includes(filtroTexto) || tipo.includes(filtroTexto);
+                
+                const coincideUsuario = filtroUsuario === '' || detalle.includes(filtroUsuario) || titulo.includes(filtroUsuario);
+                const coincideTexto = filtroTexto === '' || titulo.includes(filtroTexto) || detalle.includes(filtroTexto) || tipo.includes(filtroTexto);
+
+                return coincideUsuario && coincideTexto;
             });
 
             if (filtradas.length === 0) {
-                contenedor.innerHTML = '<p style="font-size: 0.8rem; color: var(--text-muted);">No se encontraron transacciones con ese criterio.</p>';
+                contenedor.innerHTML = '<p style="font-size: 0.8rem; color: var(--text-muted);">No se encontraron transacciones con esos criterios.</p>';
                 return;
             }
 
@@ -1340,10 +1340,6 @@
             alert(`¡El administrador ha declarado a "${ganador}" como ganador oficial del mercado #${marketId}!`);
             switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
         }
-
-        // ==========================================
-        // SISTEMA DE CHAT DE SOPORTE Y TICKETS
-        // ==========================================
 
         function abrirSoporteChatUsuario() {
             document.getElementById('support-chat-modal').style.display = 'flex';
