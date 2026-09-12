@@ -839,7 +839,6 @@
             renderizarOrderBookVisible();
         };
 
-        // NUEVA FUNCIÓN: Autenticación con el SDK oficial de Pi Network
         async function autenticarPiNetworkUsuario() {
             try {
                 if (typeof Pi !== 'undefined' && Pi.authenticate) {
@@ -853,7 +852,6 @@
                         const piUsername = '@' + authResult.user.username;
                         usuarioActual.handle = piUsername;
                         
-                        // Sincronizar o registrar en el directorio de cuentas local si no existe
                         let uExistente = cuentasDirectorio.find(c => c.handle === piUsername);
                         if (!uExistente) {
                             cuentasDirectorio.push({ handle: piUsername, balance: 150.00, bloqueado: false });
@@ -864,7 +862,6 @@
                         
                         document.getElementById('user-handle').innerText = usuarioActual.handle;
                         guardarTodoEnStorage();
-                        console.log("Autenticado exitosamente con Pi Network:", piUsername);
                     }
                 }
             } catch (error) {
@@ -998,7 +995,6 @@
                 const tabs = document.querySelectorAll('.nav-tab');
                 const btnAdmin = tabs[tabs.length - 1];
                 switchTab('admin', btnAdmin);
-                alert("¡Acceso de administrador concedido con éxito!");
             } else {
                 alert("Contraseña incorrecta. Acceso denegado.");
                 document.getElementById('admin-password-input').value = '';
@@ -1009,7 +1005,6 @@
             adminAutenticado = false;
             sessionStorage.removeItem('p2p_admin_auth');
             switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
-            alert("Sesión de administrador cerrada correctamente.");
         }
 
         function toggleAccordion(id) {
@@ -1220,7 +1215,6 @@
             renderizarPosiciones();
             renderizarOrderBookVisible();
             cerrarTerminalTrading();
-            alert("¡Orden ejecutada y guardada permanentemente en el sistema!");
         }
 
         function renderizarOrderBookVisible() {
@@ -1330,7 +1324,6 @@
             actualizarUIBalance();
             renderizarPosiciones();
             renderizarHistorial();
-            alert(`¡Has vendido tus contratos anticipadamente! Se han acreditado ${retornoVenta.toFixed(2)} Pi a tu balance.`);
         }
 
         function cobrarPrediccion(idx) {
@@ -1347,7 +1340,6 @@
             actualizarUIBalance();
             renderizarPosiciones();
             renderizarHistorial();
-            alert(`¡Predicción cobrada con éxito! Se acreditaron ${pos.payout.toFixed(2)} Pi a tu balance.`);
         }
 
         function registrarTransaccionEnDB(tx) {
@@ -1508,7 +1500,6 @@
             guardarTodoEnStorage();
             cargarDatosUsuarioAdminSeleccionado();
             calcularMetricasFinancierasAdmin();
-            alert(`El usuario ${u.handle} ha sido ${u.bloqueado ? 'BLOQUEADO' : 'DESBLOQUEADO'} con éxito.`);
         }
 
         function abrirModalAjusteBalance() {
@@ -1571,10 +1562,8 @@
             cargarDatosUsuarioAdminSeleccionado();
             calcularMetricasFinancierasAdmin();
             cerrarModalAjusteBalance();
-            alert("¡Ajuste manual de balance aplicado y registrado en auditoría correctamente!");
         }
 
-        // FUNCIÓN MEJORADA: Depósito real usando la API de pagos oficiales del SDK de Pi Network
         async function depositarConPiNetwork() {
             let uCheck = cuentasDirectorio.find(c => c.handle === usuarioActual.handle);
             if (uCheck && uCheck.bloqueado) {
@@ -1588,7 +1577,6 @@
                 return; 
             }
 
-            // Verificar si el SDK de Pi está disponible para procesar el pago nativo
             if (typeof Pi !== 'undefined' && Pi.createPayment) {
                 try {
                     const paymentData = {
@@ -1598,11 +1586,8 @@
                     };
 
                     const callbacks = {
-                        onReadyForServerApproval: function(paymentId) {
-                            console.log("Pago listo para aprobación del servidor:", paymentId);
-                        },
+                        onReadyForServerApproval: function(paymentId) {},
                         onReadyForServerCompletion: function(paymentId, txid) {
-                            console.log("Pago completado en blockchain:", paymentId, txid);
                             usuarioActual.balance += monto;
                             registrarTransaccionEnDB({
                                 id: 'DEP-' + Date.now(), titulo: 'Recarga de Billetera Pi', tipo: 'Depósito', monto: monto, detalle: `Recarga de ${monto} Pi procesada por ${usuarioActual.handle} (TxID: ${txid})`
@@ -1610,27 +1595,18 @@
                             guardarTodoEnStorage();
                             actualizarUIBalance();
                             renderizarHistorial();
-                            alert(`¡Depósito de ${monto} Pi realizado con éxito mediante Pi Network SDK!`);
                         },
-                        onCancel: function(paymentId) {
-                            console.log("Pago cancelado por el usuario:", paymentId);
-                            alert("El pago fue cancelado.");
-                        },
-                        onError: function(error, payment) {
-                            console.error("Error en el pago de Pi Network:", error, payment);
-                            alert("Ocurrió un error al procesar el pago con Pi Network.");
-                        }
+                        onCancel: function(paymentId) {},
+                        onError: function(error, payment) {}
                     };
 
                     Pi.createPayment(paymentData, callbacks);
                     return;
-
                 } catch (e) {
                     console.warn("Fallo al invocar Pi.createPayment, ejecutando recarga simulada/sandbox...", e);
                 }
             }
 
-            // Fallback en caso de estar en modo desarrollo/sandbox sin pasarela activa
             usuarioActual.balance += monto;
             registrarTransaccionEnDB({
                 id: 'DEP-' + Date.now(), titulo: 'Recarga de Billetera Pi', tipo: 'Depósito', monto: monto, detalle: `Recarga de ${monto} Pi procesada por ${usuarioActual.handle}`
@@ -1638,7 +1614,6 @@
             guardarTodoEnStorage();
             actualizarUIBalance();
             renderizarHistorial();
-            alert(`¡Depósito de ${monto} Pi realizado correctamente!`);
         }
 
         function retirarBilletera() {
@@ -1658,7 +1633,6 @@
             guardarTodoEnStorage();
             actualizarUIBalance();
             renderizarHistorial();
-            alert(`Se han retirado ${monto} Pi de tu saldo disponible.`);
         }
 
         function declararGanadorAdmin() {
@@ -1694,7 +1668,6 @@
             actualizarSelectsMercadosActivos();
             renderizarOrderBookVisible();
 
-            alert(`¡El administrador ha declarado a "${ganador}" como ganador oficial del mercado #${marketId}!`);
             switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
         }
 
