@@ -497,10 +497,9 @@
             <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Listado general de ofertas de compra (Bid) y venta (Ask) registradas en el mercado.</p>
             
             <div class="form-group">
-                <label>Seleccionar Mercado</label>
+                <label>Seleccionar Mercado Activo</label>
                 <select id="orderbook-market-filter" class="form-control" onchange="renderizarOrderBookVisible()">
-                    <option value="1">¿Bitcoin superará los $100,000?</option>
-                    <option value="2">¿Se habilitará Open Mainnet este trimestre?</option>
+                    <!-- Se llenará dinámicamente omitiendo los cerrados -->
                 </select>
             </div>
 
@@ -619,6 +618,12 @@
             2: null
         };
 
+        // Diccionario con los títulos oficiales de los mercados para construir selects dinámicos de forma segura
+        const nombresMercados = {
+            1: "¿Bitcoin superará los $100,000?",
+            2: "¿Se habilitará Open Mainnet este trimestre?"
+        };
+
         let ordenActivaModal = null;
         let categoriaActualFiltro = 'Todos';
         let estadoActualFiltro = 'Todos';
@@ -630,6 +635,7 @@
             actualizarPreciosVisuales();
             restaurarEstadosMercadosVisuales();
             cargarHistorialDesdeDB();
+            actualizarSelectsMercadosActivos();
             renderizarOrderBookVisible();
         };
 
@@ -711,7 +717,10 @@
             
             document.getElementById('view-' + tabId).classList.add('active');
             if(btnElement) btnElement.classList.add('active');
-            if(tabId === 'clob') renderizarOrderBookVisible();
+            if(tabId === 'clob') {
+                actualizarSelectsMercadosActivos();
+                renderizarOrderBookVisible();
+            }
         }
 
         function toggleAccordion(id) {
@@ -797,13 +806,8 @@
                     if (marketCard) {
                         marketCard.setAttribute('data-estado', 'Cerrado');
                     }
-                    // Deshabilitar botones de compra cuando el mercado está cerrado
                     if (btnSi) btnSi.disabled = true;
                     if (btnNo) btnNo.disabled = true;
-
-                    // Limpiar también del selector de admin si ya está cerrado
-                    const optionAdmin = document.querySelector(`#admin-market-id option[value="${id}"]`);
-                    if (optionAdmin) optionAdmin.remove();
                 } else {
                     if (estadoBadge) {
                         estadoBadge.innerHTML = `● Abierto`;
@@ -812,12 +816,52 @@
                     if (marketCard) {
                         marketCard.setAttribute('data-estado', 'Abierto');
                     }
-                    // Habilitar botones de compra cuando el mercado está abierto
                     if (btnSi) btnSi.disabled = false;
                     if (btnNo) btnNo.disabled = false;
                 }
             }
             aplicarFiltrosCombinados();
+            actualizarSelectsMercadosActivos();
+        }
+
+        function actualizarSelectsMercadosActivos() {
+            // Actualizar select del Order Book (solo mercados abiertos)
+            const selectClob = document.getElementById('orderbook-market-filter');
+            if (selectClob) {
+                const valorAnterior = selectClob.value;
+                let htmlClob = '';
+                for (let id in estadosMercados) {
+                    if (estadosMercados[id] === null) {
+                        htmlClob += `<option value="${id}">${nombresMercados[id] || ('Mercado #' + id)}</option>`;
+                    }
+                }
+                if (htmlClob === '') {
+                    htmlClob = '<option value="">No hay mercados activos</option>';
+                }
+                selectClob.innerHTML = htmlClob;
+                if (valorAnterior && selectClob.querySelector(`option[value="${valorAnterior}"]`)) {
+                    selectClob.value = valorAnterior;
+                }
+            }
+
+            // Actualizar select del Panel Admin (solo mercados abiertos)
+            const selectAdmin = document.getElementById('admin-market-id');
+            if (selectAdmin) {
+                const valorAdminAnterior = selectAdmin.value;
+                let htmlAdmin = '';
+                for (let id in estadosMercados) {
+                    if (estadosMercados[id] === null) {
+                        htmlAdmin += `<option value="${id}">${nombresMercados[id] || ('Mercado #' + id)}</option>`;
+                    }
+                }
+                if (htmlAdmin === '') {
+                    htmlAdmin = '<option value="">No hay mercados pendientes por resolver</option>';
+                }
+                selectAdmin.innerHTML = htmlAdmin;
+                if (valorAdminAnterior && selectAdmin.querySelector(`option[value="${valorAdminAnterior}"]`)) {
+                    selectAdmin.value = valorAdminAnterior;
+                }
+            }
         }
 
         function cargarHistorialDesdeDB() {
@@ -932,20 +976,22 @@
             const tbody = document.getElementById('orderbook-table-body');
             const bannerStatus = document.getElementById('orderbook-market-status-banner');
             
-            const estadoGanador = estadosMercados[marketIdFiltro];
-            if (estadoGanador !== null) {
-                bannerStatus.innerHTML = `
-                    <div style="color: #ef4444; font-weight: bold; margin-bottom: 2px;">🔴 Mercado Cerrado / Liquidado</div>
-                    <div style="color: var(--text-color);">Resultado Oficial Ganador: <b style="color: #4ade80;">${estadoGanador}</b></div>
-                `;
-                bannerStatus.style.borderColor = '#991b1b';
-            } else {
-                bannerStatus.innerHTML = `
-                    <div style="color: #eab308; font-weight: bold;">● Estado del Mercado: Activo / Abierto</div>
-                    <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">Últimos precios Ask SÍ: ${preciosMercados[marketIdFiltro]["SÍ"].toFixed(2)} Pi | Ask NO: ${preciosMercados[marketIdFiltro]["NO"].toFixed(2)} Pi</div>
-                `;
-                bannerStatus.style.borderColor = 'var(--border-color)';
+            if (!marketIdFiltro || estadosMercados[marketIdFiltro] !== null) {
+                if (bannerStatus) {
+                    bannerStatus.innerHTML = `<span style="color: #ef4444; font-weight: bold;">● No hay un mercado activo seleccionado o el mercado está cerrado.</span>`;
+                }
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 12px;">Seleccione un mercado activo válido.</td></tr>';
+                }
+                return;
             }
+
+            const estadoGanador = estadosMercados[marketIdFiltro];
+            bannerStatus.innerHTML = `
+                <div style="color: #eab308; font-weight: bold;">● Estado del Mercado: Activo / Abierto</div>
+                <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">Últimos precios Ask SÍ: ${preciosMercados[marketIdFiltro]["SÍ"].toFixed(2)} Pi | Ask NO: ${preciosMercados[marketIdFiltro]["NO"].toFixed(2)} Pi</div>
+            `;
+            bannerStatus.style.borderColor = 'var(--border-color)';
 
             const filtradas = ordenesGlobales.filter(o => o.marketId == marketIdFiltro);
 
@@ -1150,9 +1196,12 @@
         function declararGanadorAdmin() {
             const marketSelect = document.getElementById('admin-market-id');
             const marketId = marketSelect.value;
+            if (!marketId) {
+                alert("No hay mercados pendientes válidos para resolver.");
+                return;
+            }
             const ganador = document.getElementById('admin-result-select').value;
 
-            // Validación de seguridad para evitar re-declaraciones si ya está cerrado
             if (estadosMercados[marketId] !== null) {
                 alert(`¡Atención! El mercado #${marketId} ya fue cerrado y liquidado previamente con el resultado: ${estadosMercados[marketId]}.`);
                 return;
@@ -1187,11 +1236,8 @@
             restaurarEstadosMercadosVisuales();
             renderizarPosiciones();
             renderizarHistorial();
+            actualizarSelectsMercadosActivos();
             renderizarOrderBookVisible();
-
-            // Eliminar del select del panel admin para que no se pueda volver a elegir
-            const optionToRemove = marketSelect.querySelector(`option[value="${marketId}"]`);
-            if (optionToRemove) optionToRemove.remove();
 
             alert(`¡El administrador ha declarado a "${ganador}" como ganador oficial del mercado #${marketId}!`);
             switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
