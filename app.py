@@ -127,6 +127,26 @@ def inicializar_bd():
                         estado TEXT DEFAULT 'activa',
                         fecha TEXT
                     )''')
+        # Tablas adicionales requeridas para la integración completa de Supabase / Order Book y posiciones
+        c.execute('''CREATE TABLE IF NOT EXISTS posiciones_activas (
+                        id TEXT PRIMARY KEY,
+                        market_id TEXT NOT NULL,
+                        handle TEXT NOT NULL,
+                        titulo TEXT NOT NULL,
+                        opcion TEXT NOT NULL,
+                        contratos INTEGER NOT NULL,
+                        invertido NUMERIC NOT NULL,
+                        payout NUMERIC NOT NULL,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+                    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS historial_transacciones (
+                        id TEXT PRIMARY KEY,
+                        titulo TEXT NOT NULL,
+                        tipo TEXT NOT NULL,
+                        monto NUMERIC NOT NULL,
+                        detalle TEXT NOT NULL,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+                    )''')
         c.execute('''CREATE TABLE IF NOT EXISTS eventos (
                         id SERIAL PRIMARY KEY,
                         titulo TEXT,
@@ -153,6 +173,8 @@ def inicializar_bd():
         c.execute('''CREATE TABLE IF NOT EXISTS transacciones (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, tipo TEXT, monto REAL, txid TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS historial_apuestas (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, titulo_evento TEXT, opcion_elegida TEXT, monto REAL, estado TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS ordenes_clob (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, evento_id INTEGER, opcion_id INTEGER, tipo_orden TEXT, accion TEXT, precio REAL, cantidad REAL, estado TEXT DEFAULT 'activa', fecha TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS posiciones_activas (id TEXT PRIMARY KEY, market_id TEXT NOT NULL, handle TEXT NOT NULL, titulo TEXT NOT NULL, opcion TEXT NOT NULL, contratos INTEGER NOT NULL, invertido REAL NOT NULL, payout REAL NOT NULL, created_at TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS historial_transacciones (id TEXT PRIMARY KEY, titulo TEXT NOT NULL, tipo TEXT NOT NULL, monto REAL NOT NULL, detalle TEXT NOT NULL, created_at TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS eventos (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT, categoria TEXT, estado TEXT DEFAULT 'activo', fecha_cierre TEXT, ganador_id INTEGER)''')
         c.execute('''CREATE TABLE IF NOT EXISTS opciones_evento (id INTEGER PRIMARY KEY AUTOINCREMENT, evento_id INTEGER, nombre TEXT, pozo REAL DEFAULT 0.0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS admin_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, accion TEXT, detalles TEXT, fecha TEXT)''')
@@ -411,12 +433,10 @@ def obtener_ordenes_clob():
 
 @app.route("/api/clob/actualizar-dinamico", methods=["GET"])
 def actualizar_ordenes_dinamico():
-    """Endpoint diseñado para inyectar micro-fluctuaciones automáticas y hacer dinámico el Order Book"""
     evento_id = request.args.get("evento_id", 1)
     conn = obtener_conexion()
     c = conn.cursor()
     try:
-        # Seleccionar una orden activa al azar para alterar ligeramente su precio o cantidad y simular mercado activo
         if DATABASE_URL:
             c.execute("SELECT * FROM ordenes_clob WHERE estado = 'activa' ORDER BY RANDOM() LIMIT 1")
         else:
@@ -432,7 +452,6 @@ def actualizar_ordenes_dinamico():
                 c.execute("UPDATE ordenes_clob SET precio = ? WHERE id = ?", (nuevo_precio, orden_azar["id"]))
             conn.commit()
 
-        # Devolver las órdenes actualizadas
         if DATABASE_URL:
             c.execute("SELECT * FROM ordenes_clob WHERE estado = 'activa' ORDER BY precio DESC LIMIT 50")
         else:
@@ -506,7 +525,7 @@ def crear_orden_clob():
             if DATABASE_URL:
                 c.execute("""SELECT * FROM ordenes_clob WHERE evento_id = %s AND opcion_id = %s AND accion = 'vender' AND estado = 'activa' AND precio <= %s ORDER BY precio ASC, id ASC FOR UPDATE""", (evento_id, opcion_id, precio))
             else:
-                c.execute("""SELECT * FROM ordenes_clob WHERE evento_id = %s AND opcion_id = %s AND accion = 'vender' AND estado = 'activa' AND precio <= %s ORDER BY precio ASC, id ASC""", (evento_id, opcion_id, precio))
+                c.execute("""SELECT * FROM ordenes_clob WHERE evento_id = ? AND opcion_id = ? AND accion = 'vender' AND estado = 'activa' AND precio <= ? ORDER BY precio ASC, id ASC""", (evento_id, opcion_id, precio))
             contra_ordenes = c.fetchall()
 
             for contra in contra_ordenes:
@@ -557,7 +576,7 @@ def crear_orden_clob():
             if DATABASE_URL:
                 c.execute("""SELECT * FROM ordenes_clob WHERE evento_id = %s AND opcion_id = %s AND accion = 'comprar' AND estado = 'activa' AND precio >= %s ORDER BY precio DESC, id ASC FOR UPDATE""", (evento_id, opcion_id, precio))
             else:
-                c.execute("""SELECT * FROM ordenes_clob WHERE evento_id = %s AND opcion_id = %s AND accion = 'comprar' AND estado = 'activa' AND precio >= %s ORDER BY precio DESC, id ASC""", (evento_id, opcion_id, precio))
+                c.execute("""SELECT * FROM ordenes_clob WHERE evento_id = ? AND opcion_id = ? AND accion = 'comprar' AND estado = 'activa' AND precio >= ? ORDER BY precio DESC, id ASC""", (evento_id, opcion_id, precio))
             contra_ordenes = c.fetchall()
 
             for contra in contra_ordenes:
