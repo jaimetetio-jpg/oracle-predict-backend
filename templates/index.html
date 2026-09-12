@@ -439,7 +439,7 @@
             </div>
         </div>
 
-        <!-- HISTORIAL DEL USUARIO -->
+        <!-- HISTORIAL DE APUESTAS Y POSICIONES -->
         <div class="accordion-card open" id="acc-apuestas">
             <button class="accordion-header" onclick="toggleAccordion('acc-apuestas')">
                 <span>📦 Historial de Apuestas y Posiciones (Order Book)</span>
@@ -450,8 +450,16 @@
                 <div id="my-positions-content" style="margin-bottom: 14px;">
                     <p style="font-size: 0.8rem; color: var(--text-muted);">No tienes posiciones activas.</p>
                 </div>
+            </div>
+        </div>
 
-                <div style="font-size: 0.8rem; font-weight: bold; color: var(--text-color); margin-bottom: 6px; border-top: 1px solid var(--border-color); padding-top: 10px;">📜 Historial de Transacciones (Permanente)</div>
+        <!-- HISTORIAL DE TRANSACCIONES (AHORA ACORDEÓN DESPLEGABLE / COLAPSIBLE) -->
+        <div class="accordion-card" id="acc-transacciones">
+            <button class="accordion-header" onclick="toggleAccordion('acc-transacciones')">
+                <span>📜 Historial de Transacciones (Permanente)</span>
+                <span>▾</span>
+            </button>
+            <div class="accordion-content" style="padding-top: 12px;">
                 <div id="my-history-content">
                     <p style="font-size: 0.8rem; color: var(--text-muted);">No hay transacciones registradas aún.</p>
                 </div>
@@ -599,22 +607,18 @@
         async function sincronizarConSupabase() {
             if (!supabaseClient) return;
             try {
-                // Cargar órdenes globales desde Supabase (tabla 'ordenes_clob')
                 let { data: ordenes, error: errOrd } = await supabaseClient.from('ordenes_clob').select('*');
                 if (!errOrd && ordenes && ordenes.length > 0) {
                     ordenesGlobales = ordenes;
                 }
 
-                // Cargar transacciones desde Supabase (tabla 'historial_transacciones')
                 let { data: txs, error: errTx } = await supabaseClient.from('historial_transacciones').select('*');
                 if (!errTx && txs && txs.length > 0) {
                     historialTransacciones = txs;
                 }
 
-                // Sincronizar también las posiciones activas desde Supabase para mantener persistencia completa en la nube
                 let { data: pos, error: errPos } = await supabaseClient.from('posiciones_activas').select('*');
                 if (!errPos && pos && pos.length > 0) {
-                    // Mapear nombres de columnas de Supabase al formato interno si es necesario
                     posicionesActivas = pos.map(p => ({
                         id: p.id,
                         marketId: p.market_id,
@@ -810,7 +814,6 @@
 
             posicionesActivas.push(nuevaPosicion);
             
-            // Sincronizar inserción en la tabla 'posiciones_activas' de Supabase
             guardarEnSupabaseTabla('posiciones_activas', {
                 id: nuevaPosicion.id,
                 market_id: String(nuevaPosicion.marketId),
@@ -874,7 +877,6 @@
         function renderizarPosiciones() {
             const contenedor = document.getElementById('my-positions-content');
             
-            // Filtrar estrictamente solo las posiciones que siguen vivas (mercado abierto o ganadoras)
             const posicionesVivas = posicionesActivas.filter(pos => {
                 const ganadorOficial = estadosMercados[pos.marketId];
                 if (ganadorOficial !== null && ganadorOficial !== pos.opcion) {
@@ -892,7 +894,6 @@
             posicionesActivas.forEach((pos, idx) => {
                 const ganadorOficial = estadosMercados[pos.marketId];
                 
-                // Omitir renderizado de tarjeta si es perdedora y el mercado está cerrado
                 if (ganadorOficial !== null && ganadorOficial !== pos.opcion) {
                     return;
                 }
@@ -909,7 +910,6 @@
                         </div>
                     `;
                 } else {
-                    const esGanador = (ganadorOficial === pos.opcion);
                     botonesHtml = `
                         <div style="display: flex; gap: 6px;">
                             <button class="action-btn" style="width: 100%; font-size: 0.75rem; padding: 7px;" onclick="cobrarPrediccion(${idx})">🎉 Cobrar Premio</button>
@@ -1055,16 +1055,13 @@
             const marketId = document.getElementById('admin-market-id').value;
             const ganador = document.getElementById('admin-result-select').value;
 
-            // 1. Guardar el estado ganador del mercado
             estadosMercados[marketId] = ganador;
 
-            // 2. Procesar las posiciones automáticamente (Mover perdedoras al historial y limpiar activas)
             let nuevasPosicionesActivas = [];
 
             posicionesActivas.forEach(pos => {
                 if (pos.marketId == marketId) {
                     if (pos.opcion !== ganador) {
-                        // Posición perdedora: se archiva en el historial de transacciones con 0 Pi y se elimina de Supabase
                         registrarTransaccionEnDB({
                             id: 'PERD-' + Date.now() + '-' + Math.floor(Math.random()*1000),
                             titulo: pos.titulo,
@@ -1074,7 +1071,6 @@
                         });
                         eliminarDeSupabaseTabla('posiciones_activas', pos.id);
                     } else {
-                        // Posición ganadora: se mantiene en activas para cobrar premio
                         nuevasPosicionesActivas.push(pos);
                     }
                 } else {
@@ -1084,7 +1080,6 @@
 
             posicionesActivas = nuevasPosicionesActivas;
 
-            // 3. Guardar cambios en persistencia y actualizar interfaz
             guardarTodoEnStorage();
             restaurarEstadosMercadosVisuales();
             renderizarPosiciones();
