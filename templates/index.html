@@ -18,7 +18,7 @@
             : null;
 
         if (!supabaseClient) {
-            console.warn("Aviso: Supabase no está configurado o el archivo env.js no se cargó correctamente. La app funcionará con almacenamiento local de respaldo.");
+            console.warn("Aviso: Supabase não está configurado ou o arquivo env.js não foi carregado corretamente. O app funcionará com armazenamento local.");
         }
     </script>
     <style>
@@ -614,6 +614,21 @@
             <div id="admin-tickets-container">
                 <p style="font-size: 0.8rem; color: var(--text-muted);">No hay tickets de soporte activos.</p>
             </div>
+        </div>
+
+        <!-- NUEVO: AUDITORÍA E HISTORIAL GLOBAL DE TRANSACCIONES DE USUARIOS -->
+        <div class="market-card" style="margin-top: 14px;">
+            <div class="market-title">📜 Auditoría Global: Historial de Transacciones</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Registro completo de todas las operaciones financieras (depósitos, retiros, ventas anticipadas y cobros de premios) de los usuarios para resolver disputas.</p>
+            
+            <div class="form-group" style="margin-bottom: 8px;">
+                <input type="text" id="admin-tx-search" class="form-control" placeholder="🔍 Filtrar por título o detalle..." oninput="renderizarHistorialGlobalAdmin()">
+            </div>
+
+            <div id="admin-global-transactions-container" style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+                <p style="font-size: 0.8rem; color: var(--text-muted);">No hay transacciones registradas.</p>
+            </div>
+            
             <div style="margin-top: 14px; text-align: center;">
                 <button onclick="cerrarSesionAdmin()" style="background: transparent; border: none; color: #ef4444; font-size: 0.8rem; cursor: pointer; text-decoration: underline;">Bloquear / Cerrar Sesión Admin</button>
             </div>
@@ -823,6 +838,7 @@
             }
             if(tabId === 'admin') {
                 renderizarTicketsAdmin();
+                renderizarHistorialGlobalAdmin();
             }
         }
 
@@ -1166,7 +1182,7 @@
             usuarioActual.balance += retornoVenta;
 
             registrarTransaccionEnDB({
-                id: 'VEND-' + Date.now(), titulo: pos.titulo, tipo: 'Venta Anticipada', monto: retornoVenta, detalle: `${pos.contratos} contratos (${pos.opcion}) vendidos antes de tiempo`
+                id: 'VEND-' + Date.now(), titulo: pos.titulo, tipo: 'Venta Anticipada', monto: retornoVenta, detalle: `${pos.contratos} contratos (${pos.opcion}) vendidos antes de tiempo por ${usuarioActual.handle}`
             });
 
             eliminarDeSupabaseTabla('posiciones_activas', pos.id);
@@ -1183,7 +1199,7 @@
             usuarioActual.balance += pos.payout;
 
             registrarTransaccionEnDB({
-                id: pos.id, titulo: pos.titulo, tipo: 'Cobrada / Ganada', monto: pos.payout, detalle: `${pos.contratos} contratos (${pos.opcion}) cobrados con éxito`
+                id: pos.id, titulo: pos.titulo, tipo: 'Cobrada / Ganada', monto: pos.payout, detalle: `${pos.contratos} contratos (${pos.opcion}) cobrados por ${usuarioActual.handle}`
             });
 
             eliminarDeSupabaseTabla('posiciones_activas', pos.id);
@@ -1199,6 +1215,9 @@
             historialTransacciones.unshift(tx);
             guardarEnSupabaseTabla('historial_transacciones', tx);
             guardarTodoEnStorage();
+            if (document.getElementById('view-admin').classList.contains('active')) {
+                renderizarHistorialGlobalAdmin();
+            }
         }
 
         function renderizarHistorial() {
@@ -1224,12 +1243,46 @@
             contenedor.innerHTML = html;
         }
 
+        function renderizarHistorialGlobalAdmin() {
+            sincronizarPersistencia();
+            const contenedor = document.getElementById('admin-global-transactions-container');
+            const filtroTexto = document.getElementById('admin-tx-search').value.toLowerCase();
+
+            const filtradas = historialTransacciones.filter(tx => {
+                const titulo = (tx.titulo || '').toLowerCase();
+                const detalle = (tx.detalle || '').toLowerCase();
+                const tipo = (tx.tipo || '').toLowerCase();
+                return titulo.includes(filtroTexto) || detalle.includes(filtroTexto) || tipo.includes(filtroTexto);
+            });
+
+            if (filtradas.length === 0) {
+                contenedor.innerHTML = '<p style="font-size: 0.8rem; color: var(--text-muted);">No se encontraron transacciones con ese criterio.</p>';
+                return;
+            }
+
+            let html = '';
+            filtradas.forEach(tx => {
+                const colorMonto = tx.monto >= 0 ? '#4ade80' : '#f87171';
+                html += `
+                    <div style="background: var(--card-bg); border: 1px solid var(--border-color); padding: 8px; border-radius: 6px; font-size: 0.75rem;">
+                        <div style="display: flex; justify-content: space-between; font-weight: bold; color: var(--text-color);">
+                            <span>${tx.titulo}</span>
+                            <span style="color: ${colorMonto};">${tx.monto >= 0 ? '+' : ''}${tx.monto.toFixed(2)} Pi</span>
+                        </div>
+                        <div style="color: var(--text-muted); margin-top: 2px;">${tx.detalle}</div>
+                        <div style="color: #38bdf8; margin-top: 2px; font-size: 0.7rem;">Tipo: ${tx.tipo} | ID: ${tx.id}</div>
+                    </div>
+                `;
+            });
+            contenedor.innerHTML = html;
+        }
+
         function depositarConPiNetwork() {
             const monto = parseFloat(document.getElementById('wallet-amount').value);
             if (!monto || monto <= 0) { alert("Introduce un monto válido para recargar."); return; }
             usuarioActual.balance += monto;
             registrarTransaccionEnDB({
-                id: 'DEP-' + Date.now(), titulo: 'Recarga de Billetera Pi', tipo: 'Depósito', monto: monto, detalle: 'Recarga procesada mediante Blockchain Pi'
+                id: 'DEP-' + Date.now(), titulo: 'Recarga de Billetera Pi', tipo: 'Depósito', monto: monto, detalle: `Recarga de ${monto} Pi procesada por ${usuarioActual.handle}`
             });
             guardarTodoEnStorage();
             actualizarUIBalance();
@@ -1243,7 +1296,7 @@
             if (usuarioActual.balance < monto) { alert("No tienes suficiente saldo para este retiro."); return; }
             usuarioActual.balance -= monto;
             registrarTransaccionEnDB({
-                id: 'RET-' + Date.now(), titulo: 'Retiro de Billetera Pi', tipo: 'Retiro', monto: -monto, detalle: 'Retiro procesado a la mainnet de Pi'
+                id: 'RET-' + Date.now(), titulo: 'Retiro de Billetera Pi', tipo: 'Retiro', monto: -monto, detalle: `Retiro de ${monto} Pi procesado por ${usuarioActual.handle}`
             });
             guardarTodoEnStorage();
             actualizarUIBalance();
