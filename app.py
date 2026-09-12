@@ -18,6 +18,7 @@ app.secret_key = os.environ.get(
     "FLASK_SECRET_KEY", "p2ppredict_secret_key_ultra_segura_2026"
 )
 
+# Configuración de contraseña de administrador robusta vía variable de entorno o por defecto con hash seguro
 RAW_ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Anthony*2023")
 ADMIN_PASSWORD_HASH = generate_password_hash(RAW_ADMIN_PASSWORD)
 
