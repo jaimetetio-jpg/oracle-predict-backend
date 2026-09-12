@@ -453,7 +453,7 @@
             </div>
         </div>
 
-        <!-- HISTORIAL DE TRANSACCIONES (AHORA ACORDEÓN DESPLEGABLE / COLAPSIBLE) -->
+        <!-- HISTORIAL DE TRANSACCIONES (PERMANENTE) -->
         <div class="accordion-card" id="acc-transacciones">
             <button class="accordion-header" onclick="toggleAccordion('acc-transacciones')">
                 <span>📜 Historial de Transacciones (Permanente)</span>
@@ -467,18 +467,23 @@
         </div>
     </div>
 
-    <!-- VISTA: ORDER BOOK P2P VISIBLE -->
+    <!-- VISTA: ORDER BOOK P2P VISIBLE (CON HISTORIAL DE MERCADOS CERRADOS) -->
     <div id="view-clob" class="section-view">
         <div class="market-card">
             <div class="market-title">📊 Order Book P2P en Vivo</div>
             <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Listado general de ofertas de compra (Bid) y venta (Ask) registradas en el mercado.</p>
             
             <div class="form-group">
-                <label>Filtrar por Mercado</label>
+                <label>Seleccionar Mercado</label>
                 <select id="orderbook-market-filter" class="form-control" onchange="renderizarOrderBookVisible()">
                     <option value="1">¿Bitcoin superará los $100,000?</option>
                     <option value="2">¿Se habilitará Open Mainnet este trimestre?</option>
                 </select>
+            </div>
+
+            <!-- BLOQUE DE ESTADO / HISTORIAL DEL MERCADO SELECCIONADO -->
+            <div id="orderbook-market-status-banner" style="background: var(--card-bg); border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 0.8rem;">
+                <span style="color: #eab308; font-weight: bold;">● Estado: Abierto</span>
             </div>
 
             <table class="orderbook-table">
@@ -575,7 +580,7 @@
     </div>
 
     <script>
-        // Estado local de respaldo para funcionamiento offline o dual con Supabase
+        // Estado local de respaldo
         let usuarioActual = JSON.parse(localStorage.getItem('p2p_usuario')) || { handle: "@jaimetetio", balance: 150.00 };
         let posicionesActivas = JSON.parse(localStorage.getItem('p2p_posiciones')) || [];
         let historialTransacciones = JSON.parse(localStorage.getItem('p2p_historial_transacciones')) || []; 
@@ -603,7 +608,6 @@
             renderizarOrderBookVisible();
         };
 
-        // --- FUNCIONES DE INTEGRACIÓN CON SUPABASE ---
         async function sincronizarConSupabase() {
             if (!supabaseClient) return;
             try {
@@ -631,7 +635,7 @@
                     }));
                 }
             } catch (e) {
-                console.warn("Aviso: No se pudo conectar con Supabase en tiempo de ejecución, usando almacenamiento local.", e);
+                console.warn("Aviso: No se pudo conectar con Supabase en tiempo de ejecución.", e);
             }
         }
 
@@ -846,11 +850,29 @@
             alert("¡Orden ejecutada y guardada permanentemente en el sistema!");
         }
 
+        // Renderizado del Order Book con banner de estado e historial del mercado seleccionado
         function renderizarOrderBookVisible() {
             sincronizarPersistencia();
             const marketIdFiltro = document.getElementById('orderbook-market-filter').value;
             const tbody = document.getElementById('orderbook-table-body');
+            const bannerStatus = document.getElementById('orderbook-market-status-banner');
             
+            // Actualizar banner según si está abierto o cerrado
+            const estadoGanador = estadosMercados[marketIdFiltro];
+            if (estadoGanador !== null) {
+                bannerStatus.innerHTML = `
+                    <div style="color: #ef4444; font-weight: bold; margin-bottom: 2px;">🔴 Mercado Cerrado / Liquidado</div>
+                    <div style="color: var(--text-color);">Resultado Oficial Ganador: <b style="color: #4ade80;">${estadoGanador}</b></div>
+                `;
+                bannerStatus.style.borderColor = '#991b1b';
+            } else {
+                bannerStatus.innerHTML = `
+                    <div style="color: #eab308; font-weight: bold;">● Estado del Mercado: Activo / Abierto</div>
+                    <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">Últimos precios Ask SÍ: ${preciosMercados[marketIdFiltro]["SÍ"].toFixed(2)} Pi | Ask NO: ${preciosMercados[marketIdFiltro]["NO"].toFixed(2)} Pi</div>
+                `;
+                bannerStatus.style.borderColor = 'var(--border-color)';
+            }
+
             const filtradas = ordenesGlobales.filter(o => o.marketId == marketIdFiltro);
 
             if (filtradas.length === 0) {
@@ -1084,8 +1106,9 @@
             restaurarEstadosMercadosVisuales();
             renderizarPosiciones();
             renderizarHistorial();
+            renderizarOrderBookVisible();
 
-            alert(`¡El administrador ha declarado a "${ganador}" como ganador oficial del mercado #${marketId}! Las posiciones perdedoras han sido archivadas.`);
+            alert(`¡El administrador ha declarado a "${ganador}" como ganador oficial del mercado #${marketId}!`);
             switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
         }
 
