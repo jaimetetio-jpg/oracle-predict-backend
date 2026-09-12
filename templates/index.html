@@ -1,1090 +1,1013 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2Ppredict - Order Book</title>
-    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-    <!-- SDK de Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
-        Pi.init({ version: "2.0", sandbox: true });
+import os
+import time
+import random
+from datetime import datetime
+from collections import defaultdict
+from flask import Flask, jsonify, render_template, request, session
+from flask_cors import CORS
+import psycopg2
+from psycopg2 import pool
+from psycopg2.extras import RealDictCursor
+import requests
+from werkzeug.security import generate_password_hash, check_password_hash
 
-        // Configuración de Supabase (Credenciales integradas correctamente)
-        const SUPABASE_URL = 'https://uwrqtuxzycduakqftvjx.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3cnF0dXh6eWNkdWFrcWZ0dmp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5NDg5MjcsImV4cCI6MjEwNDUyNDkyN30.7r8AYXSYOml1Ub68INeXXZKTIrqXbCpD-V9oAvFldZU';
+app = Flask(__name__)
+
+CORS(app, resources={r"/api/*": {"origins": "*"}})
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "p2ppredict_secret_key_ultra_segura_2026")
+
+RAW_ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Anthony*2023")
+ADMIN_PASSWORD_HASH = generate_password_hash(RAW_ADMIN_PASSWORD)
+
+PI_API_KEY = os.environ.get("PI_API_KEY", "")
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+# ================= SISTEMA DE RATE LIMITING EN MEMORIA =================
+request_records = defaultdict(list)
+
+def check_rate_limit(limit=25, window=60):
+    ip = request.remote_addr or "127.0.0.1"
+    now = time.time()
+    request_records[ip] = [t for t in request_records[ip] if now - t < window]
+    if len(request_records[ip]) >= limit:
+        return False
+    request_records[ip].append(now)
+    return True
+
+# ================= CONFIGURACIÓN DE POOL DE CONEXIONES Y BASE DE DATOS =================
+db_pool = None
+if DATABASE_URL:
+    try:
+        db_pool = pool.ThreadedConnectionPool(1, 25, DATABASE_URL)
+    except Exception:
+        db_pool = None
+
+class PooledConnectionWrapper:
+    def __init__(self, conn, p):
+        self.conn = conn
+        self.pool = p
+
+    def cursor(self, *args, **kwargs):
+        if 'cursor_factory' not in kwargs and not args:
+            kwargs['cursor_factory'] = RealDictCursor
+        return self.conn.cursor(*args, **kwargs)
+
+    def commit(self):
+        return self.conn.commit()
+
+    def rollback(self):
+        return self.conn.rollback()
+
+    def close(self):
+        if self.pool:
+            try:
+                self.pool.putconn(self.conn)
+            except Exception:
+                try:
+                    self.conn.close()
+                except:
+                    pass
+        else:
+            try:
+                self.conn.close()
+            except:
+                pass
+
+def obtener_conexion():
+    if DATABASE_URL and db_pool:
+        try:
+            conn = db_pool.getconn()
+            return PooledConnectionWrapper(conn, db_pool)
+        except Exception:
+            pass
+    if DATABASE_URL:
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor, connect_timeout=10)
+        return conn
+    else:
+        import sqlite3
+        conn = sqlite3.connect("p2ppredict.db", timeout=30.0)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL;")
+        return conn
+
+def inicializar_bd():
+    conn = obtener_conexion()
+    c = conn.cursor()
+    
+    if DATABASE_URL:
+        c.execute('''CREATE TABLE IF NOT EXISTS usuarios (
+                        username TEXT PRIMARY KEY,
+                        saldo_disponible DOUBLE PRECISION DEFAULT 0.0
+                    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS transacciones (
+                        id SERIAL PRIMARY KEY,
+                        username TEXT,
+                        tipo TEXT,
+                        monto DOUBLE PRECISION,
+                        txid TEXT,
+                        fecha TEXT
+                    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS historial_apuestas (
+                        id SERIAL PRIMARY KEY,
+                        username TEXT,
+                        titulo_evento TEXT,
+                        opcion_elegida TEXT,
+                        monto DOUBLE PRECISION,
+                        estado TEXT
+                    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS ordenes_clob (
+                        id SERIAL PRIMARY KEY,
+                        username TEXT,
+                        evento_id INTEGER,
+                        opcion_id INTEGER,
+                        tipo_orden TEXT,
+                        accion TEXT,
+                        precio DOUBLE PRECISION,
+                        cantidad DOUBLE PRECISION,
+                        estado TEXT DEFAULT 'activa',
+                        fecha TEXT
+                    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS posiciones_activas (
+                        id TEXT PRIMARY KEY,
+                        market_id TEXT NOT NULL,
+                        handle TEXT NOT NULL,
+                        titulo TEXT NOT NULL,
+                        opcion TEXT NOT NULL,
+                        contratos INTEGER NOT NULL,
+                        invertido NUMERIC NOT NULL,
+                        payout NUMERIC NOT NULL,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+                    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS historial_transacciones (
+                        id TEXT PRIMARY KEY,
+                        titulo TEXT NOT NULL,
+                        tipo TEXT NOT NULL,
+                        monto NUMERIC NOT NULL,
+                        detalle TEXT NOT NULL,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+                    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS eventos (
+                        id SERIAL PRIMARY KEY,
+                        titulo TEXT,
+                        categoria TEXT,
+                        estado TEXT DEFAULT 'activo',
+                        fecha_cierre TEXT,
+                        ganador_id INTEGER
+                    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS opciones_evento (
+                        id SERIAL PRIMARY KEY,
+                        evento_id INTEGER,
+                        nombre TEXT,
+                        pozo DOUBLE PRECISION DEFAULT 0.0
+                    )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS admin_logs (
+                        id SERIAL PRIMARY KEY,
+                        ip TEXT,
+                        accion TEXT,
+                        detalles TEXT,
+                        fecha TEXT
+                    )''')
+    else:
+        c.execute('''CREATE TABLE IF NOT EXISTS usuarios (username TEXT PRIMARY KEY, saldo_disponible REAL DEFAULT 0.0)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS transacciones (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, tipo TEXT, monto REAL, txid TEXT, fecha TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS historial_apuestas (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, titulo_evento TEXT, opcion_elegida TEXT, monto REAL, estado TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS ordenes_clob (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, evento_id INTEGER, opcion_id INTEGER, tipo_orden TEXT, accion TEXT, precio REAL, cantidad REAL, estado TEXT DEFAULT 'activa', fecha TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS posiciones_activas (id TEXT PRIMARY KEY, market_id TEXT NOT NULL, handle TEXT NOT NULL, titulo TEXT NOT NULL, opcion TEXT NOT NULL, contratos INTEGER NOT NULL, invertido REAL NOT NULL, payout REAL NOT NULL, created_at TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS historial_transacciones (id TEXT PRIMARY KEY, titulo TEXT NOT NULL, tipo TEXT NOT NULL, monto REAL NOT NULL, detalle TEXT NOT NULL, created_at TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS eventos (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT, categoria TEXT, estado TEXT DEFAULT 'activo', fecha_cierre TEXT, ganador_id INTEGER)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS opciones_evento (id INTEGER PRIMARY KEY AUTOINCREMENT, evento_id INTEGER, nombre TEXT, pozo REAL DEFAULT 0.0)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS admin_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, accion TEXT, detalles TEXT, fecha TEXT)''')
+    
+    conn.commit()
+
+    c.execute("SELECT COUNT(*) as total FROM eventos")
+    row = c.fetchone()
+    total_evs = row["total"] if row else 0
+    
+    if total_evs == 0:
+        eventos_iniciales = [
+            {
+                "titulo": "¿BTC alcanzará los $120,000 antes de finalizar el mes?",
+                "categoria": "Crypto",
+                "fecha_cierre": "2026-12-31",
+                "opciones": [("Sí", 15.0), ("No", 10.0)]
+            },
+            {
+                "titulo": "¿Pi Network lanzará su Mainnet abierta global este año?",
+                "categoria": "Pi Ecosystem",
+                "fecha_cierre": "2026-11-30",
+                "opciones": [("Sí", 35.0), ("No", 5.0)]
+            }
+        ]
+        for ev in eventos_iniciales:
+            if DATABASE_URL:
+                c.execute("INSERT INTO eventos (titulo, categoria, estado, fecha_cierre) VALUES (%s, %s, 'activo', %s) RETURNING id", 
+                          (ev["titulo"], ev["categoria"], ev["fecha_cierre"]))
+                res_ev = c.fetchone()
+                ev_id = res_ev["id"]
+                for opt_nombre, opt_pozo in ev["opciones"]:
+                    c.execute("INSERT INTO opciones_evento (evento_id, nombre, pozo) VALUES (%s, %s, %s)", (ev_id, opt_nombre, opt_pozo))
+            else:
+                c.execute("INSERT INTO eventos (titulo, categoria, estado, fecha_cierre) VALUES (?, ?, 'activo', ?)", 
+                          (ev["titulo"], ev["categoria"], ev["fecha_cierre"]))
+                ev_id = c.lastrowid
+                for opt_nombre, opt_pozo in ev["opciones"]:
+                    c.execute("INSERT INTO opciones_evento (evento_id, nombre, pozo) VALUES (?, ?, ?)", (ev_id, opt_nombre, opt_pozo))
+        conn.commit()
+
+    conn.close()
+
+inicializar_bd()
+
+def registrar_log_admin(accion, detalles):
+    try:
+        conn = obtener_conexion()
+        c = conn.cursor()
+        ip = request.remote_addr or "127.0.0.1"
+        fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if DATABASE_URL:
+            c.execute("INSERT INTO admin_logs (ip, accion, detalles, fecha) VALUES (%s, %s, %s, %s)", (ip, accion, detalles, fecha))
+        else:
+            c.execute("INSERT INTO admin_logs (ip, accion, detalles, fecha) VALUES (?, ?, ?, ?)", (ip, accion, detalles, fecha))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+@app.after_request
+def agregar_cabeceras_seguridad(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Cross-Origin-Embedder-Policy'] = 'unsafe-none'
+    response.headers['Cross-Origin-Opener-Policy'] = 'unsafe-none'
+    return response
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+@app.route("/api/saldo/<username>", methods=["GET"])
+def obtener_saldo(username):
+    limite = int(request.args.get("limit", 20))
+    offset = int(request.args.get("offset", 0))
+    filtro_tipo = request.args.get("tipo", "").strip()
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+    
+    if DATABASE_URL:
+        c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s", (username,))
+    else:
+        c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+    row = c.fetchone()
+    
+    if not row:
+        saldo_inicial = 0.10 if username.lower() in ["@jaimetetio", "jaimetetio"] else 0.0
+        if DATABASE_URL:
+            c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (%s, %s)", (username, saldo_inicial))
+            if saldo_inicial > 0:
+                txid = f"CREDITO_INICIAL_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+                c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                          (username, "Crédito Inicial", saldo_inicial, txid, fecha))
+        else:
+            c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (?, ?)", (username, saldo_inicial))
+            if saldo_inicial > 0:
+                txid = f"CREDITO_INICIAL_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+                c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
+                          (username, "Crédito Inicial", saldo_inicial, txid, fecha))
+        conn.commit()
+        saldo = saldo_inicial
+    else:
+        saldo = row["saldo_disponible"]
+
+    if DATABASE_URL:
+        c.execute("SELECT * FROM historial_apuestas WHERE username = %s ORDER BY id DESC LIMIT %s OFFSET %s", (username, limite, offset))
+    else:
+        c.execute("SELECT * FROM historial_apuestas WHERE username = ? ORDER BY id DESC LIMIT ? OFFSET ?", (username, limite, offset))
+    historial = [dict(row) for row in c.fetchall()]
+
+    if filtro_tipo:
+        if DATABASE_URL:
+            c.execute("SELECT * FROM transacciones WHERE username = %s AND tipo ILIKE %s ORDER BY id DESC LIMIT %s OFFSET %s", (username, f"%{filtro_tipo}%", limite, offset))
+        else:
+            c.execute("SELECT * FROM transacciones WHERE username = ? AND tipo LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?", (username, f"%{filtro_tipo}%", limite, offset))
+    else:
+        if DATABASE_URL:
+            c.execute("SELECT * FROM transacciones WHERE username = %s ORDER BY id DESC LIMIT %s OFFSET %s", (username, limite, offset))
+        else:
+            c.execute("SELECT * FROM transacciones WHERE username = ? ORDER BY id DESC LIMIT ? OFFSET ?", (username, limite, offset))
+            
+    transacciones = [dict(row) for row in c.fetchall()]
+    conn.close()
+    
+    return jsonify({
+        "success": True,
+        "saldo_disponible": saldo,
+        "historial": historial,
+        "transacciones": transacciones,
+    })
+
+@app.route("/api/eventos", methods=["GET"])
+def obtener_eventos():
+    conn = obtener_conexion()
+    c = conn.cursor()
+    c.execute("SELECT * FROM eventos ORDER BY id ASC")
+    eventos_db = c.fetchall()
+    
+    lista_final = []
+    for ev in eventos_db:
+        ev_dict = dict(ev)
+        if DATABASE_URL:
+            c.execute("SELECT id, nombre, pozo FROM opciones_evento WHERE evento_id = %s", (ev_dict["id"],))
+        else:
+            c.execute("SELECT id, nombre, pozo FROM opciones_evento WHERE evento_id = ?", (ev_dict["id"],))
+        opciones = [dict(op) for op in c.fetchall()]
+        ev_dict["opciones"] = opciones
+        lista_final.append(ev_dict)
+    conn.close()
+    return jsonify(lista_final)
+
+@app.route("/api/participar", methods=["POST"])
+def participar():
+    if not check_rate_limit(limit=25, window=60):
+        return jsonify({"success": False, "error": "Demasiadas peticiones. Por favor, espera un momento."}), 429
+
+    data = request.json or {}
+    username = data.get("username", "Invitado")
+    evento_id = data.get("evento_id")
+    opcion_id = data.get("opcion_id")
+    
+    try:
+        monto = float(data.get("monto", 0))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "Monto inválido"}), 400
+
+    if monto <= 0:
+        return jsonify({"success": False, "error": "El monto debe ser mayor a 0"}), 400
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+        else:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
         
-        const supabaseClient = (SUPABASE_URL && SUPABASE_URL !== 'TU_SUPABASE_URL_AQUI') 
-            ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
-            : null;
-    </script>
-    <style>
-        :root {
-            --bg-color: #0f111a;
-            --card-bg: #181b28;
-            --card-bg-gradient: linear-gradient(145deg, #1d2133, #151824);
-            --text-color: #ffffff;
-            --text-muted: #8c92ac;
-            --accent: #2563eb;
-            --accent-hover: #1d4ed8;
-            --border-color: #2a2e43;
-            --danger: #dc2626;
-            --success: #16a34a;
-            --shadow-3d: 6px 6px 12px #090b12, -6px -6px 12px #1f2740;
-            --shadow-3d-active: 3px 3px 6px #090b12, -3px -3px 6px #1f2740;
-            --shadow-btn: 4px 4px 8px #090b12, -4px -4px 8px #1d253e;
-        }
+        row = c.fetchone()
+        saldo_actual = row["saldo_disponible"] if row else 0
+        if not row or saldo_actual < monto:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Saldo insuficiente"})
 
-        [data-theme="light"] {
-            --bg-color: #f3f4f6;
-            --card-bg: #ffffff;
-            --card-bg-gradient: linear-gradient(145deg, #ffffff, #f9fafb);
-            --text-color: #111827;
-            --text-muted: #6b7280;
-            --accent: #2563eb;
-            --accent-hover: #1d4ed8;
-            --border-color: #e5e7eb;
-            --danger: #dc2626;
-            --success: #16a34a;
-            --shadow-3d: 6px 6px 12px rgba(0, 0, 0, 0.08), -6px -6px 12px rgba(255, 255, 255, 0.8);
-            --shadow-3d-active: 3px 3px 6px rgba(0, 0, 0, 0.08), -3px -3px 6px rgba(255, 255, 255, 0.8);
-            --shadow-btn: 4px 4px 8px rgba(0, 0, 0, 0.08), -4px -4px 8px rgba(255, 255, 255, 0.8);
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 16px;
-            box-sizing: border-box;
-            transition: background-color 0.3s, color 0.3s;
-            max-width: 480px;
-            margin-left: auto;
-            margin-right: auto;
-            position: relative;
-            padding-bottom: 90px;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 18px;
-            background: var(--card-bg-gradient);
-            padding: 12px 16px;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            box-shadow: var(--shadow-3d);
-        }
-
-        .logo-area {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: 700;
-            font-size: 1.2rem;
-            color: #38bdf8;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 0.9rem;
-        }
-
-        .theme-btn {
-            background: linear-gradient(145deg, #1b2238, #131826);
-            border: 1px solid var(--border-color);
-            color: var(--text-color);
-            padding: 6px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            box-shadow: var(--shadow-btn);
-        }
-
-        .nav-tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 18px;
-            background: var(--card-bg-gradient);
-            padding: 6px;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            box-shadow: var(--shadow-3d);
-        }
-
-        .nav-tab {
-            flex: 1;
-            background: linear-gradient(145deg, #1b2238, #131826);
-            border: 1px solid var(--border-color);
-            color: var(--text-muted);
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s ease;
-            box-shadow: var(--shadow-btn);
-        }
-
-        .nav-tab.active {
-            background: linear-gradient(145deg, #2563eb, #1d4ed8);
-            color: #ffffff;
-            border-color: #3b82f6;
-            transform: translateY(-1px);
-        }
-
-        .search-box {
-            width: 100%;
-            padding: 12px 14px;
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            color: var(--text-color);
-            font-size: 0.9rem;
-            margin-bottom: 12px;
-            box-sizing: border-box;
-            box-shadow: inset 4px 4px 8px #090b12, inset -4px -4px 8px #1f2740;
-        }
-
-        .filter-pills {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 18px;
-            overflow-x: auto;
-            padding-bottom: 4px;
-        }
-
-        .pill {
-            background: linear-gradient(145deg, #1b2238, #131826);
-            border: 1px solid var(--border-color);
-            color: var(--text-muted);
-            padding: 8px 14px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            cursor: pointer;
-            white-space: nowrap;
-            box-shadow: var(--shadow-btn);
-        }
-
-        .pill.active {
-            background: linear-gradient(145deg, #2563eb, #1d4ed8);
-            color: #fff;
-            border-color: #3b82f6;
-        }
-
-        .accordion-card {
-            background: var(--card-bg-gradient);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            margin-bottom: 14px;
-            overflow: hidden;
-            box-shadow: var(--shadow-3d);
-        }
-
-        .accordion-header {
-            width: 100%;
-            background: transparent;
-            border: none;
-            color: var(--text-color);
-            padding: 14px 16px;
-            text-align: left;
-            font-size: 0.9rem;
-            font-weight: 600;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-        }
-
-        .accordion-content {
-            padding: 0 16px 14px 16px;
-            display: none;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            border-top: 1px solid var(--border-color);
-            background: rgba(0,0,0,0.02);
-        }
-
-        .accordion-card.open .accordion-content {
-            display: block;
-        }
-
-        .market-card {
-            background: var(--card-bg-gradient);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 14px;
-            margin-bottom: 14px;
-            box-shadow: var(--shadow-3d);
-        }
-
-        .market-title {
-            font-size: 0.95rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-            line-height: 1.4;
-        }
-
-        .action-btn {
-            background: linear-gradient(145deg, #2563eb, #1d4ed8);
-            color: white;
-            border: 1px solid #3b82f6;
-            padding: 9px 16px;
-            border-radius: 10px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: var(--shadow-btn);
-            transition: transform 0.1s ease;
-        }
-
-        .action-btn:active {
-            transform: translateY(2px);
-            box-shadow: var(--shadow-3d-active);
-        }
-
-        .section-view {
-            display: none;
-        }
-        .section-view.active {
-            display: block;
-        }
-
-        .form-group {
-            margin-bottom: 12px;
-        }
-        .form-group label {
-            display: block;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            margin-bottom: 6px;
-        }
-        .form-control {
-            width: 100%;
-            padding: 10px;
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            color: var(--text-color);
-            font-size: 0.85rem;
-            box-sizing: border-box;
-            box-shadow: inset 2px 2px 5px #090b12, inset -2px -2px 5px #1f2740;
-        }
-
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            padding: 12px;
-            box-sizing: border-box;
-        }
-        .modal-card {
-            background: var(--card-bg-gradient);
-            border: 1px solid var(--border-color);
-            border-radius: 14px;
-            width: 100%;
-            max-width: 420px;
-            padding: 18px;
-            box-shadow: var(--shadow-3d);
-        }
-
-        .position-ticket {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .position-ticket::after {
-            content: attr(data-watermark);
-            position: absolute;
-            right: 10px;
-            bottom: 2px;
-            font-size: 1.6rem;
-            font-weight: 900;
-            color: rgba(255, 255, 255, 0.04);
-            pointer-events: none;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            z-index: 0;
-            white-space: nowrap;
-        }
-
-        .position-ticket > * {
-            position: relative;
-            z-index: 1;
-        }
-
-        .orderbook-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.8rem;
-            margin-top: 8px;
-        }
-        .orderbook-table th {
-            color: var(--text-muted);
-            text-align: left;
-            padding: 6px;
-            border-bottom: 1px solid var(--border-color);
-            font-weight: 600;
-        }
-        .orderbook-table td {
-            padding: 8px 6px;
-            border-bottom: 1px solid rgba(42, 46, 67, 0.5);
-        }
-
-        .support-chat-float {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 100;
-        }
-        .chat-launcher-btn {
-            background: linear-gradient(145deg, #7c3aed, #6d28d9) !important;
-            border: 1px solid #9333ea !important;
-            border-radius: 30px !important;
-            padding: 12px 20px !important;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
-        }
-    </style>
-</head>
-<body data-theme="dark">
-
-    <header>
-        <div class="logo-area">
-            <span>⚡ P2Ppredict</span>
-        </div>
-        <div class="user-info">
-            <span id="user-handle">@jaimetetio</span>
-            <span id="user-balance" style="color: #38bdf8; font-weight: 700;">150.00 Pi</span>
-            <button class="theme-btn" onclick="toggleTheme()">🌗 Tema</button>
-        </div>
-    </header>
-
-    <div class="nav-tabs">
-        <button class="nav-tab active" onclick="switchTab('mercados', this)">Mercados</button>
-        <button class="nav-tab" onclick="switchTab('clob', this)">Order Book</button>
-        <button class="nav-tab" onclick="switchTab('ranking', this)">Ranking</button>
-        <button class="nav-tab" onclick="switchTab('admin', this)">Admin</button>
-    </div>
-
-    <!-- VISTA: MERCADOS -->
-    <div id="view-mercados" class="section-view active">
-        <input type="text" class="search-box" id="search-input" placeholder="🔍 Buscar mercados o temas..." oninput="filtrarMercados()">
+        if DATABASE_URL:
+            c.execute("SELECT * FROM eventos WHERE id = %s", (evento_id,))
+        else:
+            c.execute("SELECT * FROM eventos WHERE id = ?", (evento_id,))
+        evento = c.fetchone()
         
-        <div class="filter-pills">
-            <button class="pill active" onclick="setCategory('Todos', this)">Todos</button>
-            <button class="pill" onclick="setCategory('Crypto', this)">Crypto</button>
-            <button class="pill" onclick="setCategory('Pi Ecosystem', this)">Pi Ecosystem</button>
-        </div>
+        if not evento or evento["estado"] != "activo":
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Mercado no disponible"})
 
-        <div id="markets-container">
-            <div class="market-card" data-id="1" data-category="Crypto">
-                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">
-                    <span>🏷️ Crypto</span>
-                    <span id="estado-mercado-1" style="color: #eab308; font-weight: bold;">● Abierto</span>
-                </div>
-                <div class="market-title">¿Bitcoin superará los $100,000 antes de finalizar este mes?</div>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span id="ask-precio-1-SI" style="color: #4ade80; font-weight: bold;">0.64 Pi</span> | Ask NO: <span id="ask-precio-1-NO" style="color: #f87171; font-weight: bold;">0.36 Pi</span></p>
-                <div style="display: flex; gap: 8px;">
-                    <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'SÍ')">Comprar SÍ</button>
-                    <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'NO')">Comprar NO</button>
-                </div>
-            </div>
-
-            <div class="market-card" data-id="2" data-category="Pi Ecosystem">
-                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">
-                    <span>🏷️ Pi Ecosystem</span>
-                    <span id="estado-mercado-2" style="color: #eab308; font-weight: bold;">● Abierto</span>
-                </div>
-                <div class="market-title">¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?</div>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span id="ask-precio-2-SI" style="color: #4ade80; font-weight: bold;">0.81 Pi</span> | Ask NO: <span id="ask-precio-2-NO" style="color: #f87171; font-weight: bold;">0.19 Pi</span></p>
-                <div style="display: flex; gap: 8px;">
-                    <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'SÍ')">Comprar SÍ</button>
-                    <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'NO')">Comprar NO</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- GESTIÓN DE BILLETERA PI NETWORK -->
-        <div class="accordion-card" id="acc-wallet">
-            <button class="accordion-header" onclick="toggleAccordion('acc-wallet')">
-                <span>💳 Gestión de Billetera y Blockchain Pi</span>
-                <span>▾</span>
-            </button>
-            <div class="accordion-content" style="padding-top: 12px;">
-                <div style="margin-bottom: 10px;">
-                    <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Monto (Pi)</label>
-                    <input type="number" id="wallet-amount" class="form-control" placeholder="1.0" min="0.1" step="0.1" style="margin-bottom: 10px;">
-                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                        <button class="action-btn" style="flex:1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="depositarConPiNetwork()">Recargar Pi</button>
-                        <button class="action-btn" style="flex:1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="retirarBilletera()">Retirar Pi</button>
-                    </div>
-                </div>
-                <div id="wallet-history" style="font-size: 0.75rem; color: var(--text-muted);">Conectado con SDK oficial de Pi Network y Supabase.</div>
-            </div>
-        </div>
-
-        <!-- HISTORIAL DEL USUARIO -->
-        <div class="accordion-card open" id="acc-apuestas">
-            <button class="accordion-header" onclick="toggleAccordion('acc-apuestas')">
-                <span>📦 Historial de Apuestas y Posiciones (Order Book)</span>
-                <span>▾</span>
-            </button>
-            <div class="accordion-content" style="padding-top: 12px; display: block;">
-                <div style="font-size: 0.8rem; font-weight: bold; color: var(--text-color); margin-bottom: 6px;">🟢 Posiciones Activas / Tickets</div>
-                <div id="my-positions-content" style="margin-bottom: 14px;">
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">No tienes posiciones activas.</p>
-                </div>
-
-                <div style="font-size: 0.8rem; font-weight: bold; color: var(--text-color); margin-bottom: 6px; border-top: 1px solid var(--border-color); padding-top: 10px;">📜 Historial de Transacciones (Permanente)</div>
-                <div id="my-history-content">
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">No hay transacciones registradas aún.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- VISTA: ORDER BOOK P2P VISIBLE -->
-    <div id="view-clob" class="section-view">
-        <div class="market-card">
-            <div class="market-title">📊 Order Book P2P en Vivo</div>
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Listado general de ofertas de compra (Bid) y venta (Ask) registradas en el mercado.</p>
-            
-            <div class="form-group">
-                <label>Filtrar por Mercado</label>
-                <select id="orderbook-market-filter" class="form-control" onchange="renderizarOrderBookVisible()">
-                    <option value="1">¿Bitcoin superará los $100,000?</option>
-                    <option value="2">¿Se habilitará Open Mainnet este trimestre?</option>
-                </select>
-            </div>
-
-            <table class="orderbook-table">
-                <thead>
-                    <tr>
-                        <th>Tipo</th>
-                        <th>Opción</th>
-                        <th>Contratos</th>
-                        <th>Precio (Pi)</th>
-                        <th>Trader</th>
-                    </tr>
-                </thead>
-                <tbody id="orderbook-table-body">
-                    <tr>
-                        <td colspan="5" style="text-align: center; color: var(--text-muted);">No hay órdenes en el libro actualmente.</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- VISTA: RANKING -->
-    <div id="view-ranking" class="section-view">
-        <div class="market-card">
-            <div class="market-title">🏆 Tabla de Líderes P2Ppredict</div>
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Los mejores traders de predicciones de la red Pi.</p>
-            <div style="font-size: 0.85rem;">
-                <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color);">
-                    <span>1. @crypto_king</span>
-                    <b style="color: #4ade80;">1,420.50 Pi</b>
-                </div>
-                <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color);">
-                    <span>2. @jaimetetio</span>
-                    <b style="color: #38bdf8;" id="ranking-user-balance">150.00 Pi</b>
-                </div>
-                <div style="display: flex; justify-content: space-between; padding: 6px 0;">
-                    <span>3. @pioneerglobal</span>
-                    <b style="color: var(--text-muted);">98.20 Pi</b>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- VISTA: ADMIN -->
-    <div id="view-admin" class="section-view">
-        <div class="market-card">
-            <div class="market-title">🛠️ Panel de Administración y Resolución</div>
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Declara el resultado oficial del mercado para habilitar el cobro de los ganadores.</p>
-            <div class="form-group">
-                <label>ID de Mercado a Resolver</label>
-                <select class="form-control" id="admin-market-id">
-                    <option value="1">¿Bitcoin superará los $100,000?</option>
-                    <option value="2">¿Se habilitará Open Mainnet este trimestre?</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Resultado Ganador Oficial</label>
-                <select class="form-control" id="admin-result-select">
-                    <option value="SÍ">Ganador: SÍ</option>
-                    <option value="NO">Ganador: NO</option>
-                </select>
-            </div>
-            <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #b91c1c, #991b1b); border-color: #ef4444;" onclick="declararGanadorAdmin()">Ejecutar Resolución y Liquidación</button>
-        </div>
-    </div>
-
-    <!-- MODAL DE TERMINAL DE TRADING RÁPIDO -->
-    <div id="trading-modal" class="modal-overlay">
-        <div class="modal-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <h3 id="modal-title" style="font-size: 1rem; margin: 0;">Comprar Contratos</h3>
-                <button onclick="cerrarTerminalTrading()" style="background: transparent; border: none; color: var(--text-color); font-size: 1.2rem; cursor: pointer;">&times;</button>
-            </div>
-            <p id="modal-market-text" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;"></p>
-            
-            <div class="form-group">
-                <label>Cantidad de Contratos</label>
-                <input type="number" id="modal-amount" class="form-control" value="1" min="1" oninput="calcularModalTotal()">
-            </div>
-
-            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
-                <div>Precio unitario dinámico (Ask): <span id="modal-price-unit" style="color: #38bdf8;">0.00</span> Pi</div>
-                <div>Inversión Total Requerida: <span id="modal-total-req" style="color: #f59e0b; font-weight: bold;">0.00</span> Pi</div>
-                <div>Payout potencial (1 Pi c/u): <span id="modal-payout" style="color: #4ade80; font-weight: bold;">0.00</span> Pi</div>
-            </div>
-
-            <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #2563eb, #1d4ed8);" onclick="confirmarCompraRapida()">Confirmar Orden al Order Book</button>
-        </div>
-    </div>
-
-    <!-- BOTÓN FLOTANTE DE SOPORTE -->
-    <div class="support-chat-float">
-        <button class="action-btn chat-launcher-btn" onclick="abrirSoporteChat()">💬 Chat de Soporte</button>
-    </div>
-
-    <script>
-        // Estado local de respaldo para funcionamiento offline o dual con Supabase
-        let usuarioActual = JSON.parse(localStorage.getItem('p2p_usuario')) || { handle: "@jaimetetio", balance: 150.00 };
-        let posicionesActivas = JSON.parse(localStorage.getItem('p2p_posiciones')) || [];
-        let historialTransacciones = JSON.parse(localStorage.getItem('p2p_historial_transacciones')) || []; 
-        let ordenesGlobales = JSON.parse(localStorage.getItem('p2p_ordenes_globales')) || [];
+        if DATABASE_URL:
+            c.execute("SELECT * FROM opciones_evento WHERE id = %s AND evento_id = %s", (opcion_id, evento_id))
+        else:
+            c.execute("SELECT * FROM opciones_evento WHERE id = ? AND evento_id = ?", (opcion_id, evento_id))
+        opcion = c.fetchone()
         
-        let preciosMercados = JSON.parse(localStorage.getItem('p2p_precios_mercados')) || {
-            1: { "SÍ": 0.64, "NO": 0.36 },
-            2: { "SÍ": 0.81, "NO": 0.19 }
-        };
+        if not opcion:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Opción inválida"})
 
-        let estadosMercados = JSON.parse(localStorage.getItem('p2p_estados_mercados')) || {
-            1: null,
-            2: null
-        };
+        nuevo_saldo = saldo_actual - monto
+        
+        if DATABASE_URL:
+            c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
+            c.execute("UPDATE opciones_evento SET pozo = pozo + %s WHERE id = %s", (monto, opcion_id))
+            c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (%s, %s, %s, %s, %s)",
+                      (username, evento["titulo"], opcion["nombre"], monto, "Activo"))
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                      (username, "Apuesta", -monto, f"BET_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
+        else:
+            c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
+            c.execute("UPDATE opciones_evento SET pozo = pozo + ? WHERE id = ?", (monto, opcion_id))
+            c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (?, ?, ?, ?, ?)",
+                      (username, evento["titulo"], opcion["nombre"], monto, "Activo"))
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
+                      (username, "Apuesta", -monto, f"BET_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
+        
+        conn.commit()
+        return jsonify({"success": True, "nuevo_saldo": nuevo_saldo, "mensaje": "¡Apuesta registrada con éxito!"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
 
-        let ordenActivaModal = null;
+# ================= RUTAS DEL ORDER BOOK / CLOB CON MOTOR DE MATCHING & DINAMISMO =================
+@app.route("/api/clob/ordenes", methods=["GET"])
+def obtener_ordenes_clob():
+    evento_id = request.args.get("evento_id")
+    conn = obtener_conexion()
+    c = conn.cursor()
+    if evento_id:
+        if DATABASE_URL:
+            c.execute("SELECT * FROM ordenes_clob WHERE evento_id = %s AND estado = 'activa' ORDER BY precio DESC", (evento_id,))
+        else:
+            c.execute("SELECT * FROM ordenes_clob WHERE evento_id = ? AND estado = 'activa' ORDER BY precio DESC", (evento_id,))
+    else:
+        c.execute("SELECT * FROM ordenes_clob WHERE estado = 'activa' ORDER BY id DESC LIMIT 50")
+    ordenes = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({"success": True, "ordenes": ordenes})
 
-        window.onload = async function() {
-            await sincronizarConSupabase();
-            sincronizarPersistencia();
-            actualizarUIBalance();
-            actualizarPreciosVisuales();
-            restaurarEstadosMercadosVisuales();
-            cargarHistorialDesdeDB();
-            renderizarOrderBookVisible();
-        };
+@app.route("/api/clob/actualizar-dinamico", methods=["GET"])
+def actualizar_ordenes_dinamico():
+    evento_id = request.args.get("evento_id", 1)
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT * FROM ordenes_clob WHERE estado = 'activa' ORDER BY RANDOM() LIMIT 1")
+        else:
+            c.execute("SELECT * FROM ordenes_clob WHERE estado = 'activa' ORDER BY RANDOM() LIMIT 1")
+        
+        orden_azar = c.fetchone()
+        if orden_azar:
+            variacion = round(random.uniform(-0.01, 0.01), 3)
+            nuevo_precio = max(0.01, round(orden_azar["precio"] + variacion, 3))
+            if DATABASE_URL:
+                c.execute("UPDATE ordenes_clob SET precio = %s WHERE id = %s", (nuevo_precio, orden_azar["id"]))
+            else:
+                c.execute("UPDATE ordenes_clob SET precio = ? WHERE id = ?", (nuevo_precio, orden_azar["id"]))
+            conn.commit()
 
-        // --- FUNCIONES DE INTEGRACIÓN CON SUPABASE ---
-        async function sincronizarConSupabase() {
-            if (!supabaseClient) return;
-            try {
-                // Cargar órdenes globales desde Supabase (tabla 'ordenes_clob')
-                let { data: ordenes, error: errOrd } = await supabaseClient.from('ordenes_clob').select('*');
-                if (!errOrd && ordenes && ordenes.length > 0) {
-                    ordenesGlobales = ordenes;
-                }
+        if DATABASE_URL:
+            c.execute("SELECT * FROM ordenes_clob WHERE estado = 'activa' ORDER BY precio DESC LIMIT 50")
+        else:
+            c.execute("SELECT * FROM ordenes_clob WHERE estado = 'activa' ORDER BY precio DESC LIMIT 50")
+        ordenes = [dict(row) for row in c.fetchall()]
+        conn.close()
+        return jsonify({"success": True, "ordenes": ordenes, "timestamp": time.time()})
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({"success": False, "error": str(e)}), 500
 
-                // Cargar transacciones desde Supabase (tabla 'historial_transacciones')
-                let { data: txs, error: errTx } = await supabaseClient.from('historial_transacciones').select('*');
-                if (!errTx && txs && txs.length > 0) {
-                    historialTransacciones = txs;
-                }
+@app.route("/api/clob/orden", methods=["POST"])
+def crear_orden_clob():
+    data = request.json or {}
+    username = data.get("username")
+    evento_id = data.get("evento_id")
+    opcion_id = data.get("opcion_id")
+    tipo_orden = data.get("tipo_orden", "limit")
+    accion = data.get("accion")  # 'comprar' o 'vender'
+    
+    try:
+        precio = float(data.get("precio", 0))
+        cantidad = float(data.get("cantidad", 0))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "Valores numéricos inválidos"}), 400
 
-                // Sincronizar también las posiciones activas desde Supabase para mantener persistencia completa en la nube
-                let { data: pos, error: errPos } = await supabaseClient.from('posiciones_activas').select('*');
-                if (!errPos && pos && pos.length > 0) {
-                    // Mapear nombres de columnas de Supabase al formato interno si es necesario
-                    posicionesActivas = pos.map(p => ({
-                        id: p.id,
-                        marketId: p.market_id,
-                        handle: p.handle,
-                        titulo: p.titulo,
-                        opcion: p.opcion,
-                        contratos: p.contratos,
-                        invertido: Number(p.invertido),
-                        payout: Number(p.payout)
-                    }));
-                }
-            } catch (e) {
-                console.warn("Aviso: No se pudo conectar con Supabase en tiempo de ejecución, usando almacenamiento local.", e);
-            }
-        }
+    if precio <= 0 or cantidad <= 0 or accion not in ["comprar", "vender"]:
+        return jsonify({"success": False, "error": "Parámetros de orden incorrectos"}), 400
 
-        async function guardarEnSupabaseTabla(tabla, objetoDatos) {
-            if (!supabaseClient) return;
-            try {
-                await supabaseClient.from(tabla).insert([objetoDatos]);
-            } catch (e) {
-                console.error("Error guardando en Supabase:", e);
-            }
-        }
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        costo_inicial = precio * cantidad if accion == "comprar" else cantidad
+        if DATABASE_URL:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+        else:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+        row_user = c.fetchone()
+        
+        if not row_user or row_user["saldo_disponible"] < costo_inicial:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Saldo insuficiente para colocar la orden"})
 
-        async function eliminarDeSupabaseTabla(tabla, idCondicion) {
-            if (!supabaseClient) return;
-            try {
-                await supabaseClient.from(tabla).delete().eq('id', idCondicion);
-            } catch (e) {
-                console.error("Error eliminando en Supabase:", e);
-            }
-        }
+        nuevo_saldo_creador = row_user["saldo_disponible"] - costo_inicial
+        if DATABASE_URL:
+            c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo_creador, username))
+        else:
+            c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo_creador, username))
 
-        function guardarTodoEnStorage() {
-            localStorage.setItem('p2p_usuario', JSON.stringify(usuarioActual));
-            localStorage.setItem('p2p_posiciones', JSON.stringify(posicionesActivas));
-            localStorage.setItem('p2p_historial_transacciones', JSON.stringify(historialTransacciones));
-            localStorage.setItem('p2p_ordenes_globales', JSON.stringify(ordenesGlobales));
-            localStorage.setItem('p2p_precios_mercados', JSON.stringify(preciosMercados));
-            localStorage.setItem('p2p_estados_mercados', JSON.stringify(estadosMercados));
-        }
+        cantidad_restante = cantidad
+        fecha_str = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-        function sincronizarPersistencia() {
-            usuarioActual = JSON.parse(localStorage.getItem('p2p_usuario')) || usuarioActual;
-            posicionesActivas = JSON.parse(localStorage.getItem('p2p_posiciones')) || [];
-            historialTransacciones = JSON.parse(localStorage.getItem('p2p_historial_transacciones')) || [];
-            ordenesGlobales = JSON.parse(localStorage.getItem('p2p_ordenes_globales')) || [];
-            preciosMercados = JSON.parse(localStorage.getItem('p2p_precios_mercados')) || preciosMercados;
-            estadosMercados = JSON.parse(localStorage.getItem('p2p_estados_mercados')) || estadosMercados;
-        }
+        if DATABASE_URL:
+            c.execute("SELECT titulo FROM eventos WHERE id = %s", (evento_id,))
+            ev_row = c.fetchone()
+            c.execute("SELECT nombre FROM opciones_evento WHERE id = %s", (opcion_id,))
+            op_row = c.fetchone()
+        else:
+            c.execute("SELECT titulo FROM eventos WHERE id = ?", (evento_id,))
+            ev_row = c.fetchone()
+            c.execute("SELECT nombre FROM opciones_evento WHERE id = ?", (opcion_id,))
+            op_row = c.fetchone()
 
-        function toggleTheme() {
-            const body = document.body;
-            body.setAttribute("data-theme", body.getAttribute("data-theme") === "dark" ? "light" : "dark");
-        }
+        titulo_ev = ev_row["titulo"] if ev_row else "Mercado P2P"
+        nombre_op = op_row["nombre"] if op_row else "Opción"
 
-        function switchTab(tabId, btnElement) {
-            document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
-            
-            document.getElementById('view-' + tabId).classList.add('active');
-            if(btnElement) btnElement.classList.add('active');
-            if(tabId === 'clob') renderizarOrderBookVisible();
-        }
+        # ================= MOTOR DE MATCHING (CRUCE DE ÓRDENES) =================
+        if accion == "comprar":
+            if DATABASE_URL:
+                c.execute("""SELECT * FROM ordenes_clob WHERE evento_id = %s AND opcion_id = %s AND accion = 'vender' AND estado = 'activa' AND precio <= %s ORDER BY precio ASC, id ASC FOR UPDATE""", (evento_id, opcion_id, precio))
+            else:
+                c.execute("""SELECT * FROM ordenes_clob WHERE evento_id = ? AND opcion_id = ? AND accion = 'vender' AND estado = 'activa' AND precio <= ? ORDER BY precio ASC, id ASC""", (evento_id, opcion_id, precio))
+            contra_ordenes = c.fetchall()
 
-        function toggleAccordion(id) {
-            document.getElementById(id).classList.toggle('open');
-        }
-
-        function filtrarMercados() {
-            const query = document.getElementById('search-input').value.toLowerCase();
-            const cards = document.querySelectorAll('#markets-container .market-card');
-            cards.forEach(card => {
-                const title = card.querySelector('.market-title').innerText.toLowerCase();
-                card.style.display = title.includes(query) ? 'block' : 'none';
-            });
-        }
-
-        function setCategory(cat, pillElement) {
-            document.querySelectorAll('.filter-pills .pill').forEach(p => p.classList.remove('active'));
-            pillElement.classList.add('active');
-            
-            const cards = document.querySelectorAll('#markets-container .market-card');
-            cards.forEach(card => {
-                const cardCat = card.getAttribute('data-category');
-                if (cat === 'Todos' || cardCat === cat) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        }
-
-        function actualizarUIBalance() {
-            document.getElementById('user-balance').innerText = usuarioActual.balance.toFixed(2) + ' Pi';
-            const rankingBal = document.getElementById('ranking-user-balance');
-            if(rankingBal) rankingBal.innerText = usuarioActual.balance.toFixed(2) + ' Pi';
-        }
-
-        function actualizarPreciosVisuales() {
-            for (let id in preciosMercados) {
-                const elSi = document.getElementById(`ask-precio-${id}-SI`);
-                const elNo = document.getElementById(`ask-precio-${id}-NO`);
-                if (elSi) elSi.innerText = preciosMercados[id]["SÍ"].toFixed(2) + ' Pi';
-                if (elNo) elNo.innerText = preciosMercados[id]["NO"].toFixed(2) + ' Pi';
-            }
-        }
-
-        function restaurarEstadosMercadosVisuales() {
-            for (let id in estadosMercados) {
-                if (estadosMercados[id] !== null) {
-                    const estadoBadge = document.getElementById('estado-mercado-' + id);
-                    if (estadoBadge) {
-                        estadoBadge.innerHTML = `🔴 Cerrado (Ganador: ${estadosMercados[id]})`;
-                        estadoBadge.style.color = '#ef4444';
-                    }
-                }
-            }
-        }
-
-        function cargarHistorialDesdeDB() {
-            renderizarPosiciones();
-            renderizarHistorial();
-        }
-
-        function abrirTerminalTrading(idMercado, tituloMercado, opcion) {
-            if (estadosMercados[idMercado] !== null) {
-                alert("Este mercado ya se encuentra cerrado o resuelto.");
-                return;
-            }
-            let precioAskActual = preciosMercados[idMercado][opcion];
-            
-            ordenActivaModal = { idMercado, tituloMercado, opcion, precioAskBase: precioAskActual };
-            document.getElementById('modal-title').innerText = `Comprar Contratos [${opcion}]`;
-            document.getElementById('modal-market-text').innerText = tituloMercado;
-            document.getElementById('modal-amount').value = 1;
-            calcularModalTotal();
-            document.getElementById('trading-modal').style.display = 'flex';
-        }
-
-        function cerrarTerminalTrading() {
-            document.getElementById('trading-modal').style.display = 'none';
-        }
-
-        function calcularModalTotal() {
-            const cantidad = parseInt(document.getElementById('modal-amount').value) || 1;
-            const precioDinamicoUnitario = ordenActivaModal.precioAskBase * (1 + (cantidad - 1) * 0.003);
-            ordenActivaModal.precioCalculadoUnitario = Math.min(precioDinamicoUnitario, 0.98);
-
-            const totalReq = cantidad * ordenActivaModal.precioCalculadoUnitario;
-            const payout = cantidad * 1.00; 
-
-            document.getElementById('modal-price-unit').innerText = ordenActivaModal.precioCalculadoUnitario.toFixed(3);
-            document.getElementById('modal-total-req').innerText = totalReq.toFixed(2);
-            document.getElementById('modal-payout').innerText = payout.toFixed(2);
-        }
-
-        function confirmarCompraRapida() {
-            const cantidad = parseInt(document.getElementById('modal-amount').value) || 1;
-            const precioFinalUnitario = ordenActivaModal.precioCalculadoUnitario;
-            const totalReq = cantidad * precioFinalUnitario;
-
-            if (estadosMercados[ordenActivaModal.idMercado] !== null) {
-                alert("Este mercado ya se encuentra cerrado.");
-                cerrarTerminalTrading();
-                return;
-            }
-
-            if (usuarioActual.balance < totalReq) {
-                alert("Saldo insuficiente en tu billetera Pi para realizar esta operación.");
-                return;
-            }
-
-            usuarioActual.balance -= totalReq;
-
-            const idM = ordenActivaModal.idMercado;
-            const opM = ordenActivaModal.opcion;
-            const opOpuesta = opM === 'SÍ' ? 'NO' : 'SÍ';
-
-            preciosMercados[idM][opM] = Math.min(preciosMercados[idM][opM] + (cantidad * 0.002), 0.95);
-            preciosMercados[idM][opOpuesta] = Math.max(1 - preciosMercados[idM][opM], 0.05);
-
-            const nuevaPosicion = {
-                id: 'POS-' + Date.now(),
-                marketId: idM,
-                titulo: ordenActivaModal.tituloMercado,
-                opcion: opM,
-                contratos: cantidad,
-                invertido: totalReq,
-                payout: cantidad * 1.00
-            };
-
-            posicionesActivas.push(nuevaPosicion);
-            
-            // Sincronizar inserción en la tabla 'posiciones_activas' de Supabase
-            guardarEnSupabaseTabla('posiciones_activas', {
-                id: nuevaPosicion.id,
-                market_id: String(nuevaPosicion.marketId),
-                handle: usuarioActual.handle,
-                titulo: nuevaPosicion.titulo,
-                opcion: nuevaPosicion.opcion,
-                contratos: nuevaPosicion.contratos,
-                invertido: nuevaPosicion.invertido,
-                payout: nuevaPosicion.payout
-            });
-
-            const nuevaOrdenGlobal = {
-                marketId: idM,
-                tipo: 'COMPRA (Bid)',
-                opcion: opM,
-                contratos: cantidad,
-                precio: precioFinalUnitario,
-                trader: usuarioActual.handle
-            };
-
-            ordenesGlobales.push(nuevaOrdenGlobal);
-            guardarEnSupabaseTabla('ordenes_clob', nuevaOrdenGlobal);
-
-            guardarTodoEnStorage();
-            actualizarUIBalance();
-            actualizarPreciosVisuales();
-            renderizarPosiciones();
-            renderizarOrderBookVisible();
-            cerrarTerminalTrading();
-            alert("¡Orden ejecutada y guardada permanentemente en el sistema!");
-        }
-
-        function renderizarOrderBookVisible() {
-            sincronizarPersistencia();
-            const marketIdFiltro = document.getElementById('orderbook-market-filter').value;
-            const tbody = document.getElementById('orderbook-table-body');
-            
-            const filtradas = ordenesGlobales.filter(o => o.marketId == marketIdFiltro);
-
-            if (filtradas.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 12px;">No hay órdenes en el libro para este mercado.</td></tr>';
-                return;
-            }
-
-            let html = '';
-            filtradas.forEach(o => {
-                const colorOp = o.opcion === 'SÍ' ? '#4ade80' : '#f87171';
-                html += `
-                    <tr>
-                        <td><span style="color: #38bdf8;">${o.tipo}</span></td>
-                        <td><b style="color: ${colorOp};">${o.opcion}</b></td>
-                        <td>${o.contratos}</td>
-                        <td>${o.precio.toFixed(3)} Pi</td>
-                        <td>${o.trader}</td>
-                    </tr>
-                `;
-            });
-            tbody.innerHTML = html;
-        }
-
-        function renderizarPosiciones() {
-            const contenedor = document.getElementById('my-positions-content');
-            if (posicionesActivas.length === 0) {
-                contenedor.innerHTML = '<p style="font-size: 0.8rem; color: var(--text-muted);">No tienes posiciones activas.</p>';
-                return;
-            }
-
-            let html = '';
-            posicionesActivas.forEach((pos, idx) => {
-                const colorBadge = pos.opcion === 'SÍ' ? '#4ade80' : '#f87171';
-                const ganadorOficial = estadosMercados[pos.marketId];
+            for contra in contra_ordenes:
+                if cantidad_restante <= 0:
+                    break
                 
-                let botonesHtml = '';
-                if (ganadorOficial === null) {
-                    const valorVentaAnticipada = (pos.invertido * 0.9).toFixed(2);
-                    botonesHtml = `
-                        <div style="display: flex; gap: 6px; margin-bottom: 4px;">
-                            <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #2a2e43, #1f2233); border-color: #3a3f58; color: #8c92ac; font-size: 0.75rem; padding: 7px; cursor: default;" disabled>Predicción Activa</button>
-                            <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #d97706, #b45309); border-color: #f59e0b; font-size: 0.75rem; padding: 7px;" onclick="venderPosicionAnticipada(${idx})">💸 Vender (${valorVentaAnticipada} Pi)</button>
-                        </div>
-                    `;
-                } else {
-                    const esGanador = (ganadorOficial === pos.opcion);
-                    const disabledAttr = esGanador ? '' : 'disabled';
-                    const textoBoton = esGanador ? '🎉 Cobrar Premio' : '❌ Perdedora';
-                    const estiloBoton = esGanador ? '' : 'background: linear-gradient(145deg, #2a2e43, #1f2233) !important; border-color: #3a3f58 !important; color: #6b7280 !important;';
-                    
-                    botonesHtml = `
-                        <div style="display: flex; gap: 6px;">
-                            <button class="action-btn" style="width: 100%; font-size: 0.75rem; padding: 7px; ${estiloBoton}" ${disabledAttr} onclick="cobrarPrediccion(${idx})">${textoBoton}</button>
-                        </div>
-                    `;
-                }
+                match_cant = min(cantidad_restante, contra["cantidad"])
+                match_precio = contra["precio"]
+                
+                diferencia_precio = (precio - match_precio) * match_cant
+                if diferencia_precio > 0:
+                    nuevo_saldo_creador += diferencia_precio
+                    if DATABASE_URL:
+                        c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo_creador, username))
+                    else:
+                        c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo_creador, username))
 
-                html += `
-                    <div class="position-ticket" data-watermark="${pos.opcion}">
-                        <div style="font-size: 0.85rem; font-weight: bold; color: var(--text-color); margin-bottom: 4px;">${pos.titulo}</div>
-                        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px;">
-                            <span>Opción: <b style="color: ${colorBadge}">${pos.opcion}</b> | Contratos: <b>${pos.contratos}</b></span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px;">
-                            <span>Invertido: ${pos.invertido.toFixed(2)} Pi</span>
-                            <span style="color: #4ade80;">Payout: ${pos.payout.toFixed(2)} Pi</span>
-                        </div>
-                        ${botonesHtml}
-                    </div>
-                `;
-            });
-            contenedor.innerHTML = html;
+                monto_vendedor = match_precio * match_cant
+                if DATABASE_URL:
+                    c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (contra["username"],))
+                else:
+                    c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (contra["username"],))
+                v_row = c.fetchone()
+                if v_row:
+                    nuevo_saldo_vendedor = v_row["saldo_disponible"] + monto_vendedor
+                    if DATABASE_URL:
+                        c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo_vendedor, contra["username"]))
+                    else:
+                        c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo_vendedor, contra["username"]))
+
+                if DATABASE_URL:
+                    c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (%s, %s, %s, %s, %s)",
+                              (username, titulo_ev, nombre_op, match_precio * match_cant, "Activo"))
+                else:
+                    c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (?, ?, ?, ?, ?)",
+                              (username, titulo_ev, nombre_op, match_precio * match_cant, "Activo"))
+                
+                nueva_contra_cant = contra["cantidad"] - match_cant
+                nuevo_estado_contra = 'completada' if nueva_contra_cant <= 0 else 'activa'
+                if DATABASE_URL:
+                    c.execute("UPDATE ordenes_clob SET cantidad = %s, estado = %s WHERE id = %s", (nueva_contra_cant, nuevo_estado_contra, contra["id"]))
+                else:
+                    c.execute("UPDATE ordenes_clob SET cantidad = ?, estado = ? WHERE id = ?", (nueva_contra_cant, nuevo_estado_contra, contra["id"]))
+
+                cantidad_restante -= match_cant
+
+        else:
+            if DATABASE_URL:
+                c.execute("""SELECT * FROM ordenes_clob WHERE evento_id = %s AND opcion_id = %s AND accion = 'comprar' AND estado = 'activa' AND precio >= %s ORDER BY precio DESC, id ASC FOR UPDATE""", (evento_id, opcion_id, precio))
+            else:
+                c.execute("""SELECT * FROM ordenes_clob WHERE evento_id = ? AND opcion_id = ? AND accion = 'comprar' AND estado = 'activa' AND precio >= ? ORDER BY precio DESC, id ASC""", (evento_id, opcion_id, precio))
+            contra_ordenes = c.fetchall()
+
+            for contra in contra_ordenes:
+                if cantidad_restante <= 0:
+                    break
+                
+                match_cant = min(cantidad_restante, contra["cantidad"])
+                match_precio = contra["precio"]
+                
+                monto_venta = match_precio * match_cant
+
+                nuevo_saldo_creador += monto_venta
+                if DATABASE_URL:
+                    c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo_creador, username))
+                else:
+                    c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo_creador, username))
+
+                if DATABASE_URL:
+                    c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (%s, %s, %s, %s, %s)",
+                              (contra["username"], titulo_ev, nombre_op, match_precio * match_cant, "Activo"))
+                else:
+                    c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (?, ?, ?, ?, ?)",
+                              (contra["username"], titulo_ev, nombre_op, match_precio * match_cant, "Activo"))
+
+                nueva_contra_cant = contra["cantidad"] - match_cant
+                nuevo_estado_contra = 'completada' if nueva_contra_cant <= 0 else 'activa'
+                if DATABASE_URL:
+                    c.execute("UPDATE ordenes_clob SET cantidad = %s, estado = %s WHERE id = %s", (nueva_contra_cant, nuevo_estado_contra, contra["id"]))
+                else:
+                    c.execute("UPDATE ordenes_clob SET cantidad = ?, estado = ? WHERE id = ?", (nueva_contra_cant, nuevo_estado_contra, contra["id"]))
+
+                cantidad_restante -= match_cant
+
+        estado_final_orden = 'activa' if cantidad_restante > 0 else 'completada'
+        if cantidad_restante > 0:
+            if DATABASE_URL:
+                c.execute("INSERT INTO ordenes_clob (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, estado, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                          (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad_restante, estado_final_orden, fecha_str))
+            else:
+                c.execute("INSERT INTO ordenes_clob (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad, estado, fecha) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                          (username, evento_id, opcion_id, tipo_orden, accion, precio, cantidad_restante, estado_final_orden, fecha_str))
+
+        if DATABASE_URL:
+            c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (%s, %s, %s, %s, %s)",
+                      (username, titulo_ev, f"CLOB {accion.capitalize()} ({cantidad} a {precio})", costo_inicial, "Vendida" if accion == "vender" else "Completada/Ordenada"))
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                      (username, f"CLOB Orden ({accion})", -costo_inicial + (precio * (cantidad - cantidad_restante)), f"CLOB_{datetime.now().strftime('%Y%m%d%H%M%S')}", fecha_str))
+        else:
+            c.execute("INSERT INTO historial_apuestas (username, titulo_evento, opcion_elegida, monto, estado) VALUES (?, ?, ?, ?, ?)",
+                      (username, titulo_ev, f"CLOB {accion.capitalize()} ({cantidad} a {precio})", costo_inicial, "Vendida" if accion == "vender" else "Completada/Ordenada"))
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
+                      (username, f"CLOB Orden ({accion})", -costo_inicial + (precio * (cantidad - cantidad_restante)), f"CLOB_{datetime.now().strftime('%Y%m%d%H%M%S')}", fecha_str))
+
+        conn.commit()
+        return jsonify({
+            "success": True, 
+            "nuevo_saldo": nuevo_saldo_creador, 
+            "mensaje": f"Orden procesada. Ejecutado: {cantidad - cantidad_restante} / Colocado en libro: {cantidad_restante}"
+        })
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route("/api/pi/aprobar-pago", methods=["POST"])
+def aprobar_pago():
+    data = request.json or {}
+    payment_id = data.get("paymentId")
+    if not PI_API_KEY:
+        return jsonify({"success": False, "error": "PI_API_KEY no configurada"}), 500
+
+    headers = {"Authorization": f"Key {PI_API_KEY}"}
+    try:
+        response = requests.post(f"https://api.minepi.com/v2/payments/{payment_id}/approve", headers=headers, timeout=10)
+        if response.status_code == 200:
+            return jsonify({"success": True})
+    except requests.exceptions.RequestException:
+        return jsonify({"success": False, "error": "Error de red con Pi Network"}), 504
+        
+    return jsonify({"success": False, "error": "No se pudo aprobar el pago"}), 400
+
+@app.route("/api/pi/completar-pago", methods=["POST"])
+def completar_pago():
+    data = request.json or {}
+    username = data.get("username")
+    try:
+        monto = float(data.get("monto", 0))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "Monto inválido"}), 400
+
+    payment_id = data.get("paymentId")
+    txid = data.get("txid")
+
+    if PI_API_KEY:
+        headers = {"Authorization": f"Key {PI_API_KEY}"}
+        try:
+            response = requests.post(f"https://api.minepi.com/v2/payments/{payment_id}/complete", headers=headers, json={"txid": txid}, timeout=10)
+            if response.status_code != 200:
+                return jsonify({"success": False, "error": "Error al completar el pago en Pi"}), 400
+        except requests.exceptions.RequestException:
+            return jsonify({"success": False, "error": "Error de red con Pi Network"}), 504
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+    
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+        else:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+        row = c.fetchone()
+        
+        if not row:
+            nuevo_saldo = monto
+            if DATABASE_URL:
+                c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (%s, %s)", (username, nuevo_saldo))
+            else:
+                c.execute("INSERT INTO usuarios (username, saldo_disponible) VALUES (?, ?)", (username, nuevo_saldo))
+        else:
+            nuevo_saldo = row["saldo_disponible"] + monto
+            if DATABASE_URL:
+                c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
+            else:
+                c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
+        
+        fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+        if DATABASE_URL:
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                      (username, "Recarga Pi Real", monto, txid or payment_id, fecha))
+        else:
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
+                      (username, "Recarga Pi Real", monto, txid or payment_id, fecha))
+        
+        conn.commit()
+        return jsonify({"success": True, "nuevo_saldo": nuevo_saldo, "mensaje": f"Recarga de {monto} Pi acreditada con éxito."})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route("/api/pi/retirar", methods=["POST"])
+def solicitar_retiro():
+    if not check_rate_limit(limit=10, window=60):
+        return jsonify({"success": False, "error": "Demasiadas peticiones de retiro. Intente más tarde."}), 429
+
+    data = request.json or {}
+    username = data.get("username")
+    try:
+        monto = float(data.get("monto", 0))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "Monto inválido"}), 400
+
+    wallet_destino = str(data.get("wallet_address", "")).strip()
+
+    if monto < 1.0:
+        return jsonify({"success": False, "error": "El monto mínimo de retiro es de 1.0 Pi"}), 400
+
+    if not wallet_destino or len(wallet_destino) < 10:
+        return jsonify({"success": False, "error": "La dirección de la billetera de destino no es válida"}), 400
+
+    if not PI_API_KEY:
+        return jsonify({"success": False, "error": "PI_API_KEY no configurada en el servidor"}), 500
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+        else:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+        row = c.fetchone()
+
+        if not row or row["saldo_disponible"] < monto:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Saldo insuficiente para procesar el retiro"})
+
+        saldo_actual = row["saldo_disponible"]
+        nuevo_saldo = saldo_actual - monto
+
+        if DATABASE_URL:
+            c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
+        else:
+            c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
+
+        headers = {"Authorization": f"Key {PI_API_KEY}", "Content-Type": "application/json"}
+        payload = {
+            "amount": monto,
+            "uid": username,
+            "memo": f"Retiro automático desde P2PPredict hacia {wallet_destino}",
+            "metadata": {"wallet": wallet_destino}
         }
+        
+        pi_response = requests.post("https://api.minepi.com/v2/payments", json=payload, headers=headers, timeout=10)
+        
+        if pi_response.status_code not in [200, 201]:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "La pasarela de Pi Network rechazó el desembolso"}), 400
 
-        function venderPosicionAnticipada(idx) {
-            const pos = posicionesActivas[idx];
-            const retornoVenta = pos.invertido * 0.9;
-            
-            usuarioActual.balance += retornoVenta;
+        pi_data = pi_response.json()
+        txid = pi_data.get("txid", f"RETIRO_{datetime.now().strftime('%Y%m%d%H%M%S')}")
+        fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+        
+        if DATABASE_URL:
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                      (username, "Retiro Pi Blockchain", -monto, txid, fecha))
+        else:
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
+                      (username, "Retiro Pi Blockchain", -monto, txid, fecha))
 
-            registrarTransaccionEnDB({
-                id: 'VEND-' + Date.now(),
-                titulo: pos.titulo,
-                tipo: 'Venta Anticipada',
-                monto: retornoVenta,
-                detalle: `${pos.contratos} contratos (${pos.opcion}) vendidos antes de tiempo`
-            });
+        conn.commit()
+        return jsonify({"success": True, "nuevo_saldo": nuevo_saldo, "txid": txid, "mensaje": f"Retiro de {monto} Pi procesado con éxito."})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
 
-            eliminarDeSupabaseTabla('posiciones_activas', pos.id);
-            posicionesActivas.splice(idx, 1);
-            guardarTodoEnStorage();
-            actualizarUIBalance();
-            renderizarPosiciones();
-            renderizarHistorial();
-            alert(`¡Has vendido tus contratos anticipadamente! Se han acreditado ${retornoVenta.toFixed(2)} Pi a tu balance.`);
-        }
+@app.route("/api/admin/login", methods=["POST"])
+def admin_login():
+    if not check_rate_limit(limit=5, window=60):
+        registrar_log_admin("LOGIN_FALLIDO_RATE_LIMIT", "Demasiados intentos de acceso bloqueados por seguridad.")
+        return jsonify({"success": False, "error": "Demasiados intentos fallidos. Inténtelo más tarde."}), 429
 
-        function cobrarPrediccion(idx) {
-            const pos = posicionesActivas[idx];
-            usuarioActual.balance += pos.payout;
+    data = request.json or {}
+    password = data.get("password", "")
+    
+    if check_password_hash(ADMIN_PASSWORD_HASH, password):
+        session['is_admin'] = True
+        registrar_log_admin("LOGIN_EXITOSO", "Administrador inició sesión correctamente.")
+        return jsonify({"success": True, "message": "Acceso autorizado"})
+    
+    registrar_log_admin("LOGIN_FALLIDO", "Intento de acceso con contraseña incorrecta.")
+    return jsonify({"success": False, "error": "Credenciales inválidas"}), 401
 
-            registrarTransaccionEnDB({
-                id: pos.id,
-                titulo: pos.titulo,
-                tipo: 'Cobrada / Ganada',
-                monto: pos.payout,
-                detalle: `${pos.contratos} contratos (${pos.opcion}) cobrados con éxito`
-            });
+@app.route("/api/admin/verificar-sesion", methods=["GET"])
+def admin_verificar_sesion():
+    if session.get('is_admin'):
+        return jsonify({"success": True, "is_admin": True})
+    return jsonify({"success": True, "is_admin": False}), 403
 
-            eliminarDeSupabaseTabla('posiciones_activas', pos.id);
-            posicionesActivas.splice(idx, 1);
-            guardarTodoEnStorage();
-            actualizarUIBalance();
-            renderizarPosiciones();
-            renderizarHistorial();
-            alert(`¡Predicción cobrada con éxito! Se acreditaron ${pos.payout.toFixed(2)} Pi a tu balance.`);
-        }
+@app.route("/api/ranking", methods=["GET"])
+def obtener_ranking():
+    conn = obtener_conexion()
+    c = conn.cursor()
+    if DATABASE_URL:
+        c.execute("SELECT username, saldo_disponible FROM usuarios ORDER BY saldo_disponible DESC LIMIT 10")
+    else:
+        c.execute("SELECT username, saldo_disponible FROM usuarios ORDER BY saldo_disponible DESC LIMIT 10")
+    ranking = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return jsonify({"success": True, "ranking": ranking})
 
-        function registrarTransaccionEnDB(tx) {
-            historialTransacciones.unshift(tx);
-            guardarEnSupabaseTabla('historial_transacciones', tx);
-            guardarTodoEnStorage();
-        }
+@app.route("/api/cobrar/<int:apuesta_id>", methods=["POST"])
+def cobrar_prediccion(apuesta_id):
+    data = request.json or {}
+    username = data.get("username")
 
-        function renderizarHistorial() {
-            const contenedor = document.getElementById('my-history-content');
-            if (historialTransacciones.length === 0) {
-                contenedor.innerHTML = '<p style="font-size: 0.8rem; color: var(--text-muted);">No hay transacciones registradas aún.</p>';
-                return;
-            }
+    if not username:
+        return jsonify({"success": False, "error": "Usuario no especificado"}), 400
 
-            let html = '';
-            historialTransacciones.forEach(tx => {
-                html += `
-                    <div style="background: var(--card-bg); border: 1px solid var(--border-color); padding: 8px; border-radius: 6px; margin-bottom: 6px; font-size: 0.75rem;">
-                        <div style="font-weight: bold; color: var(--text-color);">${tx.titulo}</div>
-                        <div style="color: var(--text-muted);">${tx.detalle}</div>
-                        <div style="display: flex; justify-content: space-between; margin-top: 4px;">
-                            <span style="color: #38bdf8;">${tx.tipo}</span>
-                            <span style="color: #4ade80; font-weight: bold;">+${tx.monto.toFixed(2)} Pi</span>
-                        </div>
-                    </div>
-                `;
-            });
-            contenedor.innerHTML = html;
-        }
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT * FROM historial_apuestas WHERE id = %s AND username = %s", (apuesta_id, username))
+        else:
+            c.execute("SELECT * FROM historial_apuestas WHERE id = ? AND username = ?", (apuesta_id, username))
+        
+        apuesta = c.fetchone()
+        if not apuesta:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Apuesta no encontrada"}), 404
 
-        function depositarConPiNetwork() {
-            const monto = parseFloat(document.getElementById('wallet-amount').value);
-            if (!monto || monto <= 0) {
-                alert("Introduce un monto válido para recargar.");
-                return;
-            }
-            usuarioActual.balance += monto;
-            registrarTransaccionEnDB({
-                id: 'DEP-' + Date.now(),
-                titulo: 'Recarga de Billetera Pi',
-                tipo: 'Depósito',
-                monto: monto,
-                detalle: 'Recarga procesada mediante Blockchain Pi'
-            });
-            guardarTodoEnStorage();
-            actualizarUIBalance();
-            renderizarHistorial();
-            alert(`¡Depósito de ${monto} Pi realizado correctamente!`);
-        }
+        if apuesta["estado"] != "Ganada":
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Esta apuesta no está marcada como ganadora o ya fue cobrada"}), 400
 
-        function retirarBilletera() {
-            const monto = parseFloat(document.getElementById('wallet-amount').value);
-            if (!monto || monto <= 0) {
-                alert("Introduce un monto válido para retirar.");
-                return;
-            }
-            if (usuarioActual.balance < monto) {
-                alert("No tienes suficiente saldo para este retiro.");
-                return;
-            }
-            usuarioActual.balance -= monto;
-            registrarTransaccionEnDB({
-                id: 'RET-' + Date.now(),
-                titulo: 'Retiro de Billetera Pi',
-                tipo: 'Retiro',
-                monto: -monto,
-                detalle: 'Retiro procesado a la mainnet de Pi'
-            });
-            guardarTodoEnStorage();
-            actualizarUIBalance();
-            renderizarHistorial();
-            alert(`Se han retirado ${monto} Pi de tu saldo disponible.`);
-        }
+        premio = apuesta["monto"] * 2.0
 
-        function declararGanadorAdmin() {
-            const marketId = document.getElementById('admin-market-id').value;
-            const ganador = document.getElementById('admin-result-select').value;
+        if DATABASE_URL:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = %s FOR UPDATE", (username,))
+        else:
+            c.execute("SELECT saldo_disponible FROM usuarios WHERE username = ?", (username,))
+        
+        u_row = c.fetchone()
+        if not u_row:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Usuario no existe"}), 400
 
-            // 1. Guardar el estado ganador del mercado
-            estadosMercados[marketId] = ganador;
+        nuevo_saldo = u_row["saldo_disponible"] + premio
 
-            // 2. Procesar las posiciones automáticamente (Mover perdedoras al historial y limpiar activas)
-            let nuevasPosicionesActivas = [];
+        if DATABASE_URL:
+            c.execute("UPDATE usuarios SET saldo_disponible = %s WHERE username = %s", (nuevo_saldo, username))
+            c.execute("UPDATE historial_apuestas SET estado = 'Cobrada' WHERE id = %s", (apuesta_id,))
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (%s, %s, %s, %s, %s)",
+                      (username, "Cobro de Predicción", premio, f"COBRO_{apuesta_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
+        else:
+            c.execute("UPDATE usuarios SET saldo_disponible = ? WHERE username = ?", (nuevo_saldo, username))
+            c.execute("UPDATE historial_apuestas SET estado = 'Cobrada' WHERE id = ?", (apuesta_id,))
+            c.execute("INSERT INTO transacciones (username, tipo, monto, txid, fecha) VALUES (?, ?, ?, ?, ?, ?)",
+                      (username, "Cobro de Predicción", premio, f"COBRO_{apuesta_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}", datetime.now().strftime("%Y-%m-%d %H:%M")))
 
-            posicionesActivas.forEach(pos => {
-                if (pos.marketId == marketId) {
-                    if (pos.opcion !== ganador) {
-                        // Posición perdedora: se archiva en el historial de transacciones con 0 Pi y se elimina de Supabase
-                        registrarTransaccionEnDB({
-                            id: 'PERD-' + Date.now() + '-' + Math.floor(Math.random()*1000),
-                            titulo: pos.titulo,
-                            tipo: 'Perdida / Cerrada',
-                            monto: 0.00,
-                            detalle: `${pos.contratos} contratos (${pos.opcion}) cerrados sin premio (Ganador: ${ganador})`
-                        });
-                        eliminarDeSupabaseTabla('posiciones_activas', pos.id);
-                    } else {
-                        // Posición ganadora: se mantiene en activas para cobrar premio
-                        nuevasPosicionesActivas.push(pos);
-                    }
-                } else {
-                    nuevasPosicionesActivas.push(pos);
-                }
-            });
+        conn.commit()
+        return jsonify({"success": True, "nuevo_saldo": nuevo_saldo, "mensaje": f"¡Premio de {premio} cobrado con éxito!"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
 
-            posicionesActivas = nuevasPosicionesActivas;
+@app.route("/api/admin/crear-evento", methods=["POST"])
+def admin_crear_evento():
+    if not session.get('is_admin'):
+        return jsonify({"success": False, "error": "No autorizado"}), 401
 
-            // 3. Guardar cambios en persistencia y actualizar interfaz
-            guardarTodoEnStorage();
-            restaurarEstadosMercadosVisuales();
-            renderizarPosiciones();
-            renderizarHistorial();
+    data = request.json or {}
+    titulo = data.get("titulo")
+    categoria = data.get("categoria", "General")
+    fecha_cierre = data.get("fecha_cierre", datetime.now().strftime("%Y-%m-%d"))
+    opciones = data.get("opciones", [])
 
-            alert(`¡El administrador ha declarado a "${ganador}" como ganador oficial del mercado #${marketId}! Las posiciones perdedoras han sido archivadas.`);
-            switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
-        }
+    if not titulo or not opciones or len(opciones) < 2:
+        return jsonify({"success": False, "error": "Título y al menos 2 opciones son obligatorios"}), 400
 
-        function abrirSoporteChat() {
-            alert("Abriendo canal de soporte técnico con el equipo de P2Ppredict...");
-        }
-    </script>
-</body>
-</html>
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        if DATABASE_URL:
+            c.execute("INSERT INTO eventos (titulo, categoria, estado, fecha_cierre) VALUES (%s, %s, 'activo', %s) RETURNING id",
+                      (titulo, categoria, fecha_cierre))
+            ev_id = c.fetchone()["id"]
+            for opt in opciones:
+                c.execute("INSERT INTO opciones_evento (evento_id, nombre, pozo) VALUES (%s, %s, 0.0)", (ev_id, opt))
+        else:
+            c.execute("INSERT INTO eventos (titulo, categoria, estado, fecha_cierre) VALUES (?, ?, 'activo', ?)",
+                      (titulo, categoria, fecha_cierre))
+            ev_id = c.lastrowid
+            for opt in opciones:
+                c.execute("INSERT INTO opciones_evento (evento_id, nombre, pozo) VALUES (?, ?, 0.0)", (ev_id, opt))
+        
+        conn.commit()
+        registrar_log_admin("CREAR_EVENTO", f"Creado evento ID {ev_id}: {titulo}")
+        return jsonify({"success": True, "mensaje": "Mercado/Evento creado con éxito"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route("/api/admin/cerrar-evento", methods=["POST"])
+def admin_cerrar_evento():
+    if not session.get('is_admin'):
+        return jsonify({"success": False, "error": "No autorizado"}), 401
+
+    data = request.json or {}
+    evento_id = data.get("evento_id")
+    ganador_id = data.get("ganador_id")
+
+    if not evento_id or not ganador_id:
+        return jsonify({"success": False, "error": "Faltan parámetros de cierre"}), 400
+
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT * FROM eventos WHERE id = %s", (evento_id,))
+        else:
+            c.execute("SELECT * FROM eventos WHERE id = ?", (evento_id,))
+        evento = c.fetchone()
+
+        if not evento or evento["estado"] == "cerrado":
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "El evento no existe o ya está cerrado"})
+
+        if DATABASE_URL:
+            c.execute("SELECT nombre FROM opciones_evento WHERE id = %s", (ganador_id,))
+        else:
+            c.execute("SELECT * FROM opciones_evento WHERE id = ?", (ganador_id,))
+        opcion_ganadora = c.fetchone()
+
+        if not opcion_ganadora:
+            conn.rollback()
+            conn.close()
+            return jsonify({"success": False, "error": "Opción ganadora inválida"})
+
+        nombre_ganador = opcion_ganadora["nombre"]
+        titulo_evento = evento["titulo"]
+
+        if DATABASE_URL:
+            c.execute("UPDATE eventos SET estado = 'cerrado', ganador_id = %s WHERE id = %s", (ganador_id, evento_id))
+            c.execute("UPDATE historial_apuestas SET estado = 'Ganada' WHERE titulo_evento = %s AND opcion_elegida = %s AND estado = 'Activo'", (titulo_evento, nombre_ganador))
+            c.execute("UPDATE historial_apuestas SET estado = 'Perdida' WHERE titulo_evento = %s AND opcion_elegida != %s AND estado = 'Activo'", (titulo_evento, nombre_ganador))
+        else:
+            c.execute("UPDATE eventos SET estado = 'cerrado', ganador_id = ? WHERE id = ?", (ganador_id, evento_id))
+            c.execute("UPDATE historial_apuestas SET estado = 'Ganada' WHERE titulo_evento = ? AND opcion_elegida = ? AND estado = 'Activo'", (titulo_evento, nombre_ganador))
+            c.execute("UPDATE historial_apuestas SET estado = 'Perdida' WHERE titulo_evento = ? AND opcion_elegida != ? AND estado = 'Activo'", (titulo_evento, nombre_ganador))
+
+        conn.commit()
+        registrar_log_admin("CERRAR_EVENTO", f"Cerrado evento ID {evento_id}. Ganador: {nombre_ganador}")
+        return jsonify({"success": True, "mensaje": f"Evento cerrado correctamente. Ganador: {nombre_ganador}"})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        conn.close()
+
+# ================= NUEVO ENDPOINT INTEGRADO PARA FILTRAR POSICIONES ACTIVAS =================
+@app.route("/api/posiciones-activas/<username>", methods=["GET"])
+def obtener_posiciones_activas(username):
+    conn = obtener_conexion()
+    c = conn.cursor()
+    try:
+        if DATABASE_URL:
+            c.execute("SELECT * FROM historial_apuestas WHERE username = %s AND estado = 'Activo' ORDER BY id DESC", (username,))
+        else:
+            c.execute("SELECT * FROM historial_apuestas WHERE username = ? AND estado = 'Activo' ORDER BY id DESC", (username,))
+        
+        posiciones = [dict(row) for row in c.fetchall()]
+        conn.close()
+        return jsonify({"success": True, "posiciones_activas": posiciones})
+    except Exception as e:
+        conn.close()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
