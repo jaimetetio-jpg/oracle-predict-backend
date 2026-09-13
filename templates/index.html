@@ -477,10 +477,10 @@
                 <div class="countdown-timer" id="countdown-1" data-target="2030-12-31T23:59:59">
                     <span>⏳ Cierre en:</span> <b class="time-display">Calculando...</b>
                 </div>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Probabilidad SÍ: <span id="ask-precio-1-SI" style="color: #4ade80; font-weight: bold;">64%</span> | Probabilidad NO: <span id="ask-precio-1-NO" style="color: #f87171; font-weight: bold;">36%</span></p>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Compra SÍ: <span id="ask-precio-1-SI" style="color: #4ade80; font-weight: bold;">0.64 Pi</span> | Compra NO: <span id="ask-precio-1-NO" style="color: #f87171; font-weight: bold;">0.36 Pi</span></p>
                 <div style="display: flex; gap: 8px;">
-                    <button id="btn-comprar-1-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'SÍ')">Invertir en SÍ</button>
-                    <button id="btn-comprar-1-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'NO')">Invertir en NO</button>
+                    <button id="btn-comprar-1-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'SÍ')">Comprar SÍ</button>
+                    <button id="btn-comprar-1-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'NO')">Comprar NO</button>
                 </div>
             </div>
 
@@ -493,10 +493,10 @@
                 <div class="countdown-timer" id="countdown-2" data-target="2030-12-31T23:59:59">
                     <span>⏳ Cierre en:</span> <b class="time-display">Calculando...</b>
                 </div>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Probabilidad SÍ: <span id="ask-precio-2-SI" style="color: #4ade80; font-weight: bold;">81%</span> | Probabilidad NO: <span id="ask-precio-2-NO" style="color: #f87171; font-weight: bold;">19%</span></p>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Compra SÍ: <span id="ask-precio-2-SI" style="color: #4ade80; font-weight: bold;">0.81 Pi</span> | Compra NO: <span id="ask-precio-2-NO" style="color: #f87171; font-weight: bold;">0.19 Pi</span></p>
                 <div style="display: flex; gap: 8px;">
-                    <button id="btn-comprar-2-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'SÍ')">Invertir en SÍ</button>
-                    <button id="btn-comprar-2-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'NO')">Invertir en NO</button>
+                    <button id="btn-comprar-2-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'SÍ')">Comprar SÍ</button>
+                    <button id="btn-comprar-2-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'NO')">Comprar NO</button>
                 </div>
             </div>
         </div>
@@ -523,7 +523,7 @@
         <!-- HISTORIAL DE APUESTAS Y POSICIONES -->
         <div class="accordion-card open" id="acc-apuestas">
             <button class="accordion-header" onclick="toggleAccordion('acc-apuestas')">
-                <span>📦 Historial de Apuestas y Posiciones</span>
+                <span>📦 Historial de Apuestas y Posiciones (Libro de Órdenes)</span>
                 <span>▾</span>
             </button>
             <div class="accordion-content" style="padding-top: 12px; display: block;">
@@ -584,7 +584,7 @@
             </div>
 
             <div class="form-group">
-                <label>Cantidad de Pi a invertir (Inversión inicial)</label>
+                <label>Cantidad de Liquidez en Pi a aportar (Inversión inicial)</label>
                 <input type="number" id="nuevo-liquidez" class="form-control" placeholder="Ej. 5.0" min="1" step="0.5" value="5.0">
             </div>
 
@@ -595,7 +595,7 @@
                 • Las apuestas subsiguientes realizadas por otros usuarios llevarán una comisión automática del 2%.
             </div>
 
-            <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="crearNuevoMercadoPionero()">Publicar Mercado y Asignar Inversión</button>
+            <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="crearNuevoMercadoPionero()">Publicar Mercado y Asignar Liquidez</button>
         </div>
     </div>
 
@@ -620,8 +620,8 @@
                     <tr>
                         <th>Tipo</th>
                         <th>Opción</th>
-                        <th>Inversión (Pi)</th>
-                        <th>Ganancia (Pi)</th>
+                        <th>Contratos</th>
+                        <th>Precio (Pi)</th>
                         <th>Trader</th>
                     </tr>
                 </thead>
@@ -757,7 +757,7 @@
     <div id="trading-modal" class="modal-overlay">
         <div class="modal-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <h3 id="modal-title" style="font-size: 1rem; margin: 0;">Invertir en Predicción</h3>
+                <h3 id="modal-title" style="font-size: 1rem; margin: 0;">Comprar Contratos</h3>
                 <button onclick="cerrarTerminalTrading()" style="background: transparent; border: none; color: var(--text-color); font-size: 1.2rem; cursor: pointer;">&times;</button>
             </div>
             <p id="modal-market-text" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;"></p>
@@ -771,26 +771,28 @@
                 </select>
             </div>
 
-            <!-- Campo dinámico para Probabilidad / Precio Límite -->
+            <!-- Campo dinámico para Precio Límite -->
             <div class="form-group" id="group-limit-price" style="display: none;">
-                <label>Precio Límite Deseado por Pi (0.01 a 0.99)</label>
+                <label>Precio Límite Deseado (Pi)</label>
                 <input type="number" id="modal-limit-price" class="form-control" value="0.50" min="0.01" max="0.99" step="0.01" oninput="calcularModalTotal()">
             </div>
 
             <div class="form-group">
-                <label>Cantidad de Pi a invertir</label>
-                <input type="number" id="modal-amount" class="form-control" value="10" min="1" step="1" oninput="calcularModalTotal()">
+                <label>Cantidad de Contratos</label>
+                <input type="number" id="modal-amount" class="form-control" value="1" min="1" oninput="calcularModalTotal()">
             </div>
 
             <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
-                <div>Factor de precio unitario: <span id="modal-price-unit" style="color: #38bdf8;">0.00</span> Pi</div>
+                <div>Precio unitario aplicado: <span id="modal-price-unit" style="color: #38bdf8;">0.00</span> Pi</div>
                 <div>Inversión Total Requerida: <span id="modal-total-req" style="color: #f59e0b; font-weight: bold;">0.00</span> Pi</div>
+                <!-- FUNCIÓN NUEVA: Muestra al pionero la cantidad de Pi que ganará con su apuesta de compra -->
                 <div style="margin-top: 6px; padding: 6px; background: rgba(74, 222, 128, 0.1); border: 1px solid #22c55e; border-radius: 6px;">
-                    💰 Cantidad de Pi a ganar (Estimada si aciertas): <span id="modal-ganancia-potencial-compra" style="color: #4ade80; font-weight: bold;">0.00</span> Pi
+                    💰 Ganancia Potencial Estimada (si gana): <span id="modal-ganancia-potencial-compra" style="color: #4ade80; font-weight: bold;">0.00</span> Pi
                 </div>
+                <div>Payout potencial (1 Pi c/u): <span id="modal-payout" style="color: #4ade80; font-weight: bold;">0.00</span> Pi</div>
             </div>
 
-            <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #2563eb, #1d4ed8);" onclick="confirmarCompraRapida()">Confirmar Inversión en Libro de Órdenes</button>
+            <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #2563eb, #1d4ed8);" onclick="confirmarCompraRapida()">Confirmar Orden al Libro de Órdenes</button>
         </div>
     </div>
 
@@ -812,19 +814,20 @@
             </div>
 
             <div class="form-group" id="venta-group-limit-price" style="display: none;">
-                <label>Precio de Venta Límite (Pi)</label>
+                <label>Precio de Venta Límite por Contrato (Pi)</label>
                 <input type="number" id="venta-modal-limit-price" class="form-control" value="0.50" min="0.01" max="0.99" step="0.01" oninput="calcularVentaModalTotal()">
             </div>
 
             <div class="form-group">
-                <label>Cantidad de Pi invertidos a retirar/vender</label>
-                <input type="number" id="venta-modal-amount" class="form-control" value="5" min="1" step="0.5" oninput="calcularVentaModalTotal()">
+                <label>Cantidad de Contratos a Vender</label>
+                <input type="number" id="venta-modal-amount" class="form-control" value="1" min="1" oninput="calcularVentaModalTotal()">
             </div>
 
             <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
-                <div>Cantidad de Pi a recibir (Retorno): <span id="venta-modal-total-ret" style="color: #4ade80; font-weight: bold;">0.00</span> Pi</div>
+                <div>Retorno Estimado de Venta: <span id="venta-modal-total-ret" style="color: #4ade80; font-weight: bold;">0.00</span> Pi</div>
+                <!-- FUNCIÓN NUEVA: Muestra al pionero los Pi exactos que obtendrá y su ganancia/pérdida neta al vender -->
                 <div style="margin-top: 6px; padding: 6px; background: rgba(245, 158, 11, 0.1); border: 1px solid #f59e0b; border-radius: 6px;">
-                    📊 Balance Neto de la Venta (Ganancia/Pérdida): <span id="venta-modal-neto" style="font-weight: bold;">0.00</span> Pi
+                    📊 Balance Neto de la Venta (Retorno - Costo Proporcional): <span id="venta-modal-neto" style="font-weight: bold;">0.00</span> Pi
                 </div>
             </div>
 
@@ -989,7 +992,7 @@
                 let { data: pos, error: errPos } = await supabaseClient.from('posiciones_activas').select('*');
                 if (!errPos && pos && pos.length > 0) {
                     posicionesActivas = pos.map(p => ({
-                        id: p.id, marketId: p.market_id, handle: p.handle, titulo: p.titulo, opcion: p.opcion, inversion: Number(p.inversion || p.invertido || 0), gananciaPotencial: Number(p.gananciaPotencial || p.payout || 0)
+                        id: p.id, marketId: p.market_id, handle: p.handle, titulo: p.titulo, opcion: p.opcion, contratos: p.contratos, invertido: Number(p.invertido), payout: Number(p.payout)
                     }));
                 }
 
@@ -1179,8 +1182,8 @@
             for (let id in preciosMercados) {
                 const elSi = document.getElementById(`ask-precio-${id}-SI`);
                 const elNo = document.getElementById(`ask-precio-${id}-NO`);
-                if (elSi) elSi.innerText = Math.round(preciosMercados[id]["SÍ"] * 100) + '%';
-                if (elNo) elNo.innerText = Math.round(preciosMercados[id]["NO"] * 100) + '%';
+                if (elSi) elSi.innerText = preciosMercados[id]["SÍ"].toFixed(2) + ' Pi';
+                if (elNo) elNo.innerText = preciosMercados[id]["NO"].toFixed(2) + ' Pi';
             }
         }
 
@@ -1267,11 +1270,11 @@
                 return;
             }
             if (!liquidezAportada || liquidezAportada <= 0) {
-                alert("Introduce una cantidad válida de Pi a invertir.");
+                alert("Introduce una cantidad válida de liquidez inicial en Pi.");
                 return;
             }
             if (usuarioActual.balance < liquidezAportada) {
-                alert("No tienes suficiente balance en Pi para aportar la inversión inicial especificada.");
+                alert("No tienes suficiente balance en Pi para aportar la liquidez inicial especificada.");
                 return;
             }
 
@@ -1293,27 +1296,26 @@
             mercadosDinamicos.push(marketObj);
             guardarEnSupabaseTabla('mercados_dinamicos', marketObj);
 
-            let precioProb = preciosMercados[nuevoId][opcionInicial];
-            let gananciaEstimadaCreador = (liquidezAportada / precioProb);
-
+            const contratosCreador = Math.floor(liquidezAportada / preciosMercados[nuevoId][opcionInicial]);
             const nuevaPosicion = {
                 id: 'POS-' + Date.now(),
                 marketId: nuevoId,
                 titulo: titulo,
                 opcion: opcionInicial,
-                inversion: liquidezAportada,
-                gananciaPotencial: gananciaEstimadaCreador
+                contratos: contratosCreador,
+                invertido: liquidezAportada,
+                payout: contratosCreador * 1.00
             };
 
             posicionesActivas.push(nuevaPosicion);
             guardarEnSupabaseTabla('posiciones_activas', {
                 id: nuevaPosicion.id, market_id: String(nuevaPosicion.marketId), handle: usuarioActual.handle,
-                titulo: nuevaPosicion.titulo, opcion: nuevaPosicion.opcion, inversion: nuevaPosicion.inversion,
-                gananciaPotencial: nuevaPosicion.gananciaPotencial
+                titulo: nuevaPosicion.titulo, opcion: nuevaPosicion.opcion, contratos: nuevaPosicion.contratos,
+                invertido: nuevaPosicion.invertido, payout: nuevaPosicion.payout
             });
 
             const nuevaOrdenGlobal = {
-                marketId: nuevoId, tipo: 'Creación de Mercado (Inversión)', opcion: opcionInicial, inversion: liquidezAportada, ganancia: gananciaEstimadaCreador, trader: usuarioActual.handle
+                marketId: nuevoId, tipo: 'Creación de Mercado (Compra)', opcion: opcionInicial, contratos: contratosCreador, precio: preciosMercados[nuevoId][opcionInicial], trader: usuarioActual.handle
             };
             ordenesGlobales.push(nuevaOrdenGlobal);
             guardarEnSupabaseTabla('ordenes_clob', nuevaOrdenGlobal);
@@ -1323,7 +1325,7 @@
                 titulo: 'Creación de Mercado P2P',
                 tipo: 'Creación (0% Comisión)',
                 monto: -liquidezAportada,
-                detalle: `Mercado creado: "${titulo}". Cierre: ${fechaCierreInput}. Inversión inicial de ${liquidezAportada} Pi.`
+                detalle: `Mercado creado: "${titulo}". Cierre: ${fechaCierreInput}. Aporte inicial de ${liquidezAportada} Pi.`
             });
 
             guardarTodoEnStorage();
@@ -1354,10 +1356,10 @@
                     <div class="countdown-timer" id="countdown-1" data-target="2030-12-31T23:59:59">
                         <span>⏳ Cierre en:</span> <b class="time-display">Calculando...</b>
                     </div>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Probabilidad SÍ: <span id="ask-precio-1-SI" style="color: #4ade80; font-weight: bold;">64%</span> | Probabilidad NO: <span id="ask-precio-1-NO" style="color: #f87171; font-weight: bold;">36%</span></p>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Compra SÍ: <span id="ask-precio-1-SI" style="color: #4ade80; font-weight: bold;">0.64 Pi</span> | Compra NO: <span id="ask-precio-1-NO" style="color: #f87171; font-weight: bold;">0.36 Pi</span></p>
                     <div style="display: flex; gap: 8px;">
-                        <button id="btn-comprar-1-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'SÍ')">Invertir en SÍ</button>
-                        <button id="btn-comprar-1-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'NO')">Invertir en NO</button>
+                        <button id="btn-comprar-1-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'SÍ')">Comprar SÍ</button>
+                        <button id="btn-comprar-1-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'NO')">Comprar NO</button>
                     </div>
                 </div>
 
@@ -1370,10 +1372,10 @@
                     <div class="countdown-timer" id="countdown-2" data-target="2030-12-31T23:59:59">
                         <span>⏳ Cierre en:</span> <b class="time-display">Calculando...</b>
                     </div>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Probabilidad SÍ: <span id="ask-precio-2-SI" style="color: #4ade80; font-weight: bold;">81%</span> | Probabilidad NO: <span id="ask-precio-2-NO" style="color: #f87171; font-weight: bold;">19%</span></p>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Compra SÍ: <span id="ask-precio-2-SI" style="color: #4ade80; font-weight: bold;">0.81 Pi</span> | Compra NO: <span id="ask-precio-2-NO" style="color: #f87171; font-weight: bold;">0.19 Pi</span></p>
                     <div style="display: flex; gap: 8px;">
-                        <button id="btn-comprar-2-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'SÍ')">Invertir en SÍ</button>
-                        <button id="btn-comprar-2-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'NO')">Invertir en NO</button>
+                        <button id="btn-comprar-2-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'SÍ')">Comprar SÍ</button>
+                        <button id="btn-comprar-2-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'NO')">Comprar NO</button>
                     </div>
                 </div>
             `;
@@ -1386,8 +1388,8 @@
                     estadosMercados[m.id] = null;
                 }
 
-                const pSi = Math.round(preciosMercados[m.id]["SÍ"] * 100);
-                const pNo = Math.round(preciosMercados[m.id]["NO"] * 100);
+                const pSi = preciosMercados[m.id]["SÍ"].toFixed(2);
+                const pNo = preciosMercados[m.id]["NO"].toFixed(2);
                 const targetDate = m.fechaCierre || '2030-12-31T23:59:59';
 
                 htmlDinamicoHTML += `
@@ -1400,10 +1402,10 @@
                         <div class="countdown-timer" id="countdown-${m.id}" data-target="${targetDate}">
                             <span>⏳ Cierre en:</span> <b class="time-display">Calculando...</b>
                         </div>
-                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Probabilidad SÍ: <span id="ask-precio-${m.id}-SI" style="color: #4ade80; font-weight: bold;">${pSi}%</span> | Probabilidad NO: <span id="ask-precio-${m.id}-NO" style="color: #f87171; font-weight: bold;">${pNo}%</span></p>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Compra SÍ: <span id="ask-precio-${m.id}-SI" style="color: #4ade80; font-weight: bold;">${pSi} Pi</span> | Compra NO: <span id="ask-precio-${m.id}-NO" style="color: #f87171; font-weight: bold;">${pNo} Pi</span></p>
                         <div style="display: flex; gap: 8px;">
-                            <button id="btn-comprar-${m.id}-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading('${m.id}', '${m.titulo.replace(/'/g, "\\'")}', 'SÍ')">Invertir en SÍ</button>
-                            <button id="btn-comprar-${m.id}-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading('${m.id}', '${m.titulo.replace(/'/g, "\\'")}', 'NO')">Invertir en NO</button>
+                            <button id="btn-comprar-${m.id}-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading('${m.id}', '${m.titulo.replace(/'/g, "\\'")}', 'SÍ')">Comprar SÍ</button>
+                            <button id="btn-comprar-${m.id}-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading('${m.id}', '${m.titulo.replace(/'/g, "\\'")}', 'NO')">Comprar NO</button>
                         </div>
                     </div>
                 `;
@@ -1470,11 +1472,11 @@
             let precioAskActual = (preciosMercados[idMercado] && preciosMercados[idMercado][opcion]) ? preciosMercados[idMercado][opcion] : 0.50;
             ordenActivaModal = { idMercado, tituloMercado, opcion, precioAskBase: precioAskActual };
             
-            document.getElementById('modal-title').innerText = `Invertir en [${opcion}] (Comisión 2%)`;
+            document.getElementById('modal-title').innerText = `Comprar Contratos [${opcion}] (Comisión 2%)`;
             document.getElementById('modal-market-text').innerText = tituloMercado;
             document.getElementById('modal-order-type').value = 'MARKET';
             document.getElementById('group-limit-price').style.display = 'none';
-            document.getElementById('modal-amount').value = 10;
+            document.getElementById('modal-amount').value = 1;
             document.getElementById('modal-limit-price').value = precioAskActual.toFixed(2);
             
             calcularModalTotal();
@@ -1494,49 +1496,51 @@
                 document.getElementById('modal-title').innerText = `Orden Límite [${ordenActivaModal.opcion}] (Comisión 2%)`;
             } else {
                 groupLimit.style.display = 'none';
-                document.getElementById('modal-title').innerText = `Invertir en [${ordenActivaModal.opcion}] (Comisión 2%)`;
+                document.getElementById('modal-title').innerText = `Comprar Contratos [${ordenActivaModal.opcion}] (Comisión 2%)`;
             }
             calcularModalTotal();
         }
 
         function calcularModalTotal() {
             const tipoOrden = document.getElementById('modal-order-type').value;
-            const inversionInput = parseFloat(document.getElementById('modal-amount').value) || 0;
+            const cantidad = parseInt(document.getElementById('modal-amount').value) || 1;
             
             let precioFinalUnitario = 0;
 
             if (tipoOrden === 'LIMIT') {
                 precioFinalUnitario = parseFloat(document.getElementById('modal-limit-price').value) || ordenActivaModal.precioAskBase;
             } else {
-                precioFinalUnitario = ordenActivaModal.precioAskBase;
+                const precioDinamicoUnitario = ordenActivaModal.precioAskBase * (1 + (cantidad - 1) * 0.003);
+                precioFinalUnitario = Math.min(precioDinamicoUnitario, 0.98);
             }
 
             ordenActivaModal.precioCalculadoUnitario = precioFinalUnitario;
-            let totalConComision = inversionInput * 1.02; // Inversión + 2% comisión
-            
-            // Cálculo exacto de ganancia potencial en Pi: si acierta, cada Pi invertido rinde proporcionalmente (Retorno total - Inversión neta)
-            let gananciaPotencialPi = precioFinalUnitario > 0 ? (inversionInput / precioFinalUnitario) - inversionInput : 0;
+            let subtotalReq = cantidad * precioFinalUnitario;
+            let totalConComision = subtotalReq * 1.02; 
+            const payout = cantidad * 1.00; 
 
-            document.getElementById('modal-price-unit').innerText = precioFinalUnitario.toFixed(2);
-            document.getElementById('modal-total-req').innerText = totalConComision.toFixed(2) + ' Pi (incluye 2% comisión)';
+            // CÁLCULO DE LA GANANCIA POTENCIAL EN PI (Payout - Inversión Total con Comisión)
+            let gananciaPotencialPi = payout - totalConComision;
+
+            document.getElementById('modal-price-unit').innerText = precioFinalUnitario.toFixed(3);
+            document.getElementById('modal-total-req').innerText = totalConComision.toFixed(2) + ' (incluye 2% comisión)';
+            document.getElementById('modal-payout').innerText = payout.toFixed(2);
             
+            // Mostrar al pionero la ganancia estimada en el elemento nuevo
             const elGananciaCompra = document.getElementById('modal-ganancia-potencial-compra');
             if (elGananciaCompra) {
                 elGananciaCompra.innerText = gananciaPotencialPi.toFixed(2) + ' Pi';
                 elGananciaCompra.style.color = gananciaPotencialPi >= 0 ? '#4ade80' : '#f87171';
             }
 
-            ordenActivaModal.inversionReal = inversionInput;
             ordenActivaModal.totalConComision = totalConComision;
-            ordenActivaModal.gananciaPotencialCalculada = gananciaPotencialPi;
         }
 
         function confirmarCompraRapida() {
             const tipoOrden = document.getElementById('modal-order-type').value;
-            const inversionNeta = ordenActivaModal.inversionReal;
+            const cantidad = parseInt(document.getElementById('modal-amount').value) || 1;
             const precioFinalUnitario = ordenActivaModal.precioCalculadoUnitario;
             const totalReq = ordenActivaModal.totalConComision;
-            const gananciaPotencial = ordenActivaModal.gananciaPotencialCalculada;
 
             if (estadosMercados[ordenActivaModal.idMercado] !== null && estadosMercados[ordenActivaModal.idMercado] !== undefined) {
                 alert("Este mercado ya se encuentra cerrado.");
@@ -1545,7 +1549,7 @@
             }
 
             if (usuarioActual.balance < totalReq) {
-                alert("Saldo insuficiente en tu billetera Pi para realizar esta inversión (incluyendo la comisión del 2%).");
+                alert("Saldo insuficiente en tu billetera Pi para realizar esta operación (incluyendo la comisión del 2%).");
                 return;
             }
 
@@ -1560,7 +1564,7 @@
             }
 
             if (tipoOrden === 'MARKET') {
-                preciosMercados[idM][opM] = Math.min(preciosMercados[idM][opM] + (inversionNeta * 0.002), 0.95);
+                preciosMercados[idM][opM] = Math.min(preciosMercados[idM][opM] + (cantidad * 0.002), 0.95);
                 preciosMercados[idM][opOpuesta] = Math.max(1 - preciosMercados[idM][opM], 0.05);
             }
 
@@ -1569,21 +1573,22 @@
                 marketId: idM,
                 titulo: ordenActivaModal.tituloMercado,
                 opcion: opM,
-                inversion: inversionNeta,
-                gananciaPotencial: gananciaPotencial
+                contratos: cantidad,
+                invertido: totalReq,
+                payout: cantidad * 1.00
             };
 
             posicionesActivas.push(nuevaPosicion);
             
             guardarEnSupabaseTabla('posiciones_activas', {
                 id: nuevaPosicion.id, market_id: String(nuevaPosicion.marketId), handle: usuarioActual.handle,
-                titulo: nuevaPosicion.titulo, opcion: nuevaPosicion.opcion, inversion: nuevaPosicion.inversion,
-                gananciaPotencial: nuevaPosicion.gananciaPotencial
+                titulo: nuevaPosicion.titulo, opcion: nuevaPosicion.opcion, contratos: nuevaPosicion.contratos,
+                invertido: nuevaPosicion.invertido, payout: nuevaPosicion.payout
             });
 
-            const etiquetaOrden = tipoOrden === 'LIMIT' ? 'Inversión Límite' : 'Inversión a Mercado';
+            const etiquetaOrden = tipoOrden === 'LIMIT' ? 'Compra Límite' : 'Compra a Mercado';
             const nuevaOrdenGlobal = {
-                marketId: idM, tipo: etiquetaOrden, opcion: opM, inversion: inversionNeta, ganancia: gananciaPotencial, trader: usuarioActual.handle
+                marketId: idM, tipo: etiquetaOrden, opcion: opM, contratos: cantidad, precio: precioFinalUnitario, trader: usuarioActual.handle
             };
 
             ordenesGlobales.push(nuevaOrdenGlobal);
@@ -1597,9 +1602,9 @@
             cerrarTerminalTrading();
             
             if (tipoOrden === 'LIMIT') {
-                alert("¡Inversión Límite registrada exitosamente en el Libro de Órdenes con una comisión del 2%!");
+                alert("¡Orden Límite registrada exitosamente en el Libro de Órdenes con una comisión del 2%!");
             } else {
-                alert("¡Inversión ejecutada y guardada permanentemente en el sistema!");
+                alert("¡Orden a Mercado ejecutada y guardada permanentemente en el sistema!");
             }
         }
 
@@ -1621,7 +1626,8 @@
                 marketId: pos.marketId,
                 titulo: pos.titulo,
                 opcion: pos.opcion,
-                maxInversion: pos.inversion,
+                maxContratos: pos.contratos,
+                invertidoTotal: pos.invertido,
                 precioBase: precioBaseRef
             };
 
@@ -1629,7 +1635,7 @@
             document.getElementById('venta-modal-market-text').innerText = pos.titulo;
             document.getElementById('venta-modal-tipo-orden').value = 'MERCADO';
             document.getElementById('venta-group-limit-price').style.display = 'none';
-            document.getElementById('venta-modal-amount').value = pos.inversion;
+            document.getElementById('venta-modal-amount').value = pos.contratos;
             document.getElementById('venta-modal-limit-price').value = precioBaseRef.toFixed(2);
 
             calcularVentaModalTotal();
@@ -1656,11 +1662,11 @@
 
         function calcularVentaModalTotal() {
             const tipoOrden = document.getElementById('venta-modal-tipo-orden').value;
-            let inversionVender = parseFloat(document.getElementById('venta-modal-amount').value) || 0;
+            let cantidadVender = parseInt(document.getElementById('venta-modal-amount').value) || 1;
             
-            if (inversionVender > ventaActivaModal.maxInversion) {
-                inversionVender = ventaActivaModal.maxInversion;
-                document.getElementById('venta-modal-amount').value = inversionVender;
+            if (cantidadVender > ventaActivaModal.maxContratos) {
+                cantidadVender = ventaActivaModal.maxContratos;
+                document.getElementById('venta-modal-amount').value = cantidadVender;
             }
 
             let precioUnitarioVenta = 0;
@@ -1670,15 +1676,21 @@
                 precioUnitarioVenta = ventaActivaModal.precioBase;
             }
 
-            let retornoEstimado = inversionVender * (precioUnitarioVenta / 0.5);
-            let balanceNetoVenta = retornoEstimado - inversionVender;
+            let retornoEstimado = cantidadVender * precioUnitarioVenta;
+            
+            // Calcular el costo proporcional invertido para esa cantidad de contratos que se van a vender
+            let costoProporcional = (ventaActivaModal.invertidoTotal / ventaActivaModal.maxContratos) * cantidadVender;
+            
+            // Balance neto de la venta (Ganancia o pérdida al vender anticipadamente)
+            let balanceNetoVenta = retornoEstimado - costoProporcional;
 
-            ventaActivaModal.inversionVender = inversionVender;
+            ventaActivaModal.cantidadVender = cantidadVender;
             ventaActivaModal.retornoCalculado = retornoEstimado;
             ventaActivaModal.precioUnitarioVenta = precioUnitarioVenta;
 
             document.getElementById('venta-modal-total-ret').innerText = retornoEstimado.toFixed(2);
             
+            // Mostrar al pionero el balance neto de su venta anticipada
             const elNetoVenta = document.getElementById('venta-modal-neto');
             if (elNetoVenta) {
                 elNetoVenta.innerText = (balanceNetoVenta >= 0 ? '+' : '') + balanceNetoVenta.toFixed(2) + ' Pi';
@@ -1696,7 +1708,7 @@
                 return;
             }
 
-            const inversionVender = ventaActivaModal.inversionVender;
+            const cantidadVender = ventaActivaModal.cantidadVender;
             const retornoVenta = ventaActivaModal.retornoCalculado;
             const precioVenta = ventaActivaModal.precioUnitarioVenta;
 
@@ -1707,30 +1719,31 @@
                 titulo: pos.titulo,
                 tipo: tipoOrden === 'LIMIT' ? 'Venta Límite Anticipada' : 'Venta a Mercado Anticipada',
                 monto: retornoVenta,
-                detalle: `${inversionVender} Pi de inversión (${pos.opcion}) vendidos por ${usuarioActual.handle}`
+                detalle: `${cantidadVender} de ${pos.contratos} contratos (${pos.opcion}) vendidos por ${usuarioActual.handle} a ${precioVenta.toFixed(2)} Pi c/u`
             });
 
             const nuevaOrdenGlobal = {
                 marketId: pos.marketId,
                 tipo: tipoOrden === 'LIMIT' ? 'Venta Límite' : 'Venta a Mercado',
                 opcion: pos.opcion,
-                inversion: inversionVender,
-                ganancia: retornoVenta,
+                contratos: cantidadVender,
+                precio: precioVenta,
                 trader: usuarioActual.handle
             };
             ordenesGlobales.push(nuevaOrdenGlobal);
             guardarEnSupabaseTabla('ordenes_clob', nuevaOrdenGlobal);
 
-            if (inversionVender >= pos.inversion) {
+            if (cantidadVender >= pos.contratos) {
                 eliminarDeSupabaseTabla('posiciones_activas', pos.id);
                 posicionesActivas.splice(idx, 1);
             } else {
-                pos.inversion -= inversionVender;
-                pos.gananciaPotencial -= (pos.gananciaPotencial * (inversionVender / (pos.inversion + inversionVender)));
+                pos.contratos -= cantidadVender;
+                pos.invertido -= (pos.invertido * (cantidadVender / (pos.contratos + cantidadVender)));
+                pos.payout -= cantidadVender * 1.00;
                 guardarEnSupabaseTabla('posiciones_activas', {
                     id: pos.id, market_id: String(pos.marketId), handle: usuarioActual.handle,
-                    titulo: pos.titulo, opcion: pos.opcion, inversion: pos.inversion,
-                    gananciaPotencial: pos.gananciaPotencial
+                    titulo: pos.titulo, opcion: pos.opcion, contratos: pos.contratos,
+                    invertido: pos.invertido, payout: pos.payout
                 });
             }
 
@@ -1756,12 +1769,12 @@
                 return;
             }
 
-            let precioSiText = preciosMercados[marketIdFiltro] && preciosMercados[marketIdFiltro]["SÍ"] ? Math.round(preciosMercados[marketIdFiltro]["SÍ"] * 100) + '%' : "50%";
-            let precioNoText = preciosMercados[marketIdFiltro] && preciosMercados[marketIdFiltro]["NO"] ? Math.round(preciosMercados[marketIdFiltro]["NO"] * 100) + '%' : "50%";
+            let precioSiText = preciosMercados[marketIdFiltro] && preciosMercados[marketIdFiltro]["SÍ"] ? preciosMercados[marketIdFiltro]["SÍ"].toFixed(2) : "0.50";
+            let precioNoText = preciosMercados[marketIdFiltro] && preciosMercados[marketIdFiltro]["NO"] ? preciosMercados[marketIdFiltro]["NO"].toFixed(2) : "0.50";
 
             bannerStatus.innerHTML = `
                 <div style="color: #eab308; font-weight: bold;">● Estado del Mercado: Activo / Abierto</div>
-                <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">Probabilidades actuales SÍ: ${precioSiText} | NO: ${precioNoText}</div>
+                <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">Últimos precios Compra SÍ: ${precioSiText} Pi | Compra NO: ${precioNoText} Pi</div>
             `;
 
             const filtradas = ordenesGlobales.filter(o => o.marketId == marketIdFiltro);
@@ -1777,8 +1790,8 @@
                     <tr>
                         <td><span style="color: #38bdf8;">${o.tipo}</span></td>
                         <td><b style="color: ${colorOp};">${o.opcion}</b></td>
-                        <td>${(o.inversion || 0).toFixed(2)} Pi</td>
-                        <td style="color: #4ade80;">+${(o.ganancia || o.gananciaPotencial || 0).toFixed(2)} Pi</td>
+                        <td>${o.contratos}</td>
+                        <td>${o.precio.toFixed(3)} Pi</td>
                         <td>${o.trader}</td>
                     </tr>
                 `;
@@ -1809,32 +1822,29 @@
                 if (ganadorOficial === null || ganadorOficial === undefined) {
                     botonesHtml = `
                         <div style="display: flex; gap: 6px; margin-bottom: 4px;">
-                            <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #2a2e43, #1f2233); border-color: #3a3f58; color: #8c92ac; font-size: 0.75rem; padding: 7px; cursor: default;" disabled>Inversión Activa</button>
-                            <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #d97706, #b45309); border-color: #f59e0b; font-size: 0.75rem; padding: 7px;" onclick="abrirTerminalVenta(${idx})">💸 Vender Anticipado</button>
+                            <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #2a2e43, #1f2233); border-color: #3a3f58; color: #8c92ac; font-size: 0.75rem; padding: 7px; cursor: default;" disabled>Predicción Activa</button>
+                            <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #d97706, #b45309); border-color: #f59e0b; font-size: 0.75rem; padding: 7px;" onclick="abrirTerminalVenta(${idx})">💸 Vender por Límite / Mercado</button>
                         </div>
                     `;
                 } else if (ganadorOficial === 'CANCELADO') {
                     botonesHtml = `<div style="font-size: 0.75rem; color: #ea580c; font-weight: bold; text-align: center; padding: 4px;">⚠️ Mercado Cancelado / Reembolsado</div>`;
                 } else {
-                    let totalPremio = pos.inversion + pos.gananciaPotencial;
                     botonesHtml = `
                         <div style="display: flex; gap: 6px;">
-                            <button class="action-btn" style="width: 100%; font-size: 0.75rem; padding: 7px;" onclick="cobrarPrediccion(${idx})">🎉 Cobrar Premio (${totalPremio.toFixed(2)} Pi)</button>
+                            <button class="action-btn" style="width: 100%; font-size: 0.75rem; padding: 7px;" onclick="cobrarPrediccion(${idx})">🎉 Cobrar Premio</button>
                         </div>
                     `;
                 }
 
-                let totalRetornoEst = pos.inversion + pos.gananciaPotencial;
-
                 html += `
                     <div class="position-ticket" data-watermark="${pos.opcion}">
                         <div style="font-size: 0.85rem; font-weight: bold; color: var(--text-color); margin-bottom: 4px;">${pos.titulo}</div>
-                        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">
-                            <span>Opción: <b style="color: ${colorBadge}">${pos.opcion}</b></span>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px;">
+                            <span>Opción: <b style="color: ${colorBadge}">${pos.opcion}</b> | Contratos: <b>${pos.contratos}</b></span>
                         </div>
                         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px;">
-                            <span>Invertido: <b>${pos.inversion.toFixed(2)} Pi</b></span>
-                            <span style="color: #4ade80;">A ganar: <b>+${pos.gananciaPotencial.toFixed(2)} Pi</b> (Total: ${totalRetornoEst.toFixed(2)} Pi)</span>
+                            <span>Invertido: ${pos.invertido.toFixed(2)} Pi</span>
+                            <span style="color: #4ade80;">Payout: ${pos.payout.toFixed(2)} Pi</span>
                         </div>
                         ${botonesHtml}
                     </div>
@@ -1845,11 +1855,10 @@
 
         function cobrarPrediccion(idx) {
             const pos = posicionesActivas[idx];
-            let totalPremio = pos.inversion + pos.gananciaPotencial;
-            usuarioActual.balance += totalPremio;
+            usuarioActual.balance += pos.payout;
 
             registrarTransaccionEnDB({
-                id: pos.id, titulo: pos.titulo, tipo: 'Premio Cobrado', monto: totalPremio, detalle: `Inversión de ${pos.inversion.toFixed(2)} Pi (${pos.opcion}) cobrada con éxito (+${pos.gananciaPotencial.toFixed(2)} Pi de ganancia)`
+                id: pos.id, titulo: pos.titulo, tipo: 'Cobrada / Ganada', monto: pos.payout, detalle: `${pos.contratos} contratos (${pos.opcion}) cobrados por ${usuarioActual.handle}`
             });
 
             eliminarDeSupabaseTabla('posiciones_activas', pos.id);
@@ -1858,7 +1867,7 @@
             actualizarUIBalance();
             renderizarPosiciones();
             renderizarHistorial();
-            alert(`¡Predicción cobrada con éxito! Se acreditaron ${totalPremio.toFixed(2)} Pi a tu balance.`);
+            alert(`¡Predicción cobrada con éxito! Se acreditaron ${pos.payout.toFixed(2)} Pi a tu balance.`);
         }
 
         function registrarTransaccionEnDB(tx) {
@@ -2142,7 +2151,7 @@
                 if (pos.marketId == marketId) {
                     if (pos.opcion !== ganador) {
                         registrarTransaccionEnDB({
-                            id: 'PERD-' + Date.now() + '-' + Math.floor(Math.random()*1000), titulo: pos.titulo, tipo: 'Perdida / Cerrada', monto: 0.00, detalle: `Inversión de ${pos.inversion.toFixed(2)} Pi (${pos.opcion}) cerrada sin premio (Ganador: ${ganador})`
+                            id: 'PERD-' + Date.now() + '-' + Math.floor(Math.random()*1000), titulo: pos.titulo, tipo: 'Perdida / Cerrada', monto: 0.00, detalle: `${pos.contratos} contratos (${pos.opcion}) cerrados sin premio (Ganador: ${ganador})`
                         });
                         eliminarDeSupabaseTabla('posiciones_activas', pos.id);
                     } else { nuevasPosicionesActivas.push(pos); }
@@ -2181,7 +2190,7 @@
 
             posicionesActivas.forEach(pos => {
                 if (pos.marketId == marketId) {
-                    let montoReembolso = pos.inversion;
+                    let montoReembolso = pos.invertido;
                     
                     let cuentaObj = cuentasDirectorio.find(c => c.handle === pos.handle);
                     if (cuentaObj) {
@@ -2236,7 +2245,7 @@
                     id: 'TCK-' + Date.now(),
                     handle: usuarioActual.handle,
                     mensajes: [
-                        { remitente: 'admin', texto: '¡Hola! Bienvenido al soporte de P2Ppredict. ¿En qué podemos ayudarte con tus inversiones o retiros?' }
+                        { remitente: 'admin', texto: '¡Hola! Bienvenido al soporte de P2Ppredict. ¿En qué podemos ayudarte con tus apuestas o retiros?' }
                     ]
                 };
                 ticketsSoporte.push(ticket);
@@ -2286,10 +2295,11 @@
                 html += `
                     <div style="background: var(--card-bg); border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 0.8rem;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                            <b style="color: #38bdf8;">Usuario: ${t.handle}</b>
-                            <button class="action-btn" style="font-size: 0.7rem; padding: 4px 8px;" onclick="abrirChatAdminModal('${t.id}')">💬 Responder</button>
+                            <b style="color: #38bdf8;">Ticket: ${t.id}</b>
+                            <span style="color: #4ade80;">Usuario: ${t.handle}</span>
                         </div>
-                        <div style="color: var(--text-muted); font-size: 0.75rem;">Último mensaje: "${ultimoMsg}"</div>
+                        <div style="color: var(--text-muted); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Último: ${ultimoMsg}</div>
+                        <button class="action-btn" style="width: 100%; font-size: 0.75rem;" onclick="abrirChatAdminModal('${t.id}')">💬 Abrir / Responder Ticket</button>
                     </div>
                 `;
             });
@@ -2312,7 +2322,7 @@
             const ticket = ticketsSoporte.find(t => t.id === ticketAdminActivoId);
             if (!ticket) return;
 
-            document.getElementById('admin-chat-title').innerText = `💬 Chat con ${ticket.handle}`;
+            document.getElementById('admin-chat-title').innerText = `💬 Ticket: ${ticket.id} (${ticket.handle})`;
             const container = document.getElementById('admin-chat-messages-container');
             let html = '';
             ticket.mensajes.forEach(m => {
@@ -2329,7 +2339,7 @@
             const texto = input.value.trim();
             if (!texto) return;
 
-            const ticket = ticketsSoporte.find(t => t.id === ticketAdminActivoId);
+            let ticket = ticketsSoporte.find(t => t.id === ticketAdminActivoId);
             if (!ticket) return;
 
             ticket.mensajes.push({ remitente: 'admin', texto: texto });
