@@ -703,9 +703,9 @@
 
         <div class="market-card">
             <div class="market-title">🛠️ Panel de Administración y Resolución</div>
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Declara el resultado oficial del mercado para habilitar el cobro de los ganadores.</p>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Declara el resultado oficial del mercado o cancélalo si no cumple normativas para reembolsar los fondos.</p>
             <div class="form-group">
-                <label>ID de Mercado a Resolver</label>
+                <label>ID de Mercado a Resolver / Gestionar</label>
                 <select class="form-control" id="admin-market-id">
                     <option value="1">¿Bitcoin superará los $100,000?</option>
                     <option value="2">¿Se habilitará Open Mainnet este trimestre?</option>
@@ -718,7 +718,10 @@
                     <option value="NO">Ganador: NO</option>
                 </select>
             </div>
-            <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #b91c1c, #991b1b); border-color: #ef4444;" onclick="declararGanadorAdmin()">Ejecutar Resolución y Liquidación</button>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #b91c1c, #991b1b); border-color: #ef4444;" onclick="declararGanadorAdmin()">Ejecutar Resolución y Liquidación</button>
+                <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #7c2d12, #451a03); border-color: #ea580c;" onclick="cancelarYReembolsarMercadoAdmin()">🚨 Cancelar y Reembolso Total (Sin Comisión)</button>
+            </div>
         </div>
 
         <!-- PANEL DE SOPORTE ADMIN (TICKETS DE RECLAMO) -->
@@ -1102,7 +1105,7 @@
                 let cumpleEstado = true;
 
                 if (estadoActualFiltro === 'Abiertos') { cumpleEstado = (cardEstado === 'Abierto'); }
-                else if (estadoActualFiltro === 'Cerrados') { cumpleEstado = (cardEstado === 'Cerrado'); }
+                else if (estadoActualFiltro === 'Cerrados') { cumpleEstado = (cardEstado === 'Cerrado' || cardEstado === 'Cancelado'); }
 
                 if (cumpleQuery && cumpleCat && cumpleEstado) { card.style.display = 'block'; }
                 else { card.style.display = 'none'; }
@@ -1148,8 +1151,11 @@
                 const btnNo = document.getElementById(`btn-comprar-${id}-NO`);
                 
                 if (estadosMercados[id] !== null) {
-                    if (estadoBadge) { estadoBadge.innerHTML = `🔴 Cerrado (Ganador: ${estadosMercados[id]})`; estadoBadge.style.color = '#ef4444'; }
-                    if (marketCard) { marketCard.setAttribute('data-estado', 'Cerrado'); }
+                    let etiquetaEstado = estadosMercados[id] === 'CANCELADO' ? '🔴 Cancelado (Reembolsado)' : `🔴 Cerrado (Ganador: ${estadosMercados[id]})`;
+                    let colorTexto = estadosMercados[id] === 'CANCELADO' ? '#ea580c' : '#ef4444';
+                    
+                    if (estadoBadge) { estadoBadge.innerHTML = etiquetaEstado; estadoBadge.style.color = colorTexto; }
+                    if (marketCard) { marketCard.setAttribute('data-estado', estadosMercados[id] === 'CANCELADO' ? 'Cancelado' : 'Cerrado'); }
                     if (btnSi) btnSi.disabled = true;
                     if (btnNo) btnNo.disabled = true;
                 } else {
@@ -1580,7 +1586,7 @@
             const contenedor = document.getElementById('my-positions-content');
             const posicionesVivas = posicionesActivas.filter(pos => {
                 const ganadorOficial = estadosMercados[pos.marketId];
-                if (ganadorOficial !== null && ganadorOficial !== pos.opcion) { return false; }
+                if (ganadorOficial !== null && ganadorOficial !== pos.opcion && ganadorOficial !== 'CANCELADO') { return false; }
                 return true;
             });
 
@@ -1592,7 +1598,7 @@
             let html = '';
             posicionesActivas.forEach((pos, idx) => {
                 const ganadorOficial = estadosMercados[pos.marketId];
-                if (ganadorOficial !== null && ganadorOficial !== pos.opcion) { return; }
+                if (ganadorOficial !== null && ganadorOficial !== pos.opcion && ganadorOficial !== 'CANCELADO') { return; }
 
                 const colorBadge = pos.opcion === 'SÍ' ? '#4ade80' : '#f87171';
                 let botonesHtml = '';
@@ -1604,6 +1610,8 @@
                             <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #d97706, #b45309); border-color: #f59e0b; font-size: 0.75rem; padding: 7px;" onclick="venderPosicionAnticipada(${idx})">💸 Vender (${valorVentaAnticipada} Pi)</button>
                         </div>
                     `;
+                } else if (ganadorOficial === 'CANCELADO') {
+                    botonesHtml = `<div style="font-size: 0.75rem; color: #ea580c; font-weight: bold; text-align: center; padding: 4px;">⚠️ Mercado Cancelado / Reembolsado</div>`;
                 } else {
                     botonesHtml = `
                         <div style="display: flex; gap: 6px;">
@@ -1934,7 +1942,7 @@
             const ganador = document.getElementById('admin-result-select').value;
 
             if (estadosMercados[marketId] !== null) {
-                alert(`¡Atención! El mercado #${marketId} ya fue cerrado y liquidado previamente con el resultado: ${estadosMercados[marketId]}.`);
+                alert(`¡Atención! El mercado #${marketId} ya fue cerrado o cancelado previamente.`);
                 return;
             }
 
@@ -1961,6 +1969,65 @@
             renderizarOrderBookVisible();
 
             alert(`¡El administrador ha declarado a "${ganador}" como ganador oficial del mercado #${marketId}!`);
+            switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
+        }
+
+        function cancelarYReembolsarMercadoAdmin() {
+            const marketSelect = document.getElementById('admin-market-id');
+            const marketId = marketSelect.value;
+            if (!marketId) { alert("No hay mercados pendientes válidos para cancelar."); return; }
+
+            if (estadosMercados[marketId] !== null) {
+                alert(`¡Atención! El mercado #${marketId} ya se encuentra cerrado o cancelado previamente.`);
+                return;
+            }
+
+            const tituloMercado = nombresMercados[marketId] || ('Mercado #' + marketId);
+            let confirmacion = confirm(`¿Estás seguro de CANCELAR el mercado "${tituloMercado}" por incumplimiento de normativas?\n\nEsta acción devolverá automáticamente el 100% de la inversión a todos los usuarios que hayan invertido en él, sin cobrarles ninguna comisión.`);
+            
+            if (!confirmacion) return;
+
+            estadosMercados[marketId] = 'CANCELADO';
+            let nuevasPosicionesActivas = [];
+
+            posicionesActivas.forEach(pos => {
+                if (pos.marketId == marketId) {
+                    let montoReembolso = pos.invertido;
+                    
+                    let cuentaObj = cuentasDirectorio.find(c => c.handle === pos.handle);
+                    if (cuentaObj) {
+                        cuentaObj.balance += montoReembolso;
+                    }
+
+                    if (pos.handle === usuarioActual.handle) {
+                        usuarioActual.balance += montoReembolso;
+                        actualizarUIBalance();
+                    }
+
+                    registrarTransaccionEnDB({
+                        id: 'REEMB-' + Date.now() + '-' + Math.floor(Math.random()*1000),
+                        titulo: `Reembolso por Cancelación: ${pos.titulo}`,
+                        tipo: 'Reembolso (0% Comisión)',
+                        monto: montoReembolso,
+                        detalle: `Devolución íntegra de ${montoReembolso.toFixed(2)} Pi por cancelación del mercado por el admin.`
+                    });
+
+                    eliminarDeSupabaseTabla('posiciones_activas', pos.id);
+                } else {
+                    nuevasPosicionesActivas.push(pos);
+                }
+            });
+
+            posicionesActivas = nuevasPosicionesActivas;
+            guardarTodoEnStorage();
+            restaurarEstadosMercadosVisuales();
+            renderizarPosiciones();
+            renderizarHistorial();
+            actualizarSelectsMercadosActivos();
+            renderizarOrderBookVisible();
+            calcularMetricasFinancierasAdmin();
+
+            alert(`¡Mercado cancelado con éxito! Se han devuelto los fondos de manera íntegra a todos los inversores.`);
             switchTab('mercados', document.querySelectorAll('.nav-tab')[0]);
         }
 
