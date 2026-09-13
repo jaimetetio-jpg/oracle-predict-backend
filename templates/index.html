@@ -474,7 +474,7 @@
                     <span id="estado-mercado-1" style="color: #eab308; font-weight: bold;">● Abierto</span>
                 </div>
                 <div class="market-title">¿Bitcoin superará los $100,000 antes de finalizar este mes?</div>
-                <div class="countdown-timer" id="countdown-1" data-target="2026-06-30T23:59:59">
+                <div class="countdown-timer" id="countdown-1" data-target="2030-12-31T23:59:59">
                     <span>⏳ Cierre en:</span> <b class="time-display">Calculando...</b>
                 </div>
                 <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span id="ask-precio-1-SI" style="color: #4ade80; font-weight: bold;">0.64 Pi</span> | Ask NO: <span id="ask-precio-1-NO" style="color: #f87171; font-weight: bold;">0.36 Pi</span></p>
@@ -490,7 +490,7 @@
                     <span id="estado-mercado-2" style="color: #eab308; font-weight: bold;">● Abierto</span>
                 </div>
                 <div class="market-title">¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?</div>
-                <div class="countdown-timer" id="countdown-2" data-target="2026-06-30T23:59:59">
+                <div class="countdown-timer" id="countdown-2" data-target="2030-12-31T23:59:59">
                     <span>⏳ Cierre en:</span> <b class="time-display">Calculando...</b>
                 </div>
                 <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span id="ask-precio-2-SI" style="color: #4ade80; font-weight: bold;">0.81 Pi</span> | Ask NO: <span id="ask-precio-2-NO" style="color: #f87171; font-weight: bold;">0.19 Pi</span></p>
@@ -767,7 +767,7 @@
                 <label>Tipo de Orden</label>
                 <select id="modal-order-type" class="form-control" onchange="cambiarTipoOrdenModal()">
                     <option value="MARKET">Mercado (Instantánea al precio Ask)</option>
-                    <option value="LIMIT">Limit (Precio personalizado)</option>
+                    <option value="LIMIT">Limit (Precio personalizado activo)</option>
                 </select>
             </div>
 
@@ -1309,7 +1309,7 @@
                         <span id="estado-mercado-1" style="color: #eab308; font-weight: bold;">● Abierto</span>
                     </div>
                     <div class="market-title">¿Bitcoin superará los $100,000 antes de finalizar este mes?</div>
-                    <div class="countdown-timer" id="countdown-1" data-target="2026-06-30T23:59:59">
+                    <div class="countdown-timer" id="countdown-1" data-target="2030-12-31T23:59:59">
                         <span>⏳ Cierre en:</span> <b class="time-display">Calculando...</b>
                     </div>
                     <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span id="ask-precio-1-SI" style="color: #4ade80; font-weight: bold;">0.64 Pi</span> | Ask NO: <span id="ask-precio-1-NO" style="color: #f87171; font-weight: bold;">0.36 Pi</span></p>
@@ -1325,7 +1325,7 @@
                         <span id="estado-mercado-2" style="color: #eab308; font-weight: bold;">● Abierto</span>
                     </div>
                     <div class="market-title">¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?</div>
-                    <div class="countdown-timer" id="countdown-2" data-target="2026-06-30T23:59:59">
+                    <div class="countdown-timer" id="countdown-2" data-target="2030-12-31T23:59:59">
                         <span>⏳ Cierre en:</span> <b class="time-display">Calculando...</b>
                     </div>
                     <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span id="ask-precio-2-SI" style="color: #4ade80; font-weight: bold;">0.81 Pi</span> | Ask NO: <span id="ask-precio-2-NO" style="color: #f87171; font-weight: bold;">0.19 Pi</span></p>
@@ -1346,7 +1346,7 @@
 
                 const pSi = preciosMercados[m.id]["SÍ"].toFixed(2);
                 const pNo = preciosMercados[m.id]["NO"].toFixed(2);
-                const targetDate = m.fechaCierre || '2026-12-31T23:59:59';
+                const targetDate = m.fechaCierre || '2030-12-31T23:59:59';
 
                 htmlDinamicoHTML += `
                     <div class="market-card" data-id="${m.id}" data-category="${m.categoria}" data-estado="Abierto">
@@ -1384,14 +1384,15 @@
 
                 if (!display) return;
 
+                const marketId = el.id.replace('countdown-', '');
+                const btnSi = document.getElementById(`btn-comprar-${marketId}-SI`);
+                const btnNo = document.getElementById(`btn-comprar-${marketId}-NO`);
+
                 if (diferencia <= 0) {
                     display.innerText = "¡Evento Finalizado / Cerrado!";
                     el.style.borderColor = "#ef4444";
                     el.style.color = "#ef4444";
                     
-                    const marketId = el.id.replace('countdown-', '');
-                    const btnSi = document.getElementById(`btn-comprar-${marketId}-SI`);
-                    const btnNo = document.getElementById(`btn-comprar-${marketId}-NO`);
                     if (btnSi) btnSi.disabled = true;
                     if (btnNo) btnNo.disabled = true;
                 } else {
@@ -1404,6 +1405,12 @@
                     if (dias > 0) textoTiempo += `${dias}d `;
                     textoTiempo += `${String(horas).padStart(2, '0')}h ${String(minutos).padStart(2, '0')}m ${String(segundos).padStart(2, '0')}s`;
                     display.innerText = textoTiempo;
+
+                    // CORRECCIÓN: Si el mercado está abierto, nos aseguramos de que los botones permanezcan habilitados
+                    if (estadosMercados[marketId] === null) {
+                        if (btnSi) btnSi.disabled = false;
+                        if (btnNo) btnNo.disabled = false;
+                    }
                 }
             });
         }
@@ -1415,11 +1422,11 @@
                 return;
             }
 
-            if (estadosMercados[idMercado] !== null) {
+            if (estadosMercados[idMercado] !== null && estadosMercados[idMercado] !== undefined) {
                 alert("Este mercado ya se encuentra cerrado o resuelto.");
                 return;
             }
-            let precioAskActual = preciosMercados[idMercado][opcion];
+            let precioAskActual = (preciosMercados[idMercado] && preciosMercados[idMercado][opcion]) ? preciosMercados[idMercado][opcion] : 0.50;
             ordenActivaModal = { idMercado, tituloMercado, opcion, precioAskBase: precioAskActual };
             
             document.getElementById('modal-title').innerText = `Comprar Contratos [${opcion}] (Comisión 2%)`;
@@ -1481,7 +1488,7 @@
             const precioFinalUnitario = ordenActivaModal.precioCalculadoUnitario;
             const totalReq = ordenActivaModal.totalConComision;
 
-            if (estadosMercados[ordenActivaModal.idMercado] !== null) {
+            if (estadosMercados[ordenActivaModal.idMercado] !== null && estadosMercados[ordenActivaModal.idMercado] !== undefined) {
                 alert("Este mercado ya se encuentra cerrado.");
                 cerrarTerminalTrading();
                 return;
@@ -1497,6 +1504,10 @@
             const idM = ordenActivaModal.idMercado;
             const opM = ordenActivaModal.opcion;
             const opOpuesta = opM === 'SÍ' ? 'NO' : 'SÍ';
+
+            if (!preciosMercados[idM]) {
+                preciosMercados[idM] = { "SÍ": 0.50, "NO": 0.50 };
+            }
 
             if (tipoOrden === 'MARKET') {
                 preciosMercados[idM][opM] = Math.min(preciosMercados[idM][opM] + (cantidad * 0.002), 0.95);
@@ -1549,15 +1560,18 @@
             const tbody = document.getElementById('orderbook-table-body');
             const bannerStatus = document.getElementById('orderbook-market-status-banner');
             
-            if (!marketIdFiltro || estadosMercados[marketIdFiltro] !== null) {
+            if (!marketIdFiltro || (estadosMercados[marketIdFiltro] !== null && estadosMercados[marketIdFiltro] !== undefined)) {
                 if (bannerStatus) { bannerStatus.innerHTML = `<span style="color: #ef4444; font-weight: bold;">● No hay un mercado activo seleccionado o el mercado está cerrado.</span>`; }
                 if (tbody) { tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 12px;">Seleccione un mercado activo válido.</td></tr>'; }
                 return;
             }
 
+            let precioSiText = preciosMercados[marketIdFiltro] && preciosMercados[marketIdFiltro]["SÍ"] ? preciosMercados[marketIdFiltro]["SÍ"].toFixed(2) : "0.50";
+            let precioNoText = preciosMercados[marketIdFiltro] && preciosMercados[marketIdFiltro]["NO"] ? preciosMercados[marketIdFiltro]["NO"].toFixed(2) : "0.50";
+
             bannerStatus.innerHTML = `
                 <div style="color: #eab308; font-weight: bold;">● Estado del Mercado: Activo / Abierto</div>
-                <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">Últimos precios Ask SÍ: ${preciosMercados[marketIdFiltro]["SÍ"].toFixed(2)} Pi | Ask NO: ${preciosMercados[marketIdFiltro]["NO"].toFixed(2)} Pi</div>
+                <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">Últimos precios Ask SÍ: ${precioSiText} Pi | Ask NO: ${precioNoText} Pi</div>
             `;
 
             const filtradas = ordenesGlobales.filter(o => o.marketId == marketIdFiltro);
@@ -1586,7 +1600,7 @@
             const contenedor = document.getElementById('my-positions-content');
             const posicionesVivas = posicionesActivas.filter(pos => {
                 const ganadorOficial = estadosMercados[pos.marketId];
-                if (ganadorOficial !== null && ganadorOficial !== pos.opcion && ganadorOficial !== 'CANCELADO') { return false; }
+                if (ganadorOficial !== null && ganadorOficial !== undefined && ganadorOficial !== pos.opcion && ganadorOficial !== 'CANCELADO') { return false; }
                 return true;
             });
 
@@ -1598,11 +1612,11 @@
             let html = '';
             posicionesActivas.forEach((pos, idx) => {
                 const ganadorOficial = estadosMercados[pos.marketId];
-                if (ganadorOficial !== null && ganadorOficial !== pos.opcion && ganadorOficial !== 'CANCELADO') { return; }
+                if (ganadorOficial !== null && ganadorOficial !== undefined && ganadorOficial !== pos.opcion && ganadorOficial !== 'CANCELADO') { return; }
 
                 const colorBadge = pos.opcion === 'SÍ' ? '#4ade80' : '#f87171';
                 let botonesHtml = '';
-                if (ganadorOficial === null) {
+                if (ganadorOficial === null || ganadorOficial === undefined) {
                     const valorVentaAnticipada = (pos.invertido * 0.9).toFixed(2);
                     botonesHtml = `
                         <div style="display: flex; gap: 6px; margin-bottom: 4px;">
@@ -1941,7 +1955,7 @@
             if (!marketId) { alert("No hay mercados pendientes válidos para resolver."); return; }
             const ganador = document.getElementById('admin-result-select').value;
 
-            if (estadosMercados[marketId] !== null) {
+            if (estadosMercados[marketId] !== null && estadosMercados[marketId] !== undefined) {
                 alert(`¡Atención! El mercado #${marketId} ya fue cerrado o cancelado previamente.`);
                 return;
             }
@@ -1977,7 +1991,7 @@
             const marketId = marketSelect.value;
             if (!marketId) { alert("No hay mercados pendientes válidos para cancelar."); return; }
 
-            if (estadosMercados[marketId] !== null) {
+            if (estadosMercados[marketId] !== null && estadosMercados[marketId] !== undefined) {
                 alert(`¡Atención! El mercado #${marketId} ya se encuentra cerrado o cancelado previamente.`);
                 return;
             }
