@@ -446,7 +446,7 @@
     <div class="nav-tabs">
         <button class="nav-tab active" onclick="switchTab('mercados', this)">Mercados</button>
         <button class="nav-tab" onclick="switchTab('crear', this)">✨ Crear Predicción</button>
-        <button class="nav-tab" onclick="switchTab('clob', this)">Order Book</button>
+        <button class="nav-tab" onclick="switchTab('clob', this)">Libro de Órdenes</button>
         <button class="nav-tab" onclick="switchTab('ranking', this)">Ranking</button>
         <button class="nav-tab" onclick="verificarAccesoAdmin(this)">Admin</button>
     </div>
@@ -458,7 +458,7 @@
         <div class="filter-pills">
             <button class="pill active" onclick="setCategory('Todos', this)">Todos</button>
             <button class="pill" onclick="setCategory('Crypto', this)">Crypto</button>
-            <button class="pill" onclick="setCategory('Pi Ecosystem', this)">Pi Ecosystem</button>
+            <button class="pill" onclick="setCategory('Pi Ecosystem', this)">Ecosistema Pi</button>
         </div>
 
         <div class="filter-pills" id="estado-filter-pills" style="margin-bottom: 14px;">
@@ -477,7 +477,7 @@
                 <div class="countdown-timer" id="countdown-1" data-target="2030-12-31T23:59:59">
                     <span>⏳ Cierre en:</span> <b class="time-display">Calculando...</b>
                 </div>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span id="ask-precio-1-SI" style="color: #4ade80; font-weight: bold;">0.64 Pi</span> | Ask NO: <span id="ask-precio-1-NO" style="color: #f87171; font-weight: bold;">0.36 Pi</span></p>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Compra SÍ: <span id="ask-precio-1-SI" style="color: #4ade80; font-weight: bold;">0.64 Pi</span> | Compra NO: <span id="ask-precio-1-NO" style="color: #f87171; font-weight: bold;">0.36 Pi</span></p>
                 <div style="display: flex; gap: 8px;">
                     <button id="btn-comprar-1-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'SÍ')">Comprar SÍ</button>
                     <button id="btn-comprar-1-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'NO')">Comprar NO</button>
@@ -486,14 +486,14 @@
 
             <div class="market-card" data-id="2" data-category="Pi Ecosystem" data-estado="Abierto">
                 <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">
-                    <span>🏷️ Pi Ecosystem</span>
+                    <span>🏷️ Ecosistema Pi</span>
                     <span id="estado-mercado-2" style="color: #eab308; font-weight: bold;">● Abierto</span>
                 </div>
                 <div class="market-title">¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?</div>
                 <div class="countdown-timer" id="countdown-2" data-target="2030-12-31T23:59:59">
                     <span>⏳ Cierre en:</span> <b class="time-display">Calculando...</b>
                 </div>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span id="ask-precio-2-SI" style="color: #4ade80; font-weight: bold;">0.81 Pi</span> | Ask NO: <span id="ask-precio-2-NO" style="color: #f87171; font-weight: bold;">0.19 Pi</span></p>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Compra SÍ: <span id="ask-precio-2-SI" style="color: #4ade80; font-weight: bold;">0.81 Pi</span> | Compra NO: <span id="ask-precio-2-NO" style="color: #f87171; font-weight: bold;">0.19 Pi</span></p>
                 <div style="display: flex; gap: 8px;">
                     <button id="btn-comprar-2-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'SÍ')">Comprar SÍ</button>
                     <button id="btn-comprar-2-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'NO')">Comprar NO</button>
@@ -516,14 +516,14 @@
                         <button class="action-btn" style="flex:1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="retirarBilletera()">Retirar Pi</button>
                     </div>
                 </div>
-                <div id="wallet-history" style="font-size: 0.75rem; color: var(--text-muted);">Conectado com SDK oficial de Pi Network y Supabase.</div>
+                <div id="wallet-history" style="font-size: 0.75rem; color: var(--text-muted);">Conectado con SDK oficial de Pi Network y Supabase.</div>
             </div>
         </div>
 
         <!-- HISTORIAL DE APUESTAS Y POSICIONES -->
         <div class="accordion-card open" id="acc-apuestas">
             <button class="accordion-header" onclick="toggleAccordion('acc-apuestas')">
-                <span>📦 Historial de Apuestas y Posiciones (Order Book)</span>
+                <span>📦 Historial de Apuestas y Posiciones (Libro de Órdenes)</span>
                 <span>▾</span>
             </button>
             <div class="accordion-content" style="padding-top: 12px; display: block;">
@@ -563,7 +563,7 @@
                 <label>Categoría</label>
                 <select id="nuevo-categoria" class="form-control">
                     <option value="Crypto">Crypto</option>
-                    <option value="Pi Ecosystem">Pi Ecosystem</option>
+                    <option value="Pi Ecosystem">Ecosistema Pi</option>
                     <option value="Tecnología">Tecnología</option>
                     <option value="Comunidad">Comunidad</option>
                 </select>
@@ -602,8 +602,8 @@
     <!-- VISTA: ORDER BOOK P2P VISIBLE -->
     <div id="view-clob" class="section-view">
         <div class="market-card">
-            <div class="market-title">📊 Order Book P2P en Vivo</div>
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Listado general de ofertas de compra (Bid) y venta (Ask) registradas en el mercado.</p>
+            <div class="market-title">📊 Libro de Órdenes P2P en Vivo</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Listado general de ofertas de compra y venta registradas en el mercado.</p>
             
             <div class="form-group">
                 <label>Seleccionar Mercado Activo</label>
@@ -766,8 +766,8 @@
             <div class="form-group">
                 <label>Tipo de Orden</label>
                 <select id="modal-order-type" class="form-control" onchange="cambiarTipoOrdenModal()">
-                    <option value="MARKET">Mercado (Instantánea al precio Ask)</option>
-                    <option value="LIMIT">Limit (Precio personalizado activo)</option>
+                    <option value="MARKET">Mercado (Instantánea al precio actual)</option>
+                    <option value="LIMIT">Límite (Precio personalizado activo)</option>
                 </select>
             </div>
 
@@ -788,7 +788,42 @@
                 <div>Payout potencial (1 Pi c/u): <span id="modal-payout" style="color: #4ade80; font-weight: bold;">0.00</span> Pi</div>
             </div>
 
-            <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #2563eb, #1d4ed8);" onclick="confirmarCompraRapida()">Confirmar Orden al Order Book</button>
+            <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #2563eb, #1d4ed8);" onclick="confirmarCompraRapida()">Confirmar Orden al Libro de Órdenes</button>
+        </div>
+    </div>
+
+    <!-- MODAL DE VENTA DE POSICIÓN (LIMIT / MERCADO) -->
+    <div id="venta-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 id="venta-modal-title" style="font-size: 1rem; margin: 0; color: #f59e0b;">Vender Posición</h3>
+                <button onclick="cerrarTerminalVenta()" style="background: transparent; border: none; color: var(--text-color); font-size: 1.2rem; cursor: pointer;">&times;</button>
+            </div>
+            <p id="venta-modal-market-text" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;"></p>
+            
+            <div class="form-group">
+                <label>Tipo de Venta</label>
+                <select id="venta-modal-tipo-orden" class="form-control" onchange="cambiarTipoOrdenVentaModal()">
+                    <option value="MERCADO">Mercado (Venta instantánea anticipada)</option>
+                    <option value="LIMIT">Límite (Precio de venta personalizado)</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="venta-group-limit-price" style="display: none;">
+                <label>Precio de Venta Límite por Contrato (Pi)</label>
+                <input type="number" id="venta-modal-limit-price" class="form-control" value="0.50" min="0.01" max="0.99" step="0.01" oninput="calcularVentaModalTotal()">
+            </div>
+
+            <div class="form-group">
+                <label>Cantidad de Contratos a Vender</label>
+                <input type="number" id="venta-modal-amount" class="form-control" value="1" min="1" oninput="calcularVentaModalTotal()">
+            </div>
+
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+                <div>Retorno Estimado de Venta: <span id="venta-modal-total-ret" style="color: #4ade80; font-weight: bold;">0.00</span> Pi</div>
+            </div>
+
+            <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #d97706, #b45309); border-color: #f59e0b;" onclick="confirmarVentaPosicionModal()">Confirmar Venta de Posición</button>
         </div>
     </div>
 
@@ -917,6 +952,7 @@
         };
 
         let ordenActivaModal = null;
+        let ventaActivaModal = null;
         let categoriaActualFiltro = 'Todos';
         let estadoActualFiltro = 'Todos';
 
@@ -1271,7 +1307,7 @@
             });
 
             const nuevaOrdenGlobal = {
-                marketId: nuevoId, tipo: 'CREACIÓN DE MERCADO (Bid)', opcion: opcionInicial, contratos: contratosCreador, precio: preciosMercados[nuevoId][opcionInicial], trader: usuarioActual.handle
+                marketId: nuevoId, tipo: 'Creación de Mercado (Compra)', opcion: opcionInicial, contratos: contratosCreador, precio: preciosMercados[nuevoId][opcionInicial], trader: usuarioActual.handle
             };
             ordenesGlobales.push(nuevaOrdenGlobal);
             guardarEnSupabaseTabla('ordenes_clob', nuevaOrdenGlobal);
@@ -1312,7 +1348,7 @@
                     <div class="countdown-timer" id="countdown-1" data-target="2030-12-31T23:59:59">
                         <span>⏳ Cierre en:</span> <b class="time-display">Calculando...</b>
                     </div>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span id="ask-precio-1-SI" style="color: #4ade80; font-weight: bold;">0.64 Pi</span> | Ask NO: <span id="ask-precio-1-NO" style="color: #f87171; font-weight: bold;">0.36 Pi</span></p>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Compra SÍ: <span id="ask-precio-1-SI" style="color: #4ade80; font-weight: bold;">0.64 Pi</span> | Compra NO: <span id="ask-precio-1-NO" style="color: #f87171; font-weight: bold;">0.36 Pi</span></p>
                     <div style="display: flex; gap: 8px;">
                         <button id="btn-comprar-1-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'SÍ')">Comprar SÍ</button>
                         <button id="btn-comprar-1-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(1, '¿Bitcoin superará los $100,000 antes de finalizar este mes?', 'NO')">Comprar NO</button>
@@ -1321,14 +1357,14 @@
 
                 <div class="market-card" data-id="2" data-category="Pi Ecosystem" data-estado="Abierto">
                     <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">
-                        <span>🏷️ Pi Ecosystem</span>
+                        <span>🏷️ Ecosistema Pi</span>
                         <span id="estado-mercado-2" style="color: #eab308; font-weight: bold;">● Abierto</span>
                     </div>
                     <div class="market-title">¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?</div>
                     <div class="countdown-timer" id="countdown-2" data-target="2030-12-31T23:59:59">
                         <span>⏳ Cierre en:</span> <b class="time-display">Calculando...</b>
                     </div>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span id="ask-precio-2-SI" style="color: #4ade80; font-weight: bold;">0.81 Pi</span> | Ask NO: <span id="ask-precio-2-NO" style="color: #f87171; font-weight: bold;">0.19 Pi</span></p>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Compra SÍ: <span id="ask-precio-2-SI" style="color: #4ade80; font-weight: bold;">0.81 Pi</span> | Compra NO: <span id="ask-precio-2-NO" style="color: #f87171; font-weight: bold;">0.19 Pi</span></p>
                     <div style="display: flex; gap: 8px;">
                         <button id="btn-comprar-2-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'SÍ')">Comprar SÍ</button>
                         <button id="btn-comprar-2-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading(2, '¿Se habilitará Open Mainnet con soporte completo de Smart Contracts este trimestre?', 'NO')">Comprar NO</button>
@@ -1358,7 +1394,7 @@
                         <div class="countdown-timer" id="countdown-${m.id}" data-target="${targetDate}">
                             <span>⏳ Cierre en:</span> <b class="time-display">Calculando...</b>
                         </div>
-                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Ask SÍ: <span id="ask-precio-${m.id}-SI" style="color: #4ade80; font-weight: bold;">${pSi} Pi</span> | Ask NO: <span id="ask-precio-${m.id}-NO" style="color: #f87171; font-weight: bold;">${pNo} Pi</span></p>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Precio Compra SÍ: <span id="ask-precio-${m.id}-SI" style="color: #4ade80; font-weight: bold;">${pSi} Pi</span> | Compra NO: <span id="ask-precio-${m.id}-NO" style="color: #f87171; font-weight: bold;">${pNo} Pi</span></p>
                         <div style="display: flex; gap: 8px;">
                             <button id="btn-comprar-${m.id}-SI" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #166534, #14532d); border-color: #22c55e;" onclick="abrirTerminalTrading('${m.id}', '${m.titulo.replace(/'/g, "\\'")}', 'SÍ')">Comprar SÍ</button>
                             <button id="btn-comprar-${m.id}-NO" class="action-btn" style="flex: 1; background: linear-gradient(145deg, #991b1b, #7f1d1d); border-color: #ef4444;" onclick="abrirTerminalTrading('${m.id}', '${m.titulo.replace(/'/g, "\\'")}', 'NO')">Comprar NO</button>
@@ -1406,7 +1442,6 @@
                     textoTiempo += `${String(horas).padStart(2, '0')}h ${String(minutos).padStart(2, '0')}m ${String(segundos).padStart(2, '0')}s`;
                     display.innerText = textoTiempo;
 
-                    // CORRECCIÓN: Si el mercado está abierto, nos aseguramos de que los botones permanezcan habilitados
                     if (estadosMercados[marketId] === null) {
                         if (btnSi) btnSi.disabled = false;
                         if (btnNo) btnNo.disabled = false;
@@ -1450,7 +1485,7 @@
             
             if (tipoOrden === 'LIMIT') {
                 groupLimit.style.display = 'block';
-                document.getElementById('modal-title').innerText = `Orden Limit [${ordenActivaModal.opcion}] (Comisión 2%)`;
+                document.getElementById('modal-title').innerText = `Orden Límite [${ordenActivaModal.opcion}] (Comisión 2%)`;
             } else {
                 groupLimit.style.display = 'none';
                 document.getElementById('modal-title').innerText = `Comprar Contratos [${ordenActivaModal.opcion}] (Comisión 2%)`;
@@ -1532,7 +1567,7 @@
                 invertido: nuevaPosicion.invertido, payout: nuevaPosicion.payout
             });
 
-            const etiquetaOrden = tipoOrden === 'LIMIT' ? 'COMPRA LIMIT (Bid)' : 'COMPRA (Bid)';
+            const etiquetaOrden = tipoOrden === 'LIMIT' ? 'Compra Límite' : 'Compra a Mercado';
             const nuevaOrdenGlobal = {
                 marketId: idM, tipo: etiquetaOrden, opcion: opM, contratos: cantidad, precio: precioFinalUnitario, trader: usuarioActual.handle
             };
@@ -1548,11 +1583,148 @@
             cerrarTerminalTrading();
             
             if (tipoOrden === 'LIMIT') {
-                alert("¡Orden Limit registrada exitosamente en el Order Book con una comisión del 2%!");
+                alert("¡Orden Límite registrada exitosamente en el Libro de Órdenes con una comisión del 2%!");
             } else {
                 alert("¡Orden a Mercado ejecutada y guardada permanentemente en el sistema!");
             }
         }
+
+        // --- FUNCIONES NUEVAS PARA VENTA DE POSICIÓN POR LIMIT / MERCADO ---
+        function abrirTerminalVenta(idx) {
+            let uCheck = cuentasDirectorio.find(c => c.handle === usuarioActual.handle);
+            if (uCheck && uCheck.bloqueado) {
+                alert("⚠️ Operación denegada: Tu cuenta está bloqueada por el administrador.");
+                return;
+            }
+
+            const pos = posicionesActivas[idx];
+            if (!pos) return;
+
+            let precioBaseRef = (preciosMercados[pos.marketId] && preciosMercados[pos.marketId][pos.opcion]) ? preciosMercados[pos.marketId][pos.opcion] * 0.9 : 0.45;
+            
+            ventaActivaModal = {
+                posicionIndex: idx,
+                posicionId: pos.id,
+                marketId: pos.marketId,
+                titulo: pos.titulo,
+                opcion: pos.opcion,
+                maxContratos: pos.contratos,
+                invertidoTotal: pos.invertido,
+                precioBase: precioBaseRef
+            };
+
+            document.getElementById('venta-modal-title').innerText = `Vender Posición [${pos.opcion}]`;
+            document.getElementById('venta-modal-market-text').innerText = pos.titulo;
+            document.getElementById('venta-modal-tipo-orden').value = 'MERCADO';
+            document.getElementById('venta-group-limit-price').style.display = 'none';
+            document.getElementById('venta-modal-amount').value = pos.contratos;
+            document.getElementById('venta-modal-limit-price').value = precioBaseRef.toFixed(2);
+
+            calcularVentaModalTotal();
+            document.getElementById('venta-modal').style.display = 'flex';
+        }
+
+        function cerrarTerminalVenta() {
+            document.getElementById('venta-modal').style.display = 'none';
+        }
+
+        function cambiarTipoOrdenVentaModal() {
+            const tipoOrden = document.getElementById('venta-modal-tipo-orden').value;
+            const groupLimit = document.getElementById('venta-group-limit-price');
+            
+            if (tipoOrden === 'LIMIT') {
+                groupLimit.style.display = 'block';
+                document.getElementById('venta-modal-title').innerText = `Venta Límite [${ventaActivaModal.opcion}]`;
+            } else {
+                groupLimit.style.display = 'none';
+                document.getElementById('venta-modal-title').innerText = `Vender Posición [${ventaActivaModal.opcion}]`;
+            }
+            calcularVentaModalTotal();
+        }
+
+        function calcularVentaModalTotal() {
+            const tipoOrden = document.getElementById('venta-modal-tipo-orden').value;
+            let cantidadVender = parseInt(document.getElementById('venta-modal-amount').value) || 1;
+            
+            if (cantidadVender > ventaActivaModal.maxContratos) {
+                cantidadVender = ventaActivaModal.maxContratos;
+                document.getElementById('venta-modal-amount').value = cantidadVender;
+            }
+
+            let precioUnitarioVenta = 0;
+            if (tipoOrden === 'LIMIT') {
+                precioUnitarioVenta = parseFloat(document.getElementById('venta-modal-limit-price').value) || ventaActivaModal.precioBase;
+            } else {
+                precioUnitarioVenta = ventaActivaModal.precioBase;
+            }
+
+            let retornoEstimado = cantidadVender * precioUnitarioVenta;
+            ventaActivaModal.cantidadVender = cantidadVender;
+            ventaActivaModal.retornoCalculado = retornoEstimado;
+            ventaActivaModal.precioUnitarioVenta = precioUnitarioVenta;
+
+            document.getElementById('venta-modal-total-ret').innerText = retornoEstimado.toFixed(2);
+        }
+
+        function confirmarVentaPosicionModal() {
+            const tipoOrden = document.getElementById('venta-modal-tipo-orden').value;
+            const idx = ventaActivaModal.posicionIndex;
+            const pos = posicionesActivas[idx];
+            
+            if (!pos) {
+                cerrarTerminalVenta();
+                return;
+            }
+
+            const cantidadVender = ventaActivaModal.cantidadVender;
+            const retornoVenta = ventaActivaModal.retornoCalculado;
+            const precioVenta = ventaActivaModal.precioUnitarioVenta;
+
+            usuarioActual.balance += retornoVenta;
+
+            registrarTransaccionEnDB({
+                id: 'VEND-' + Date.now(),
+                titulo: pos.titulo,
+                tipo: tipoOrden === 'LIMIT' ? 'Venta Límite Anticipada' : 'Venta a Mercado Anticipada',
+                monto: retornoVenta,
+                detalle: `${cantidadVender} de ${pos.contratos} contratos (${pos.opcion}) vendidos por ${usuarioActual.handle} a ${precioVenta.toFixed(2)} Pi c/u`
+            });
+
+            const nuevaOrdenGlobal = {
+                marketId: pos.marketId,
+                tipo: tipoOrden === 'LIMIT' ? 'Venta Límite' : 'Venta a Mercado',
+                opcion: pos.opcion,
+                contratos: cantidadVender,
+                precio: precioVenta,
+                trader: usuarioActual.handle
+            };
+            ordenesGlobales.push(nuevaOrdenGlobal);
+            guardarEnSupabaseTabla('ordenes_clob', nuevaOrdenGlobal);
+
+            if (cantidadVender >= pos.contratos) {
+                eliminarDeSupabaseTabla('posiciones_activas', pos.id);
+                posicionesActivas.splice(idx, 1);
+            } else {
+                pos.contratos -= cantidadVender;
+                pos.invertido -= (pos.invertido * (cantidadVender / (pos.contratos + cantidadVender)));
+                pos.payout -= cantidadVender * 1.00;
+                guardarEnSupabaseTabla('posiciones_activas', {
+                    id: pos.id, market_id: String(pos.marketId), handle: usuarioActual.handle,
+                    titulo: pos.titulo, opcion: pos.opcion, contratos: pos.contratos,
+                    invertido: pos.invertido, payout: pos.payout
+                });
+            }
+
+            guardarTodoEnStorage();
+            actualizarUIBalance();
+            renderizarPosiciones();
+            renderizarHistorial();
+            renderizarOrderBookVisible();
+            cerrarTerminalVenta();
+
+            alert(`¡Venta procesada con éxito! Se han acreditado ${retornoVenta.toFixed(2)} Pi a tu balance.`);
+        }
+        // -------------------------------------------------------------------
 
         function renderizarOrderBookVisible() {
             sincronizarPersistencia();
@@ -1571,7 +1743,7 @@
 
             bannerStatus.innerHTML = `
                 <div style="color: #eab308; font-weight: bold;">● Estado del Mercado: Activo / Abierto</div>
-                <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">Últimos precios Ask SÍ: ${precioSiText} Pi | Ask NO: ${precioNoText} Pi</div>
+                <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 2px;">Últimos precios Compra SÍ: ${precioSiText} Pi | Compra NO: ${precioNoText} Pi</div>
             `;
 
             const filtradas = ordenesGlobales.filter(o => o.marketId == marketIdFiltro);
@@ -1617,11 +1789,10 @@
                 const colorBadge = pos.opcion === 'SÍ' ? '#4ade80' : '#f87171';
                 let botonesHtml = '';
                 if (ganadorOficial === null || ganadorOficial === undefined) {
-                    const valorVentaAnticipada = (pos.invertido * 0.9).toFixed(2);
                     botonesHtml = `
                         <div style="display: flex; gap: 6px; margin-bottom: 4px;">
                             <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #2a2e43, #1f2233); border-color: #3a3f58; color: #8c92ac; font-size: 0.75rem; padding: 7px; cursor: default;" disabled>Predicción Activa</button>
-                            <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #d97706, #b45309); border-color: #f59e0b; font-size: 0.75rem; padding: 7px;" onclick="venderPosicionAnticipada(${idx})">💸 Vender (${valorVentaAnticipada} Pi)</button>
+                            <button class="action-btn" style="flex: 1; background: linear-gradient(145deg, #d97706, #b45309); border-color: #f59e0b; font-size: 0.75rem; padding: 7px;" onclick="abrirTerminalVenta(${idx})">💸 Vender por Límite / Mercado</button>
                         </div>
                     `;
                 } else if (ganadorOficial === 'CANCELADO') {
@@ -1649,24 +1820,6 @@
                 `;
             });
             contenedor.innerHTML = html === '' ? '<p style="font-size: 0.8rem; color: var(--text-muted);">No tienes posiciones activas.</p>' : html;
-        }
-
-        function venderPosicionAnticipada(idx) {
-            const pos = posicionesActivas[idx];
-            const retornoVenta = pos.invertido * 0.9;
-            usuarioActual.balance += retornoVenta;
-
-            registrarTransaccionEnDB({
-                id: 'VEND-' + Date.now(), titulo: pos.titulo, tipo: 'Venta Anticipada', monto: retornoVenta, detalle: `${pos.contratos} contratos (${pos.opcion}) vendidos antes de tiempo por ${usuarioActual.handle}`
-            });
-
-            eliminarDeSupabaseTabla('posiciones_activas', pos.id);
-            posicionesActivas.splice(idx, 1);
-            guardarTodoEnStorage();
-            actualizarUIBalance();
-            renderizarPosiciones();
-            renderizarHistorial();
-            alert(`¡Has vendido tus contratos anticipadamente! Se han acreditado ${retornoVenta.toFixed(2)} Pi a tu balance.`);
         }
 
         function cobrarPrediccion(idx) {
