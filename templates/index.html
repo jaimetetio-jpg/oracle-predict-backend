@@ -1512,9 +1512,8 @@
             }
 
             ordenActivaModal.precioCalculadoUnitario = precioFinalUnitario;
-            let totalConComision = inversionInput * 1.02; // Inversión + 2% comisión
+            let totalConComision = inversionInput * 1.02; 
             
-            // Cálculo exacto de ganancia potencial en Pi: si acierta, cada Pi invertido rinde proporcionalmente (Retorno total - Inversión neta)
             let gananciaPotencialPi = precioFinalUnitario > 0 ? (inversionInput / precioFinalUnitario) - inversionInput : 0;
 
             document.getElementById('modal-price-unit').innerText = precioFinalUnitario.toFixed(2);
@@ -2249,10 +2248,12 @@
         function renderizarMensajesChatUsuario() {
             const ticket = obtenerTicketActualUsuario();
             const container = document.getElementById('chat-messages-container');
+            if (!container) return;
+
             let html = '';
             ticket.mensajes.forEach(m => {
                 const claseCss = m.remitente === 'user' ? 'user' : 'admin';
-                html += `<div class="chat-msg ${claseCss}"><b>${m.remitente === 'user' ? 'Tú' : 'Soporte'}:</b> ${m.texto}</div>`;
+                html += `<div class="chat-msg ${claseCss}">${m.texto}</div>`;
             });
             container.innerHTML = html;
             container.scrollTop = container.scrollHeight;
@@ -2275,6 +2276,8 @@
         function renderizarTicketsAdmin() {
             sincronizarPersistencia();
             const container = document.getElementById('admin-tickets-container');
+            if (!container) return;
+
             if (ticketsSoporte.length === 0) {
                 container.innerHTML = '<p style="font-size: 0.8rem; color: var(--text-muted);">No hay tickets de soporte activos.</p>';
                 return;
@@ -2282,21 +2285,21 @@
 
             let html = '';
             ticketsSoporte.forEach(t => {
-                const ultimoMsg = t.mensajes[t.mensajes.length - 1] ? t.mensajes[t.mensajes.length - 1].texto : 'Sin mensajes';
+                let ultimoMsg = t.mensajes[t.mensajes.length - 1] ? t.mensajes[t.mensajes.length - 1].texto : 'Sin mensajes';
                 html += `
-                    <div style="background: var(--card-bg); border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 0.8rem;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                            <b style="color: #38bdf8;">Usuario: ${t.handle}</b>
-                            <button class="action-btn" style="font-size: 0.7rem; padding: 4px 8px;" onclick="abrirChatAdminModal('${t.id}')">💬 Responder</button>
+                    <div style="background: var(--card-bg); border: 1px solid var(--border-color); padding: 8px; border-radius: 6px; margin-bottom: 6px; font-size: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: bold; color: #38bdf8;">Usuario: ${t.handle}</div>
+                            <div style="color: var(--text-muted); margin-top: 2px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Último: ${ultimoMsg}</div>
                         </div>
-                        <div style="color: var(--text-muted); font-size: 0.75rem;">Último mensaje: "${ultimoMsg}"</div>
+                        <button class="action-btn" style="padding: 6px 10px; font-size: 0.7rem;" onclick="abrirChatAdmin('${t.id}')">💬 Responder</button>
                     </div>
                 `;
             });
             container.innerHTML = html;
         }
 
-        function abrirChatAdminModal(ticketId) {
+        function abrirChatAdmin(ticketId) {
             ticketAdminActivoId = ticketId;
             document.getElementById('admin-chat-modal').style.display = 'flex';
             renderizarMensajesChatAdmin();
@@ -2305,6 +2308,7 @@
         function cerrarChatAdminModal() {
             document.getElementById('admin-chat-modal').style.display = 'none';
             ticketAdminActivoId = null;
+            renderizarTicketsAdmin();
         }
 
         function renderizarMensajesChatAdmin() {
@@ -2312,12 +2316,14 @@
             const ticket = ticketsSoporte.find(t => t.id === ticketAdminActivoId);
             if (!ticket) return;
 
-            document.getElementById('admin-chat-title').innerText = `💬 Chat con ${ticket.handle}`;
+            document.getElementById('admin-chat-title').innerText = `💬 Ticket de: ${ticket.handle}`;
             const container = document.getElementById('admin-chat-messages-container');
+            if (!container) return;
+
             let html = '';
             ticket.mensajes.forEach(m => {
                 const claseCss = m.remitente === 'admin' ? 'user' : 'admin';
-                html += `<div class="chat-msg ${claseCss}"><b>${m.remitente === 'admin' ? 'Admin' : ticket.handle}:</b> ${m.texto}</div>`;
+                html += `<div class="chat-msg ${claseCss}">${m.texto}</div>`;
             });
             container.innerHTML = html;
             container.scrollTop = container.scrollHeight;
@@ -2329,7 +2335,7 @@
             const texto = input.value.trim();
             if (!texto) return;
 
-            const ticket = ticketsSoporte.find(t => t.id === ticketAdminActivoId);
+            let ticket = ticketsSoporte.find(t => t.id === ticketAdminActivoId);
             if (!ticket) return;
 
             ticket.mensajes.push({ remitente: 'admin', texto: texto });
@@ -2337,7 +2343,6 @@
             guardarEnSupabaseTabla('tickets_soporte', ticket);
             input.value = '';
             renderizarMensajesChatAdmin();
-            renderizarTicketsAdmin();
         }
     </script>
 </body>
