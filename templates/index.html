@@ -759,13 +759,28 @@
             </div>
             <p id="modal-market-text" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;"></p>
             
+            <!-- Selector de Tipo de Orden (Market / Limit) -->
+            <div class="form-group">
+                <label>Tipo de Orden</label>
+                <select id="modal-order-type" class="form-control" onchange="cambiarTipoOrdenModal()">
+                    <option value="MARKET">Mercado (Instantánea al precio Ask)</option>
+                    <option value="LIMIT">Limit (Precio personalizado)</option>
+                </select>
+            </div>
+
+            <!-- Campo dinámico para Precio Límite -->
+            <div class="form-group" id="group-limit-price" style="display: none;">
+                <label>Precio Límite Deseado (Pi)</label>
+                <input type="number" id="modal-limit-price" class="form-control" value="0.50" min="0.01" max="0.99" step="0.01" oninput="calcularModalTotal()">
+            </div>
+
             <div class="form-group">
                 <label>Cantidad de Contratos</label>
                 <input type="number" id="modal-amount" class="form-control" value="1" min="1" oninput="calcularModalTotal()">
             </div>
 
             <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
-                <div>Precio unitario dinámico (Ask): <span id="modal-price-unit" style="color: #38bdf8;">0.00</span> Pi</div>
+                <div>Precio unitario aplicado: <span id="modal-price-unit" style="color: #38bdf8;">0.00</span> Pi</div>
                 <div>Inversión Total Requerida: <span id="modal-total-req" style="color: #f59e0b; font-weight: bold;">0.00</span> Pi</div>
                 <div>Payout potencial (1 Pi c/u): <span id="modal-payout" style="color: #4ade80; font-weight: bold;">0.00</span> Pi</div>
             </div>
@@ -915,7 +930,6 @@
             actualizarSelectsMercadosActivos();
             renderizarOrderBookVisible();
             
-            // Iniciar intervalo del reloj regresivo en tiempo real (cada 1 segundo)
             setInterval(actualizarRelojesRegresivos, 1000);
         };
 
@@ -1214,13 +1228,9 @@
                 return;
             }
 
-            // Descontar liquidez del usuario
             usuarioActual.balance -= liquidezAportada;
-
-            // Generar nuevo ID único de mercado
             const nuevoId = 'm-' + Date.now();
             
-            // Registrar precios iniciales, estado y fecha objetivo
             preciosMercados[nuevoId] = { "SÍ": opcionInicial === 'SÍ' ? 0.55 : 0.45, "NO": opcionInicial === 'NO' ? 0.55 : 0.45 };
             estadosMercados[nuevoId] = null;
             nombresMercados[nuevoId] = titulo;
@@ -1236,7 +1246,6 @@
             mercadosDinamicos.push(marketObj);
             guardarEnSupabaseTabla('mercados_dinamicos', marketObj);
 
-            // Crear la posición inicial para el creador
             const contratosCreador = Math.floor(liquidezAportada / preciosMercados[nuevoId][opcionInicial]);
             const nuevaPosicion = {
                 id: 'POS-' + Date.now(),
@@ -1255,14 +1264,12 @@
                 invertido: nuevaPosicion.invertido, payout: nuevaPosicion.payout
             });
 
-            // Registrar orden global inicial
             const nuevaOrdenGlobal = {
                 marketId: nuevoId, tipo: 'CREACIÓN DE MERCADO (Bid)', opcion: opcionInicial, contratos: contratosCreador, precio: preciosMercados[nuevoId][opcionInicial], trader: usuarioActual.handle
             };
             ordenesGlobales.push(nuevaOrdenGlobal);
             guardarEnSupabaseTabla('ordenes_clob', nuevaOrdenGlobal);
 
-            // Registrar en historial permanente
             registrarTransaccionEnDB({
                 id: 'CREA-' + Date.now(),
                 titulo: 'Creación de Mercado P2P',
@@ -1279,7 +1286,6 @@
             renderizarPosiciones();
             renderizarHistorial();
 
-            // Limpiar formulario y redirigir a mercados
             document.getElementById('nuevo-titulo').value = '';
             document.getElementById('nuevo-fecha-cierre').value = '';
             document.getElementById('nuevo-liquidez').value = '5.0';
@@ -1358,7 +1364,6 @@
             container.innerHTML = htmlDinamicoHTML;
         }
 
-        // Función para actualizar en tiempo real todos los relojes regresivos (Countdowns)
         function actualizarRelojesRegresivos() {
             const countdownElements = document.querySelectorAll('.countdown-timer');
             const ahora = new Date().getTime();
@@ -1378,7 +1383,6 @@
                     el.style.borderColor = "#ef4444";
                     el.style.color = "#ef4444";
                     
-                    // Extraer ID del mercado y bloquear botones si sigue abierto
                     const marketId = el.id.replace('countdown-', '');
                     const btnSi = document.getElementById(`btn-comprar-${marketId}-SI`);
                     const btnNo = document.getElementById(`btn-comprar-${marketId}-NO`);
@@ -1411,9 +1415,14 @@
             }
             let precioAskActual = preciosMercados[idMercado][opcion];
             ordenActivaModal = { idMercado, tituloMercado, opcion, precioAskBase: precioAskActual };
+            
             document.getElementById('modal-title').innerText = `Comprar Contratos [${opcion}] (Comisión 2%)`;
             document.getElementById('modal-market-text').innerText = tituloMercado;
+            document.getElementById('modal-order-type').value = 'MARKET';
+            document.getElementById('group-limit-price').style.display = 'none';
             document.getElementById('modal-amount').value = 1;
+            document.getElementById('modal-limit-price').value = precioAskActual.toFixed(2);
+            
             calcularModalTotal();
             document.getElementById('trading-modal').style.display = 'flex';
         }
@@ -1422,22 +1431,46 @@
             document.getElementById('trading-modal').style.display = 'none';
         }
 
-        function calcularModalTotal() {
-            const cantidad = parseInt(document.getElementById('modal-amount').value) || 1;
-            const precioDinamicoUnitario = ordenActivaModal.precioAskBase * (1 + (cantidad - 1) * 0.003);
-            ordenActivaModal.precioCalculadoUnitario = Math.min(precioDinamicoUnitario, 0.98);
+        function cambiarTipoOrdenModal() {
+            const tipoOrden = document.getElementById('modal-order-type').value;
+            const groupLimit = document.getElementById('group-limit-price');
+            
+            if (tipoOrden === 'LIMIT') {
+                groupLimit.style.display = 'block';
+                document.getElementById('modal-title').innerText = `Orden Limit [${ordenActivaModal.opcion}] (Comisión 2%)`;
+            } else {
+                groupLimit.style.display = 'none';
+                document.getElementById('modal-title').innerText = `Comprar Contratos [${ordenActivaModal.opcion}] (Comisión 2%)`;
+            }
+            calcularModalTotal();
+        }
 
-            let subtotalReq = cantidad * ordenActivaModal.precioCalculadoUnitario;
+        function calcularModalTotal() {
+            const tipoOrden = document.getElementById('modal-order-type').value;
+            const cantidad = parseInt(document.getElementById('modal-amount').value) || 1;
+            
+            let precioFinalUnitario = 0;
+
+            if (tipoOrden === 'LIMIT') {
+                precioFinalUnitario = parseFloat(document.getElementById('modal-limit-price').value) || ordenActivaModal.precioAskBase;
+            } else {
+                const precioDinamicoUnitario = ordenActivaModal.precioAskBase * (1 + (cantidad - 1) * 0.003);
+                precioFinalUnitario = Math.min(precioDinamicoUnitario, 0.98);
+            }
+
+            ordenActivaModal.precioCalculadoUnitario = precioFinalUnitario;
+            let subtotalReq = cantidad * precioFinalUnitario;
             let totalConComision = subtotalReq * 1.02; 
             const payout = cantidad * 1.00; 
 
-            document.getElementById('modal-price-unit').innerText = ordenActivaModal.precioCalculadoUnitario.toFixed(3);
+            document.getElementById('modal-price-unit').innerText = precioFinalUnitario.toFixed(3);
             document.getElementById('modal-total-req').innerText = totalConComision.toFixed(2) + ' (incluye 2% comisión)';
             document.getElementById('modal-payout').innerText = payout.toFixed(2);
             ordenActivaModal.totalConComision = totalConComision;
         }
 
         function confirmarCompraRapida() {
+            const tipoOrden = document.getElementById('modal-order-type').value;
             const cantidad = parseInt(document.getElementById('modal-amount').value) || 1;
             const precioFinalUnitario = ordenActivaModal.precioCalculadoUnitario;
             const totalReq = ordenActivaModal.totalConComision;
@@ -1459,8 +1492,10 @@
             const opM = ordenActivaModal.opcion;
             const opOpuesta = opM === 'SÍ' ? 'NO' : 'SÍ';
 
-            preciosMercados[idM][opM] = Math.min(preciosMercados[idM][opM] + (cantidad * 0.002), 0.95);
-            preciosMercados[idM][opOpuesta] = Math.max(1 - preciosMercados[idM][opM], 0.05);
+            if (tipoOrden === 'MARKET') {
+                preciosMercados[idM][opM] = Math.min(preciosMercados[idM][opM] + (cantidad * 0.002), 0.95);
+                preciosMercados[idM][opOpuesta] = Math.max(1 - preciosMercados[idM][opM], 0.05);
+            }
 
             const nuevaPosicion = {
                 id: 'POS-' + Date.now(),
@@ -1480,8 +1515,9 @@
                 invertido: nuevaPosicion.invertido, payout: nuevaPosicion.payout
             });
 
+            const etiquetaOrden = tipoOrden === 'LIMIT' ? 'COMPRA LIMIT (Bid)' : 'COMPRA (Bid)';
             const nuevaOrdenGlobal = {
-                marketId: idM, tipo: 'COMPRA (Bid)', opcion: opM, contratos: cantidad, precio: precioFinalUnitario, trader: usuarioActual.handle
+                marketId: idM, tipo: etiquetaOrden, opcion: opM, contratos: cantidad, precio: precioFinalUnitario, trader: usuarioActual.handle
             };
 
             ordenesGlobales.push(nuevaOrdenGlobal);
@@ -1493,7 +1529,12 @@
             renderizarPosiciones();
             renderizarOrderBookVisible();
             cerrarTerminalTrading();
-            alert("¡Orden ejecutada con comisión del 2% y guardada permanentemente en el sistema!");
+            
+            if (tipoOrden === 'LIMIT') {
+                alert("¡Orden Limit registrada exitosamente en el Order Book con una comisión del 2%!");
+            } else {
+                alert("¡Orden a Mercado ejecutada y guardada permanentemente en el sistema!");
+            }
         }
 
         function renderizarOrderBookVisible() {
