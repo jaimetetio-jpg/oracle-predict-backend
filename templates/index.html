@@ -785,10 +785,6 @@
             <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
                 <div>Precio unitario aplicado: <span id="modal-price-unit" style="color: #38bdf8;">0.00</span> Pi</div>
                 <div>Inversión Total Requerida: <span id="modal-total-req" style="color: #f59e0b; font-weight: bold;">0.00</span> Pi</div>
-                <!-- FUNCIÓN NUEVA: Muestra al pionero la cantidad de Pi que ganará con su apuesta de compra -->
-                <div style="margin-top: 6px; padding: 6px; background: rgba(74, 222, 128, 0.1); border: 1px solid #22c55e; border-radius: 6px;">
-                    💰 Ganancia Potencial Estimada (si gana): <span id="modal-ganancia-potencial-compra" style="color: #4ade80; font-weight: bold;">0.00</span> Pi
-                </div>
                 <div>Payout potencial (1 Pi c/u): <span id="modal-payout" style="color: #4ade80; font-weight: bold;">0.00</span> Pi</div>
             </div>
 
@@ -825,10 +821,6 @@
 
             <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
                 <div>Retorno Estimado de Venta: <span id="venta-modal-total-ret" style="color: #4ade80; font-weight: bold;">0.00</span> Pi</div>
-                <!-- FUNCIÓN NUEVA: Muestra al pionero los Pi exactos que obtendrá y su ganancia/pérdida neta al vender -->
-                <div style="margin-top: 6px; padding: 6px; background: rgba(245, 158, 11, 0.1); border: 1px solid #f59e0b; border-radius: 6px;">
-                    📊 Balance Neto de la Venta (Retorno - Costo Proporcional): <span id="venta-modal-neto" style="font-weight: bold;">0.00</span> Pi
-                </div>
             </div>
 
             <button class="action-btn" style="width: 100%; background: linear-gradient(145deg, #d97706, #b45309); border-color: #f59e0b;" onclick="confirmarVentaPosicionModal()">Confirmar Venta de Posición</button>
@@ -1519,20 +1511,9 @@
             let totalConComision = subtotalReq * 1.02; 
             const payout = cantidad * 1.00; 
 
-            // CÁLCULO DE LA GANANCIA POTENCIAL EN PI (Payout - Inversión Total con Comisión)
-            let gananciaPotencialPi = payout - totalConComision;
-
             document.getElementById('modal-price-unit').innerText = precioFinalUnitario.toFixed(3);
             document.getElementById('modal-total-req').innerText = totalConComision.toFixed(2) + ' (incluye 2% comisión)';
             document.getElementById('modal-payout').innerText = payout.toFixed(2);
-            
-            // Mostrar al pionero la ganancia estimada en el elemento nuevo
-            const elGananciaCompra = document.getElementById('modal-ganancia-potencial-compra');
-            if (elGananciaCompra) {
-                elGananciaCompra.innerText = gananciaPotencialPi.toFixed(2) + ' Pi';
-                elGananciaCompra.style.color = gananciaPotencialPi >= 0 ? '#4ade80' : '#f87171';
-            }
-
             ordenActivaModal.totalConComision = totalConComision;
         }
 
@@ -1608,6 +1589,7 @@
             }
         }
 
+        // --- FUNCIONES NUEVAS PARA VENTA DE POSICIÓN POR LIMIT / MERCADO ---
         function abrirTerminalVenta(idx) {
             let uCheck = cuentasDirectorio.find(c => c.handle === usuarioActual.handle);
             if (uCheck && uCheck.bloqueado) {
@@ -1677,25 +1659,11 @@
             }
 
             let retornoEstimado = cantidadVender * precioUnitarioVenta;
-            
-            // Calcular el costo proporcional invertido para esa cantidad de contratos que se van a vender
-            let costoProporcional = (ventaActivaModal.invertidoTotal / ventaActivaModal.maxContratos) * cantidadVender;
-            
-            // Balance neto de la venta (Ganancia o pérdida al vender anticipadamente)
-            let balanceNetoVenta = retornoEstimado - costoProporcional;
-
             ventaActivaModal.cantidadVender = cantidadVender;
             ventaActivaModal.retornoCalculado = retornoEstimado;
             ventaActivaModal.precioUnitarioVenta = precioUnitarioVenta;
 
             document.getElementById('venta-modal-total-ret').innerText = retornoEstimado.toFixed(2);
-            
-            // Mostrar al pionero el balance neto de su venta anticipada
-            const elNetoVenta = document.getElementById('venta-modal-neto');
-            if (elNetoVenta) {
-                elNetoVenta.innerText = (balanceNetoVenta >= 0 ? '+' : '') + balanceNetoVenta.toFixed(2) + ' Pi';
-                elNetoVenta.style.color = balanceNetoVenta >= 0 ? '#4ade80' : '#f87171';
-            }
         }
 
         function confirmarVentaPosicionModal() {
@@ -1756,6 +1724,7 @@
 
             alert(`¡Venta procesada con éxito! Se han acreditado ${retornoVenta.toFixed(2)} Pi a tu balance.`);
         }
+        // -------------------------------------------------------------------
 
         function renderizarOrderBookVisible() {
             sincronizarPersistencia();
@@ -2299,7 +2268,7 @@
                             <span style="color: #4ade80;">Usuario: ${t.handle}</span>
                         </div>
                         <div style="color: var(--text-muted); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Último: ${ultimoMsg}</div>
-                        <button class="action-btn" style="width: 100%; font-size: 0.75rem;" onclick="abrirChatAdminModal('${t.id}')">💬 Abrir / Responder Ticket</button>
+                        <button class="action-btn" style="width: 100%; font-size: 0.75rem; padding: 6px;" onclick="abrirChatAdminModal('${t.id}')">💬 Abrir Conversación y Responder</button>
                     </div>
                 `;
             });
@@ -2308,6 +2277,10 @@
 
         function abrirChatAdminModal(ticketId) {
             ticketAdminActivoId = ticketId;
+            const ticket = ticketsSoporte.find(t => t.id === ticketId);
+            if (!ticket) return;
+
+            document.getElementById('admin-chat-title').innerText = `💬 Ticket: ${ticket.id} (${ticket.handle})`;
             document.getElementById('admin-chat-modal').style.display = 'flex';
             renderizarMensajesChatAdmin();
         }
@@ -2315,6 +2288,7 @@
         function cerrarChatAdminModal() {
             document.getElementById('admin-chat-modal').style.display = 'none';
             ticketAdminActivoId = null;
+            renderizarTicketsAdmin();
         }
 
         function renderizarMensajesChatAdmin() {
@@ -2322,22 +2296,20 @@
             const ticket = ticketsSoporte.find(t => t.id === ticketAdminActivoId);
             if (!ticket) return;
 
-            document.getElementById('admin-chat-title').innerText = `💬 Ticket: ${ticket.id} (${ticket.handle})`;
             const container = document.getElementById('admin-chat-messages-container');
             let html = '';
             ticket.mensajes.forEach(m => {
                 const claseCss = m.remitente === 'admin' ? 'user' : 'admin';
-                html += `<div class="chat-msg ${claseCss}"><b>${m.remitente === 'admin' ? 'Admin' : ticket.handle}:</b> ${m.texto}</div>`;
+                html += `<div class="chat-msg ${claseCss}"><b>${m.remitente === 'admin' ? 'Tú (Admin)' : ticket.handle}:</b> ${m.texto}</div>`;
             });
             container.innerHTML = html;
             container.scrollTop = container.scrollHeight;
         }
 
         function enviarMensajeSoporteAdmin() {
-            if (!ticketAdminActivoId) return;
             const input = document.getElementById('chat-admin-input');
             const texto = input.value.trim();
-            if (!texto) return;
+            if (!texto || !ticketAdminActivoId) return;
 
             let ticket = ticketsSoporte.find(t => t.id === ticketAdminActivoId);
             if (!ticket) return;
@@ -2345,9 +2317,9 @@
             ticket.mensajes.push({ remitente: 'admin', texto: texto });
             guardarTodoEnStorage();
             guardarEnSupabaseTabla('tickets_soporte', ticket);
+
             input.value = '';
             renderizarMensajesChatAdmin();
-            renderizarTicketsAdmin();
         }
     </script>
 </body>
